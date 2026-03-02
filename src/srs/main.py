@@ -15,8 +15,6 @@
 
 """Entry-point functions to run the Study Registry Service."""
 
-import asyncio
-
 from ghga_service_commons.api import run_server
 
 from srs.config import Config
