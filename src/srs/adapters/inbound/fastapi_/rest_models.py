@@ -15,7 +15,6 @@
 
 """REST request/response models for the Study Registry Service."""
 
-from datetime import date
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
