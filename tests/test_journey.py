@@ -250,3 +250,257 @@ async def test_journey_delete_pending_study_cleans_everything(
     # DAC and DAP should still exist (they are independent)
     dac = await controller.get_dac(dac_id="DAC-TMP")
     assert dac.name == "Board"
+
+
+@pytest.mark.asyncio
+async def test_unhappy_journey(controller, study_dao, event_publisher):
+    """Unhappy path: every step that can go wrong does go wrong first.
+
+    Walks through the study lifecycle hitting every error condition:
+      - non-existent resources (404)
+      - status conflicts (409)
+      - reference conflicts (409)
+      - access control (403)
+      - validation failures (422)
+      - duplicate detection (409)
+    before eventually recovering and completing the happy path.
+    """
+    from srs.ports.inbound.study_registry import StudyRegistryPort
+    from tests.conftest import USER_OTHER
+
+    # ── 1. Operate on non-existent study ─────────────────────────
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.get_study(study_id="GHGAS_FAKE", user_id=USER_SUBMITTER)
+
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.upsert_metadata(study_id="GHGAS_FAKE", metadata={})
+
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.delete_study(study_id="GHGAS_FAKE")
+
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.publish_study(study_id="GHGAS_FAKE")
+
+    # ── 2. Create a study successfully ───────────────────────────
+    study = await controller.create_study(
+        title="Unhappy Study",
+        description="Things will go wrong.",
+        types=["WGS"],
+        affiliations=["GHGA"],
+        created_by=USER_SUBMITTER,
+    )
+    sid = study.id
+
+    # ── 3. Access control: unauthorized user blocked ─────────────
+    with pytest.raises(StudyRegistryPort.AccessDeniedError):
+        await controller.get_study(study_id=sid, user_id=USER_OTHER)
+
+    # ── 4. Publish without metadata or publication → validation ──
+    with pytest.raises(StudyRegistryPort.ValidationError):
+        await controller.publish_study(study_id=sid)
+
+    # ── 5. Persist without completeness → validation ─────────────
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.update_study(
+            study_id=sid, status=StudyStatus.FROZEN
+        )
+    with pytest.raises(StudyRegistryPort.ValidationError):
+        await controller.update_study(
+            study_id=sid, status=StudyStatus.PERSISTED
+        )
+
+    # ── 6. Add metadata, still no publication → publish fails ────
+    await controller.upsert_metadata(
+        study_id=sid,
+        metadata={"files": {"f1": {"name": "reads.bam"}}},
+    )
+    with pytest.raises(StudyRegistryPort.ValidationError):
+        await controller.publish_study(study_id=sid)
+
+    # ── 7. Publication on non-existent study ─────────────────────
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.create_publication(
+            title="P",
+            abstract=None,
+            authors=["A"],
+            year=2025,
+            journal=None,
+            doi=None,
+            study_id="GHGAS_FAKE",
+        )
+
+    # ── 8. Add publication → now publish succeeds ────────────────
+    pub = await controller.create_publication(
+        title="Paper",
+        abstract=None,
+        authors=["Alice"],
+        year=2025,
+        journal=None,
+        doi=None,
+        study_id=sid,
+    )
+
+    # ── 9. DAP with non-existent DAC ────────────────────────────
+    with pytest.raises(StudyRegistryPort.DacNotFoundError):
+        await controller.create_dap(
+            id="DAP-BAD",
+            name="P",
+            description="d",
+            text="t",
+            url=None,
+            duo_permission_id="DUO:0000042",
+            duo_modifier_ids=[],
+            dac_id="DAC-NONEXIST",
+        )
+
+    # ── 10. Create DAC, then duplicate → error ──────────────────
+    await controller.create_dac(
+        id="DAC-1",
+        name="Board",
+        email="board@example.org",
+        institute="Inst",
+    )
+    with pytest.raises(StudyRegistryPort.DuplicateError):
+        await controller.create_dac(
+            id="DAC-1",
+            name="Dup",
+            email="x@example.org",
+            institute="Y",
+        )
+
+    # ── 11. Create DAP, then duplicate → error ──────────────────
+    await controller.create_dap(
+        id="DAP-1",
+        name="Policy",
+        description="d",
+        text="t",
+        url=None,
+        duo_permission_id="DUO:0000042",
+        duo_modifier_ids=[],
+        dac_id="DAC-1",
+    )
+    with pytest.raises(StudyRegistryPort.DuplicateError):
+        await controller.create_dap(
+            id="DAP-1",
+            name="Dup",
+            description="d",
+            text="t",
+            url=None,
+            duo_permission_id="DUO:0000042",
+            duo_modifier_ids=[],
+            dac_id="DAC-1",
+        )
+
+    # ── 12. Dataset with non-existent DAP ────────────────────────
+    with pytest.raises(StudyRegistryPort.DapNotFoundError):
+        await controller.create_dataset(
+            title="DS",
+            description="d",
+            types=[],
+            study_id=sid,
+            dap_id="DAP-NONEXIST",
+            files=[],
+        )
+
+    # ── 13. Dataset with duplicate file aliases ──────────────────
+    with pytest.raises(StudyRegistryPort.ValidationError):
+        await controller.create_dataset(
+            title="DS",
+            description="d",
+            types=[],
+            study_id=sid,
+            dap_id="DAP-1",
+            files=["f1", "f1"],
+        )
+
+    # ── 14. Create dataset successfully ──────────────────────────
+    ds = await controller.create_dataset(
+        title="DS",
+        description="d",
+        types=["WGS"],
+        study_id=sid,
+        dap_id="DAP-1",
+        files=["f1"],
+    )
+
+    # ── 15. Delete DAC blocked by DAP reference ──────────────────
+    with pytest.raises(StudyRegistryPort.ReferenceConflictError):
+        await controller.delete_dac(dac_id="DAC-1")
+
+    # ── 16. Delete DAP blocked by dataset reference ──────────────
+    with pytest.raises(StudyRegistryPort.ReferenceConflictError):
+        await controller.delete_dap(dap_id="DAP-1")
+
+    # ── 17. Publish study (now complete) ─────────────────────────
+    await controller.publish_study(study_id=sid)
+    assert len(event_publisher.annotated_metadata_events) == 1
+
+    # ── 18. Post filenames with invalid accession ────────────────
+    with pytest.raises(StudyRegistryPort.ValidationError):
+        await controller.post_filenames(
+            study_id=sid,
+            file_id_map={"GHGAF_INVALID_00000": "some-id"},
+        )
+
+    # ── 19. Post filenames with valid accession ──────────────────
+    filenames = await controller.get_filenames(study_id=sid)
+    file_acc_ids = list(filenames.keys())
+    file_id_map = {acc: f"s3://bucket/{acc}" for acc in file_acc_ids}
+    await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
+    assert len(event_publisher.file_id_mapping_events) == 1
+
+    # ── 20. Persist study ────────────────────────────────────────
+    await controller.update_study(
+        study_id=sid,
+        status=StudyStatus.PERSISTED,
+        approved_by=USER_STEWARD,
+    )
+    persisted = await study_dao.get_by_id(sid)
+    assert persisted.status == StudyStatus.PERSISTED
+
+    # ── 21. Mutations blocked on PERSISTED study ─────────────────
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.upsert_metadata(study_id=sid, metadata={"new": True})
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.delete_metadata(study_id=sid)
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.create_publication(
+            title="X",
+            abstract=None,
+            authors=["A"],
+            year=2026,
+            journal=None,
+            doi=None,
+            study_id=sid,
+        )
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.delete_publication(publication_id=pub.id)
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.create_dataset(
+            title="X",
+            description="d",
+            types=[],
+            study_id=sid,
+            dap_id="DAP-1",
+            files=[],
+        )
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.delete_dataset(dataset_id=ds.id)
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.delete_study(study_id=sid)
+
+    # ── 22. Persisting again is also invalid ─────────────────────
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.update_study(
+            study_id=sid, status=StudyStatus.PERSISTED
+        )
+
+    # ── 23. Republish still works on PERSISTED study ─────────────
+    await controller.publish_study(study_id=sid)
+    assert len(event_publisher.annotated_metadata_events) == 2
