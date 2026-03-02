@@ -13,4 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Subpackage defining a RESTful API."""
+"""Entrypoint for ``python -m srs``."""
+
+from srs.cli import cli
+
+cli()

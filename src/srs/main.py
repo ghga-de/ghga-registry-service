@@ -13,11 +13,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""FastAPI dependencies (used with the `Depends` feature)."""
+"""Entry-point functions to run the Study Registry Service."""
 
-from ..config import CONFIG
+import asyncio
+
+from ghga_service_commons.api import run_server
+
+from srs.config import Config
+from srs.inject import prepare_rest_app
 
 
-def get_config():
-    """Get runtime configuration."""
-    return CONFIG
+async def run_rest_app() -> None:
+    """Run the REST API server."""
+    config = Config()  # type: ignore[call-arg]
+
+    async with prepare_rest_app(config=config) as app:
+        await run_server(app=app, config=config)

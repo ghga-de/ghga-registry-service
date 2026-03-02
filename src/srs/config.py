@@ -13,30 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Config Parameter Modeling and Parsing."""
+"""Service configuration for the Study Registry Service."""
 
 from ghga_service_commons.api import ApiConfigBase
+from ghga_service_commons.auth.ghga import AuthConfig
 from hexkit.config import config_from_yaml
 from hexkit.log import LoggingConfig
-from pydantic import Field
+from hexkit.providers.akafka import KafkaConfig
+from hexkit.providers.mongodb import MongoDbConfig
 
-from .models import SupportedLanguages
-
-SERVICE_NAME: str = "my_microservice"  # Please adapt
+from srs.constants import SERVICE_NAME
 
 
-# Please adapt config prefix and remove unnecessary config bases:
 @config_from_yaml(prefix=SERVICE_NAME)
-class Config(ApiConfigBase, LoggingConfig):
-    """Config parameters and their defaults."""
-
-    service_name: str = Field(
-        default=SERVICE_NAME, description="Short name of this service"
-    )
-
-    language: SupportedLanguages = Field(
-        default="Croatian", description="The language."
-    )
-
-
-CONFIG = Config()  # type: ignore
+class Config(
+    ApiConfigBase,
+    MongoDbConfig,
+    KafkaConfig,
+    AuthConfig,
+    LoggingConfig,
+):
+    """Composite configuration incorporating all required config mixins."""

@@ -1,0 +1,171 @@
+# Copyright 2021 - 2026 Universität Tübingen, DKFZ, EMBL, and Universität zu Köln
+# for the German Human Genome-Phenome Archive (GHGA)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Tests for ExperimentalMetadata user stories.
+
+Spec: POST (upsert) /metadata, GET /metadata/{study_id}, DELETE /metadata/{study_id}
+"""
+
+from datetime import date
+
+import pytest
+
+from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
+from srs.ports.inbound.study_registry import StudyRegistryPort
+from tests.conftest import USER_STEWARD, USER_SUBMITTER
+
+
+# ── helpers ──────────────────────────────────────────────────────
+
+
+async def _create_pending_study(controller) -> str:
+    """Create a PENDING study and return its ID."""
+    study = await controller.create_study(
+        title="S",
+        description="",
+        types=[],
+        affiliations=[],
+        created_by=USER_SUBMITTER,
+    )
+    return study.id
+
+
+async def _persist_study(controller, study_id, metadata_dao, publication_dao):
+    """Transition a study to PERSISTED by satisfying completeness."""
+    await metadata_dao.insert(
+        ExperimentalMetadata(
+            id=study_id, metadata={"files": {}}, submitted=date.today()
+        )
+    )
+    await publication_dao.insert(
+        Publication(
+            id="GHGAU00000000000001",
+            title="P",
+            abstract=None,
+            authors=["A"],
+            year=2025,
+            journal=None,
+            doi=None,
+            study_id=study_id,
+            created=date.today(),
+        )
+    )
+    await controller.update_study(
+        study_id=study_id,
+        status=StudyStatus.PERSISTED,
+        approved_by=USER_STEWARD,
+    )
+
+
+# ── POST /metadata (upsert) ─────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_upsert_metadata_create(controller):
+    """Upserting metadata for a PENDING study must create the EM."""
+    sid = await _create_pending_study(controller)
+    await controller.upsert_metadata(
+        study_id=sid, metadata={"files": {"f1": {}}}
+    )
+    em = await controller.get_metadata(study_id=sid)
+    assert em.metadata == {"files": {"f1": {}}}
+
+
+@pytest.mark.asyncio
+async def test_upsert_metadata_update(controller):
+    """Upserting twice must overwrite the existing EM."""
+    sid = await _create_pending_study(controller)
+    await controller.upsert_metadata(study_id=sid, metadata={"v": 1})
+    await controller.upsert_metadata(study_id=sid, metadata={"v": 2})
+    em = await controller.get_metadata(study_id=sid)
+    assert em.metadata == {"v": 2}
+
+
+@pytest.mark.asyncio
+async def test_upsert_metadata_study_not_found(controller):
+    """Upserting metadata for a non-existent study must raise StudyNotFoundError."""
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.upsert_metadata(
+            study_id="NONEXIST", metadata={}
+        )
+
+
+@pytest.mark.asyncio
+async def test_upsert_metadata_study_not_pending(
+    controller, metadata_dao, publication_dao
+):
+    """Upserting metadata for a non-PENDING study must raise StatusConflictError."""
+    sid = await _create_pending_study(controller)
+    await _persist_study(controller, sid, metadata_dao, publication_dao)
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.upsert_metadata(
+            study_id=sid, metadata={"new": True}
+        )
+
+
+# ── GET /metadata/{study_id} ────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_metadata(controller):
+    """Getting metadata must return the EM for the study."""
+    sid = await _create_pending_study(controller)
+    await controller.upsert_metadata(
+        study_id=sid, metadata={"files": {"f1": {}}}
+    )
+    em = await controller.get_metadata(study_id=sid)
+    assert em.id == sid
+    assert isinstance(em.submitted, date)
+
+
+@pytest.mark.asyncio
+async def test_get_metadata_not_found(controller):
+    """Getting metadata for a study without EM must raise MetadataNotFoundError."""
+    sid = await _create_pending_study(controller)
+    with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
+        await controller.get_metadata(study_id=sid)
+
+
+# ── DELETE /metadata/{study_id} ─────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delete_metadata(controller, metadata_dao):
+    """Deleting metadata for a PENDING study must remove it."""
+    sid = await _create_pending_study(controller)
+    await controller.upsert_metadata(study_id=sid, metadata={"x": 1})
+    await controller.delete_metadata(study_id=sid)
+    assert sid not in metadata_dao.data
+
+
+@pytest.mark.asyncio
+async def test_delete_metadata_study_not_pending(
+    controller, metadata_dao, publication_dao
+):
+    """Deleting metadata for a non-PENDING study must raise StatusConflictError."""
+    sid = await _create_pending_study(controller)
+    await _persist_study(controller, sid, metadata_dao, publication_dao)
+
+    with pytest.raises(StudyRegistryPort.StatusConflictError):
+        await controller.delete_metadata(study_id=sid)
+
+
+@pytest.mark.asyncio
+async def test_delete_metadata_not_found(controller):
+    """Deleting metadata that doesn't exist must raise MetadataNotFoundError."""
+    sid = await _create_pending_study(controller)
+    with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
+        await controller.delete_metadata(study_id=sid)

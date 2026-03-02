@@ -13,8 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Short description of package."""  # Please adapt to package
+"""Study Registry Service - the core GHGA registry service for ingesting
+and archiving metadata from data submitters.
+"""
 
 from importlib.metadata import version
 
-__version__ = version(__package__)
+__version__ = version(__package__ or __name__)
