@@ -15,16 +15,14 @@
 
 """HTTP exception classes for the Study Registry Service."""
 
-from ghga_service_commons.httpyexpect.server import HttpCustomExceptionBase
-from pydantic import BaseModel
-
+from ghga_service_commons.httpyexpect.server.exceptions import HttpCustomExceptionBase
 
 class HttpStudyNotFoundError(HttpCustomExceptionBase):
     """Raised when a study is not found."""
 
     exception_id = "studyNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         study_id: str
 
     def __init__(self, *, study_id: str):
@@ -40,7 +38,7 @@ class HttpPublicationNotFoundError(HttpCustomExceptionBase):
 
     exception_id = "publicationNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         publication_id: str
 
     def __init__(self, *, publication_id: str):
@@ -56,7 +54,7 @@ class HttpDatasetNotFoundError(HttpCustomExceptionBase):
 
     exception_id = "datasetNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         dataset_id: str
 
     def __init__(self, *, dataset_id: str):
@@ -72,7 +70,7 @@ class HttpDacNotFoundError(HttpCustomExceptionBase):
 
     exception_id = "dacNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         dac_id: str
 
     def __init__(self, *, dac_id: str):
@@ -88,7 +86,7 @@ class HttpDapNotFoundError(HttpCustomExceptionBase):
 
     exception_id = "dapNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         dap_id: str
 
     def __init__(self, *, dap_id: str):
@@ -117,7 +115,7 @@ class HttpMetadataNotFoundError(HttpCustomExceptionBase):
 
     exception_id = "metadataNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         study_id: str
 
     def __init__(self, *, study_id: str):
@@ -133,7 +131,7 @@ class HttpAccessionNotFoundError(HttpCustomExceptionBase):
 
     exception_id = "accessionNotFound"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         accession_id: str
 
     def __init__(self, *, accession_id: str):
@@ -149,7 +147,7 @@ class HttpStatusConflictError(HttpCustomExceptionBase):
 
     exception_id = "statusConflict"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         detail: str
 
     def __init__(self, *, detail: str):
@@ -165,7 +163,7 @@ class HttpValidationError(HttpCustomExceptionBase):
 
     exception_id = "validationError"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         detail: str
 
     def __init__(self, *, detail: str):
@@ -181,7 +179,7 @@ class HttpReferenceConflictError(HttpCustomExceptionBase):
 
     exception_id = "referenceConflict"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         detail: str
 
     def __init__(self, *, detail: str):
@@ -197,7 +195,7 @@ class HttpDuplicateError(HttpCustomExceptionBase):
 
     exception_id = "duplicateEntity"
 
-    class DataModel(BaseModel):
+    class DataModel(HttpCustomExceptionBase.DataModel):
         detail: str
 
     def __init__(self, *, detail: str):
