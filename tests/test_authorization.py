@@ -17,7 +17,8 @@
 
 Each row in ENDPOINTS declares which roles are authorized to call an endpoint.
 A single parametrized test checks every (method, path, role) combination
-against the live FastAPI app backed by in-memory DAOs.
+against the live FastAPI app backed by in-memory DAOs, using real JWT tokens
+validated by the JWTAuthContextProvider middleware (no dependency overrides).
 
 Roles:
   steward         – data-steward flag is True
@@ -26,64 +27,61 @@ Roles:
   unauthenticated – no bearer token at all
 """
 
-from datetime import datetime, timezone
-from uuid import UUID
+from datetime import datetime, timedelta, timezone
 
-import httpx
 import pytest
 import pytest_asyncio
-from fastapi import FastAPI, HTTPException
-from ghga_service_commons.auth.ghga import AuthContext
+from ghga_service_commons.api.testing import AsyncTestClient
+from ghga_service_commons.utils.jwt_helpers import sign_and_serialize_token
 
-from ghga_service_commons.httpyexpect.server.handlers.fastapi_ import (
-    configure_exception_handler,
-)
-
-from srs.adapters.inbound.fastapi_ import dummies
-from srs.adapters.inbound.fastapi_.http_authorization import (
-    _optional_auth_context,
-    _require_auth_context,
-)
-from srs.adapters.inbound.fastapi_.routes import router
+from srs.inject import prepare_rest_app
 from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
+from tests.fixtures import ConfigFixture
 
 
-# ── Auth contexts per role ──────────────────────────────────────
+# ── Token helpers ───────────────────────────────────────────────
 
-_NOW = datetime.now(timezone.utc)
 
-ROLE_CONTEXTS: dict[str, AuthContext | None] = {
-    "steward": AuthContext(
-        name="Steward",
-        email="steward@test.org",
-        id=str(USER_STEWARD),
-        roles=["data_steward"],
-        iat=_NOW,
-        exp=_NOW,
-    ),
-    "submitter": AuthContext(
-        name="Submitter",
-        email="submitter@test.org",
-        id=str(USER_SUBMITTER),
-        roles=[],
-        iat=_NOW,
-        exp=_NOW,
-    ),
-    "other": AuthContext(
-        name="Other",
-        email="other@test.org",
-        id=str(USER_OTHER),
-        roles=[],
-        iat=_NOW,
-        exp=_NOW,
-    ),
-    "unauthenticated": None,
-}
+def _claims_for_role(role: str) -> dict:
+    """Return JWT claims for the given role name."""
+    now = datetime.now(timezone.utc)
+    base = {"iat": now, "exp": now + timedelta(hours=1)}
+    if role == "steward":
+        return {
+            **base,
+            "name": "Steward",
+            "email": "steward@test.org",
+            "id": str(USER_STEWARD),
+            "roles": ["data_steward"],
+        }
+    if role == "submitter":
+        return {
+            **base,
+            "name": "Submitter",
+            "email": "submitter@test.org",
+            "id": str(USER_SUBMITTER),
+            "roles": [],
+        }
+    if role == "other":
+        return {
+            **base,
+            "name": "Other",
+            "email": "other@test.org",
+            "id": str(USER_OTHER),
+            "roles": [],
+        }
+    raise ValueError(f"Unknown role: {role}")
+
+
+def _headers_for_token(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+ROLES = ("steward", "submitter", "other", "unauthenticated")
 
 # Authenticated roles (all except unauthenticated)
-AUTHENTICATED = frozenset({"steward", "submitter", "other"})
 STEWARD = frozenset({"steward"})
-ALL = frozenset(ROLE_CONTEXTS)
+ALL = frozenset(ROLES)
 
 
 # ── Endpoint authorization matrix ───────────────────────────────
@@ -188,7 +186,7 @@ _CASES = [
         id=f"{method} {path} {role} {'authorized' if role in authorized else 'denied'}",
     )
     for method, path, authorized in ENDPOINTS
-    for role in ROLE_CONTEXTS
+    for role in ROLES
 ]
 
 
@@ -196,23 +194,24 @@ _CASES = [
 
 
 @pytest_asyncio.fixture()
-async def seeded_app(controller):
-    """Build a FastAPI app with seeded data and return (app, path_ids)."""
-    # Seed a private study owned by USER_SUBMITTER
+async def seeded_app(config: ConfigFixture, controller):
+    """Build a FastAPI app with real JWT auth and seeded data.
+
+    Uses prepare_rest_app with controller_override so the real
+    JWTAuthContextProvider validates tokens while the core is in-memory.
+    """
+    # Seed data through the controller
     study = await controller.create_study(
         title="S", description="d", types=[], affiliations=[],
         created_by=USER_SUBMITTER,
     )
-    # Metadata
     await controller.upsert_metadata(
         study_id=study.id, metadata={"key": "val"},
     )
-    # Publication
     pub = await controller.create_publication(
         title="P", abstract=None, authors=["A"], year=2025,
         journal=None, doi=None, study_id=study.id,
     )
-    # DAC + DAP (used by dataset)
     await controller.create_dac(
         id="DAC-1", name="C", email="c@x.org", institute="I",
     )
@@ -220,7 +219,6 @@ async def seeded_app(controller):
         id="DAP-1", name="P", description="d", text="t", url=None,
         duo_permission_id="DUO:0000042", duo_modifier_ids=[], dac_id="DAC-1",
     )
-    # Unreferenced DAC + DAP for DELETE tests
     await controller.create_dac(
         id="DAC-DEL", name="D", email="d@x.org", institute="I",
     )
@@ -228,21 +226,13 @@ async def seeded_app(controller):
         id="DAP-DEL", name="D", description="d", text="t", url=None,
         duo_permission_id="DUO:0000042", duo_modifier_ids=[], dac_id="DAC-DEL",
     )
-    # Dataset
     ds = await controller.create_dataset(
         title="DS", description="d", types=[], study_id=study.id,
         dap_id="DAP-1", files=[],
     )
-    # Resource Type
     rt = await controller.create_resource_type(
         code="RT1", resource="STUDY", name="Type", description="d",
     )
-
-    # Wire the FastAPI app
-    app = FastAPI()
-    app.include_router(router)
-    configure_exception_handler(app)
-    app.dependency_overrides[dummies.study_registry_port] = lambda: controller
 
     ids = {
         "study_id": study.id,
@@ -255,42 +245,41 @@ async def seeded_app(controller):
         "resource_type_id": str(rt.id),
         "accession_id": study.id,
     }
-    return app, ids
+
+    async with prepare_rest_app(
+        config=config.config, controller_override=controller
+    ) as app:
+        async with AsyncTestClient(app=app) as client:
+            yield client, ids
 
 
 # ── The test ────────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="function")
 @pytest.mark.parametrize("method, path, role, authorized", _CASES)
-async def test_authorization(seeded_app, method, path, role, authorized):
+async def test_authorization(
+    config: ConfigFixture, seeded_app, method, path, role, authorized
+):
     """Every (method, path, role) must be authorized or denied as declared."""
-    app, ids = seeded_app
-
-    # Override auth for authenticated roles; raise 403 for unauthenticated
-    ctx = ROLE_CONTEXTS[role]
-    if ctx is not None:
-        app.dependency_overrides[_require_auth_context] = lambda: ctx
-        app.dependency_overrides[_optional_auth_context] = lambda: ctx
-    else:
-        async def _no_token():
-            raise HTTPException(status_code=403, detail="Not authenticated")
-        app.dependency_overrides[_require_auth_context] = _no_token
-        app.dependency_overrides[_optional_auth_context] = lambda: None
-
+    client, ids = seeded_app
     url = path.format(**ids)
     body = REQUEST_BODIES.get(f"{method} {path}")
 
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app), base_url="http://test"
-    ) as client:
-        response = await client.request(method, url, json=body)
+    # Build headers: real JWT for authenticated roles, none otherwise
+    headers: dict[str, str] = {}
+    if role != "unauthenticated":
+        claims = _claims_for_role(role)
+        token = sign_and_serialize_token(claims, config.jwk)
+        headers = _headers_for_token(token)
+
+    response = await client.request(method, url, json=body, headers=headers)
 
     if authorized:
-        assert response.status_code != 403, (
-            f"{method} {url} as {role}: expected authorized, got 403"
+        assert response.status_code not in (401, 403), (
+            f"{method} {url} as {role}: expected authorized, got {response.status_code}"
         )
     else:
-        assert response.status_code == 403, (
-            f"{method} {url} as {role}: expected 403, got {response.status_code}"
+        assert response.status_code in (401, 403), (
+            f"{method} {url} as {role}: expected 401/403, got {response.status_code}"
         )

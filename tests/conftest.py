@@ -18,6 +18,7 @@
 from uuid import UUID
 
 import pytest
+from ghga_service_commons.utils.jwt_helpers import generate_jwk
 
 from srs.core.models import (
     Accession,
@@ -32,12 +33,23 @@ from srs.core.models import (
     Study,
 )
 from srs.core.study_registry import StudyRegistryController
+from tests.fixtures import ConfigFixture
+from tests.fixtures.config import get_config
 from tests.fixtures.mocks import InMemoryDao, InMemoryEventPublisher
 
 # Standard test user UUIDs
 USER_STEWARD = UUID("00000000-0000-0000-0000-000000000001")
 USER_SUBMITTER = UUID("00000000-0000-0000-0000-000000000002")
 USER_OTHER = UUID("00000000-0000-0000-0000-000000000099")
+
+
+@pytest.fixture(name="config")
+def config_fixture() -> ConfigFixture:
+    """Generate a fresh JWK and return a ConfigFixture with matching auth_key."""
+    jwk = generate_jwk()
+    auth_key = jwk.export(private_key=False)
+    config = get_config(auth_key=auth_key)
+    return ConfigFixture(config=config, jwk=jwk)
 
 
 @pytest.fixture()
