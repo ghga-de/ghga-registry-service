@@ -25,6 +25,7 @@ from ghga_service_commons.auth.jwt_auth import JWTAuthContextProvider
 from pydantic import BaseModel, ConfigDict
 
 from srs.adapters.inbound.fastapi_ import dummies
+from srs.adapters.inbound.fastapi_.http_exceptions import HttpNotAuthorizedError
 
 
 class AuthProviderConfig(BaseModel):
@@ -38,6 +39,9 @@ class AuthProviderBundle:
 
     def __init__(self, *, context_provider: JWTAuthContextProvider[AuthContext]):
         self.context_provider = context_provider
+
+
+# ── Required auth (returns AuthContext or 403) ──────────────────
 
 
 async def _require_auth_context(
@@ -55,11 +59,52 @@ require_auth_context = Security(_require_auth_context)
 AuthContextDep = Annotated[AuthContext, require_auth_context]
 
 
+# ── Optional auth (returns AuthContext | None) ──────────────────
+
+
+async def _optional_auth_context(
+    bundle: Annotated[AuthProviderBundle, Depends(dummies.auth_provider)],
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        HTTPBearer(auto_error=False)
+    ),
+) -> AuthContext | None:
+    """Return auth context if a token was provided, None otherwise."""
+    if credentials is None:
+        return None
+    return await bundle.context_provider.require_auth_context_using_credentials(
+        credentials
+    )
+
+
+optional_auth_context = Security(_optional_auth_context)
+
+OptionalAuthContextDep = Annotated[AuthContext | None, optional_auth_context]
+
+
+# ── Helpers ─────────────────────────────────────────────────────
+
+
 def get_user_id(auth_context: AuthContext) -> UUID:
     """Extract the user ID from an auth context."""
     return UUID(auth_context.id)
 
 
+def get_optional_user_id(auth_context: AuthContext | None) -> UUID | None:
+    """Extract the user ID if an auth context is present."""
+    return UUID(auth_context.id) if auth_context else None
+
+
 def is_data_steward(auth_context: AuthContext) -> bool:
     """Returns a bool indicating if the auth context is for a Data Steward"""
     return "data_steward" in auth_context.roles
+
+
+def is_optional_data_steward(auth_context: AuthContext | None) -> bool:
+    """Returns True if auth context is present and has data_steward role."""
+    return auth_context is not None and "data_steward" in auth_context.roles
+
+
+def require_steward(auth_context: AuthContext) -> None:
+    """Raise 403 if the caller is not a data steward."""
+    if not is_data_steward(auth_context):
+        raise HttpNotAuthorizedError()
