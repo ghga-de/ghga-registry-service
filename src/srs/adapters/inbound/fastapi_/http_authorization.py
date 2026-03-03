@@ -61,5 +61,5 @@ def get_user_id(auth_context: AuthContext) -> UUID:
 
 
 def is_data_steward(auth_context: AuthContext) -> bool:
-    """Check if the authenticated user has the data_steward role."""
-    return "data_steward" in getattr(auth_context, "role", [])
+    """Returns a bool indicating if the auth context is for a Data Steward"""
+    return "data_steward" in auth_context.roles
