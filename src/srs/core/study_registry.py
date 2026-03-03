@@ -16,7 +16,7 @@
 """Core implementation of the Study Registry Service."""
 
 import logging
-from datetime import date, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID, uuid4
 
 from hexkit.protocols.dao import ResourceNotFoundError
@@ -67,8 +67,6 @@ log = logging.getLogger(__name__)
 
 def _today() -> date:
     """Return today's date in UTC."""
-    from datetime import datetime
-
     return datetime.now(tz=timezone.utc).date()
 
 
@@ -293,15 +291,13 @@ class StudyRegistryController(StudyRegistryPort):
         created_by: UUID,
     ) -> Study:
         """Create a new study with status PENDING."""
-        from srs.core.models import AccessionType as AT
-
-        study_accession = generate_accession(AT.STUDY)
+        study_accession = generate_accession(AccessionType.STUDY)
         today = _today()
 
         # Register the accession
         accession = Accession(
             id=study_accession,
-            type=AT.STUDY,
+            type=AccessionType.STUDY,
             created=today,
         )
         await self._accession_dao.insert(accession)
@@ -524,15 +520,13 @@ class StudyRegistryController(StudyRegistryPort):
         study = await self._get_study_or_raise(study_id)
         await self._require_pending(study)
 
-        from srs.core.models import AccessionType as AT
-
-        pub_accession = generate_accession(AT.PUBLICATION)
+        pub_accession = generate_accession(AccessionType.PUBLICATION)
         today = _today()
 
         # Register the accession
         accession = Accession(
             id=pub_accession,
-            type=AT.PUBLICATION,
+            type=AccessionType.PUBLICATION,
             created=today,
         )
         await self._accession_dao.insert(accession)
@@ -870,14 +864,12 @@ class StudyRegistryController(StudyRegistryPort):
                     )
                 seen.add(f)
 
-        from srs.core.models import AccessionType as AT
-
-        dataset_accession = generate_accession(AT.DATASET)
+        dataset_accession = generate_accession(AccessionType.DATASET)
         today = _today()
 
         accession = Accession(
             id=dataset_accession,
-            type=AT.DATASET,
+            type=AccessionType.DATASET,
             created=today,
         )
         await self._accession_dao.insert(accession)
