@@ -15,7 +15,7 @@
 
 """Outbound DAO port type definitions."""
 
-from hexkit.protocols.dao import Dao, ResourceNotFoundError  # noqa: F401
+from hexkit.protocols.dao import Dao
 
 from srs.core.models import (
     Accession,
