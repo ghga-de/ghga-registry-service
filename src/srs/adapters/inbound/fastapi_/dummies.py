@@ -19,12 +19,17 @@ from typing import Annotated
 
 from fastapi import Depends
 from ghga_service_commons.api.di import DependencyDummy
+from ghga_service_commons.auth.context import AuthContextProtocol
+from ghga_service_commons.auth.ghga import AuthContext
 
 from srs.ports.inbound.study_registry import StudyRegistryPort
 
 auth_provider = DependencyDummy("auth_provider")
 study_registry_port = DependencyDummy("study_registry_port")
 
+AuthProviderDummy = Annotated[
+    AuthContextProtocol[AuthContext], Depends(auth_provider)
+]
 StudyRegistryDummy = Annotated[
     StudyRegistryPort, Depends(study_registry_port)
 ]

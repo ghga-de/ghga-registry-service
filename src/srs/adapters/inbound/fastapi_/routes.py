@@ -22,12 +22,11 @@ from fastapi import APIRouter, Query, status
 
 from srs.adapters.inbound.fastapi_ import dummies
 from srs.adapters.inbound.fastapi_.http_authorization import (
-    AuthContextDep,
-    OptionalAuthContextDep,
+    OptionalAuthContext,
+    StewardAuthContext,
     get_optional_user_id,
     get_user_id,
     is_optional_data_steward,
-    require_steward,
 )
 from srs.adapters.inbound.fastapi_.http_exceptions import (
     HttpAccessionNotFoundError,
@@ -94,11 +93,10 @@ router = APIRouter(tags=["Study Registry Service"])
 @TRACER.start_as_current_span("routes.create_study")
 async def create_study(
     body: StudyCreateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Create a new study with status PENDING."""
-    require_steward(auth)
     try:
         return await registry.create_study(
             title=body.title,
@@ -123,7 +121,7 @@ async def create_study(
 @TRACER.start_as_current_span("routes.get_studies")
 async def get_studies(
     registry: dummies.StudyRegistryDummy,
-    auth: OptionalAuthContextDep = None,
+    auth: OptionalAuthContext = None,
     status_filter: StudyStatus | None = Query(None, alias="status"),
     study_type: str | None = Query(None),
     text: str | None = Query(None),
@@ -156,7 +154,7 @@ async def get_studies(
 async def get_study(
     study_id: str,
     registry: dummies.StudyRegistryDummy,
-    auth: OptionalAuthContextDep = None,
+    auth: OptionalAuthContext = None,
 ):
     """Get a single study by its accession ID."""
     try:
@@ -184,11 +182,10 @@ async def get_study(
 async def update_study(
     study_id: str,
     body: StudyUpdateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Update study status and/or user list."""
-    require_steward(auth)
     try:
         study_status = StudyStatus(body.status) if body.status else None
         await registry.update_study(
@@ -217,11 +214,10 @@ async def update_study(
 @TRACER.start_as_current_span("routes.delete_study")
 async def delete_study(
     study_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete a study and all related entities."""
-    require_steward(auth)
     try:
         await registry.delete_study(study_id=study_id)
     except StudyRegistryPort.StudyNotFoundError as err:
@@ -246,11 +242,10 @@ async def delete_study(
 async def upsert_metadata(
     study_id: str,
     body: MetadataUpsertRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Create or replace experimental metadata for a study."""
-    require_steward(auth)
     try:
         await registry.upsert_metadata(
             study_id=study_id, metadata=body.metadata
@@ -273,11 +268,10 @@ async def upsert_metadata(
 @TRACER.start_as_current_span("routes.get_metadata")
 async def get_metadata(
     study_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Get experimental metadata for a study."""
-    require_steward(auth)
     try:
         return await registry.get_metadata(study_id=study_id)
     except StudyRegistryPort.MetadataNotFoundError as err:
@@ -296,11 +290,10 @@ async def get_metadata(
 @TRACER.start_as_current_span("routes.delete_metadata")
 async def delete_metadata(
     study_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete experimental metadata for a study."""
-    require_steward(auth)
     try:
         await registry.delete_metadata(study_id=study_id)
     except StudyRegistryPort.StudyNotFoundError as err:
@@ -328,11 +321,10 @@ async def delete_metadata(
 async def create_publication(
     study_id: str,
     body: PublicationCreateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Add a publication to a study."""
-    require_steward(auth)
     try:
         return await registry.create_publication(
             title=body.title,
@@ -361,7 +353,7 @@ async def create_publication(
 @TRACER.start_as_current_span("routes.get_publications")
 async def get_publications(
     registry: dummies.StudyRegistryDummy,
-    auth: OptionalAuthContextDep = None,
+    auth: OptionalAuthContext = None,
     year: int | None = Query(None),
     text: str | None = Query(None),
     skip: int = Query(0, ge=0),
@@ -392,7 +384,7 @@ async def get_publications(
 async def get_publication(
     publication_id: str,
     registry: dummies.StudyRegistryDummy,
-    auth: OptionalAuthContextDep = None,
+    auth: OptionalAuthContext = None,
 ):
     """Get a single publication by its accession."""
     try:
@@ -419,11 +411,10 @@ async def get_publication(
 @TRACER.start_as_current_span("routes.delete_publication")
 async def delete_publication(
     publication_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete a publication."""
-    require_steward(auth)
     try:
         await registry.delete_publication(publication_id=publication_id)
     except StudyRegistryPort.PublicationNotFoundError as err:
@@ -447,11 +438,10 @@ async def delete_publication(
 @TRACER.start_as_current_span("routes.create_dac")
 async def create_dac(
     body: DacCreateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Create a new data access committee."""
-    require_steward(auth)
     try:
         await registry.create_dac(
             id=body.id,
@@ -515,11 +505,10 @@ async def get_dac(
 async def update_dac(
     dac_id: str,
     body: DacUpdateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Update a data access committee."""
-    require_steward(auth)
     try:
         await registry.update_dac(
             dac_id=dac_id,
@@ -544,11 +533,10 @@ async def update_dac(
 @TRACER.start_as_current_span("routes.delete_dac")
 async def delete_dac(
     dac_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete a data access committee."""
-    require_steward(auth)
     try:
         await registry.delete_dac(dac_id=dac_id)
     except StudyRegistryPort.DacNotFoundError as err:
@@ -572,11 +560,10 @@ async def delete_dac(
 @TRACER.start_as_current_span("routes.create_dap")
 async def create_dap(
     body: DapCreateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Create a new data access policy."""
-    require_steward(auth)
     try:
         await registry.create_dap(
             id=body.id,
@@ -646,11 +633,10 @@ async def get_dap(
 async def update_dap(
     dap_id: str,
     body: DapUpdateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Update a data access policy."""
-    require_steward(auth)
     try:
         await registry.update_dap(
             dap_id=dap_id,
@@ -681,11 +667,10 @@ async def update_dap(
 @TRACER.start_as_current_span("routes.delete_dap")
 async def delete_dap(
     dap_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete a data access policy."""
-    require_steward(auth)
     try:
         await registry.delete_dap(dap_id=dap_id)
     except StudyRegistryPort.DapNotFoundError as err:
@@ -711,11 +696,10 @@ async def delete_dap(
 async def create_dataset(
     study_id: str,
     body: DatasetCreateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Create a dataset for a study."""
-    require_steward(auth)
     try:
         return await registry.create_dataset(
             title=body.title,
@@ -747,7 +731,7 @@ async def create_dataset(
 @TRACER.start_as_current_span("routes.get_datasets")
 async def get_datasets(
     registry: dummies.StudyRegistryDummy,
-    auth: OptionalAuthContextDep = None,
+    auth: OptionalAuthContext = None,
     dataset_type: str | None = Query(None),
     study_id: str | None = Query(None),
     text: str | None = Query(None),
@@ -780,7 +764,7 @@ async def get_datasets(
 async def get_dataset(
     dataset_id: str,
     registry: dummies.StudyRegistryDummy,
-    auth: OptionalAuthContextDep = None,
+    auth: OptionalAuthContext = None,
 ):
     """Get a dataset by its accession ID."""
     try:
@@ -808,11 +792,10 @@ async def get_dataset(
 async def update_dataset(
     dataset_id: str,
     body: DatasetUpdateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Update the DAP assignment for a dataset."""
-    require_steward(auth)
     try:
         await registry.update_dataset(
             dataset_id=dataset_id, dap_id=body.dap_id
@@ -835,11 +818,10 @@ async def update_dataset(
 @TRACER.start_as_current_span("routes.delete_dataset")
 async def delete_dataset(
     dataset_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete a dataset."""
-    require_steward(auth)
     try:
         await registry.delete_dataset(dataset_id=dataset_id)
     except StudyRegistryPort.DatasetNotFoundError as err:
@@ -864,11 +846,10 @@ async def delete_dataset(
 @TRACER.start_as_current_span("routes.create_resource_type")
 async def create_resource_type(
     body: ResourceTypeCreateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Create a new resource type."""
-    require_steward(auth)
     try:
         return await registry.create_resource_type(
             code=body.code,
@@ -939,11 +920,10 @@ async def get_resource_type(
 async def update_resource_type(
     resource_type_id: UUID,
     body: ResourceTypeUpdateRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Update a resource type."""
-    require_steward(auth)
     try:
         await registry.update_resource_type(
             resource_type_id=resource_type_id,
@@ -967,11 +947,10 @@ async def update_resource_type(
 @TRACER.start_as_current_span("routes.delete_resource_type")
 async def delete_resource_type(
     resource_type_id: UUID,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Delete a resource type."""
-    require_steward(auth)
     try:
         await registry.delete_resource_type(
             resource_type_id=resource_type_id
@@ -1045,11 +1024,10 @@ async def get_alt_accession(
 @TRACER.start_as_current_span("routes.get_filenames")
 async def get_filenames(
     study_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Get file accession to filename/alias mapping for a study."""
-    require_steward(auth)
     try:
         return await registry.get_filenames(study_id=study_id)
     except StudyRegistryPort.StudyNotFoundError as err:
@@ -1071,11 +1049,10 @@ async def get_filenames(
 async def post_filenames(
     study_id: str,
     body: FileIdMappingRequest,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Store file accession to internal file ID mappings."""
-    require_steward(auth)
     try:
         await registry.post_filenames(
             study_id=study_id, file_id_map=body.file_id_map
@@ -1101,11 +1078,10 @@ async def post_filenames(
 @TRACER.start_as_current_span("routes.publish_study")
 async def publish_study(
     study_id: str,
-    auth: AuthContextDep,
+    auth: StewardAuthContext,
     registry: dummies.StudyRegistryDummy,
 ):
     """Validate and publish a study's annotated experimental metadata."""
-    require_steward(auth)
     try:
         await registry.publish_study(study_id=study_id)
     except StudyRegistryPort.StudyNotFoundError as err:

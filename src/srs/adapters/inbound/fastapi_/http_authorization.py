@@ -13,72 +13,81 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""JWT-based HTTP authorization for the Study Registry Service."""
+"""Helper dependencies for requiring authentication and authorization."""
 
+from functools import partial
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from ghga_service_commons.auth.ghga import AuthContext
-from ghga_service_commons.auth.jwt_auth import JWTAuthContextProvider
-from pydantic import BaseModel, ConfigDict
+from ghga_service_commons.auth.ghga import AuthContext, has_role
+from ghga_service_commons.auth.policies import (
+    require_auth_context_using_credentials,
+)
 
 from srs.adapters.inbound.fastapi_ import dummies
-from srs.adapters.inbound.fastapi_.http_exceptions import HttpNotAuthorizedError
+
+__all__ = ["OptionalAuthContext", "StewardAuthContext", "UserAuthContext"]
 
 
-class AuthProviderConfig(BaseModel):
-    """Configuration needed to set up the auth provider."""
-
-    model_config = ConfigDict(frozen=True)
-
-
-class AuthProviderBundle:
-    """Bundle of auth providers for the Study Registry Service."""
-
-    def __init__(self, *, context_provider: JWTAuthContextProvider[AuthContext]):
-        self.context_provider = context_provider
-
-
-# ── Required auth (returns AuthContext or 403) ──────────────────
+# ── Required auth (any authenticated user) ──────────────────────
 
 
 async def _require_auth_context(
-    bundle: Annotated[AuthProviderBundle, Depends(dummies.auth_provider)],
-    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=True)),
+    credentials: Annotated[
+        HTTPAuthorizationCredentials, Depends(HTTPBearer(auto_error=True))
+    ],
+    auth_provider: dummies.AuthProviderDummy,
 ) -> AuthContext:
-    """Extract and validate the auth context from the bearer token."""
-    return await bundle.context_provider.require_auth_context_using_credentials(
-        credentials
+    """Require a GHGA auth context using FastAPI."""
+    return await require_auth_context_using_credentials(
+        credentials, auth_provider
     )
 
 
-require_auth_context = Security(_require_auth_context)
+# ── Steward auth (requires data_steward role) ───────────────────
 
-AuthContextDep = Annotated[AuthContext, require_auth_context]
+is_steward = partial(has_role, role="data_steward")
+
+
+async def _require_steward_context(
+    credentials: Annotated[
+        HTTPAuthorizationCredentials, Depends(HTTPBearer(auto_error=True))
+    ],
+    auth_provider: dummies.AuthProviderDummy,
+) -> AuthContext:
+    """Require a GHGA auth context with data steward role."""
+    return await require_auth_context_using_credentials(
+        credentials, auth_provider, is_steward
+    )
 
 
 # ── Optional auth (returns AuthContext | None) ──────────────────
 
 
 async def _optional_auth_context(
-    bundle: Annotated[AuthProviderBundle, Depends(dummies.auth_provider)],
-    credentials: HTTPAuthorizationCredentials | None = Depends(
-        HTTPBearer(auto_error=False)
-    ),
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(HTTPBearer(auto_error=False)),
+    ],
+    auth_provider: dummies.AuthProviderDummy,
 ) -> AuthContext | None:
     """Return auth context if a token was provided, None otherwise."""
     if credentials is None:
         return None
-    return await bundle.context_provider.require_auth_context_using_credentials(
-        credentials
+    return await require_auth_context_using_credentials(
+        credentials, auth_provider
     )
 
 
-optional_auth_context = Security(_optional_auth_context)
+# ── Typed dependencies for route signatures ─────────────────────
 
-OptionalAuthContextDep = Annotated[AuthContext | None, optional_auth_context]
+UserAuthContext = Annotated[AuthContext, Security(_require_auth_context)]
+StewardAuthContext = Annotated[AuthContext, Security(_require_steward_context)]
+OptionalAuthContext = Annotated[
+    AuthContext | None, Security(_optional_auth_context)
+]
 
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -95,16 +104,12 @@ def get_optional_user_id(auth_context: AuthContext | None) -> UUID | None:
 
 
 def is_data_steward(auth_context: AuthContext) -> bool:
-    """Returns a bool indicating if the auth context is for a Data Steward"""
-    return "data_steward" in auth_context.roles
+    """Check if the auth context has the data_steward role."""
+    return has_role(auth_context, role="data_steward")
 
 
 def is_optional_data_steward(auth_context: AuthContext | None) -> bool:
     """Returns True if auth context is present and has data_steward role."""
-    return auth_context is not None and "data_steward" in auth_context.roles
-
-
-def require_steward(auth_context: AuthContext) -> None:
-    """Raise 403 if the caller is not a data steward."""
-    if not is_data_steward(auth_context):
-        raise HttpNotAuthorizedError()
+    return auth_context is not None and has_role(
+        auth_context, role="data_steward"
+    )

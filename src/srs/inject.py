@@ -27,7 +27,6 @@ from hexkit.providers.mongodb import MongoDbDaoFactory
 
 from srs.adapters.inbound.fastapi_ import dummies
 from srs.adapters.inbound.fastapi_.configure import get_configured_app
-from srs.adapters.inbound.fastapi_.http_authorization import AuthProviderBundle
 from srs.adapters.outbound.dao import (
     get_accession_dao,
     get_alt_accession_dao,
@@ -123,11 +122,11 @@ async def prepare_rest_app(
             config=config, context_class=AuthContext
         ) as auth_context,
     ):
-        auth_bundle = AuthProviderBundle(context_provider=auth_context)
-
         app.dependency_overrides[dummies.study_registry_port] = (
             lambda: controller
         )
-        app.dependency_overrides[dummies.auth_provider] = lambda: auth_bundle
+        app.dependency_overrides[dummies.auth_provider] = (
+            lambda: auth_context
+        )
 
         yield app
