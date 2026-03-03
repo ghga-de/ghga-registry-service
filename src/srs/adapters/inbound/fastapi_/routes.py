@@ -37,6 +37,7 @@ from srs.adapters.inbound.fastapi_.http_exceptions import (
     HttpNotAuthorizedError,
     HttpPublicationNotFoundError,
     HttpReferenceConflictError,
+    HttpResourceTypeNotFoundError,
     HttpStatusConflictError,
     HttpStudyNotFoundError,
     HttpValidationError,
@@ -907,10 +908,6 @@ async def get_resource_type(
             resource_type_id=resource_type_id
         )
     except StudyRegistryPort.ResourceTypeNotFoundError:
-        from srs.adapters.inbound.fastapi_.http_exceptions import (
-            HttpResourceTypeNotFoundError,
-        )
-
         raise HttpResourceTypeNotFoundError()
     except Exception as err:
         log.exception("Unexpected error in get_resource_type")
@@ -939,10 +936,6 @@ async def update_resource_type(
             active=body.active,
         )
     except StudyRegistryPort.ResourceTypeNotFoundError:
-        from srs.adapters.inbound.fastapi_.http_exceptions import (
-            HttpResourceTypeNotFoundError,
-        )
-
         raise HttpResourceTypeNotFoundError()
     except Exception as err:
         log.exception("Unexpected error in update_resource_type")
@@ -967,10 +960,6 @@ async def delete_resource_type(
             resource_type_id=resource_type_id
         )
     except StudyRegistryPort.ResourceTypeNotFoundError:
-        from srs.adapters.inbound.fastapi_.http_exceptions import (
-            HttpResourceTypeNotFoundError,
-        )
-
         raise HttpResourceTypeNotFoundError()
     except StudyRegistryPort.ReferenceConflictError as err:
         raise HttpReferenceConflictError(detail=str(err))
