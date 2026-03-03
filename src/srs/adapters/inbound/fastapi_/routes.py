@@ -161,10 +161,10 @@ async def get_study(
             user_id=get_user_id(auth),
             is_data_steward=is_data_steward(auth),
         )
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
-    except StudyRegistryPort.AccessDeniedError:
-        raise HttpNotAuthorizedError()
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
+    except StudyRegistryPort.AccessDeniedError as err:
+        raise HttpNotAuthorizedError() from err
     except Exception as err:
         log.exception("Unexpected error in get_study")
         raise HttpInternalError() from err
@@ -192,12 +192,12 @@ async def update_study(
             users=body.users,
             approved_by=body.approved_by,
         )
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
+        raise HttpStatusConflictError(detail=str(err)) from err
     except StudyRegistryPort.ValidationError as err:
-        raise HttpValidationError(detail=str(err))
+        raise HttpValidationError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in update_study")
         raise HttpInternalError() from err
@@ -218,10 +218,10 @@ async def delete_study(
     """Delete a study and all related entities."""
     try:
         await registry.delete_study(study_id=study_id)
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
+        raise HttpStatusConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in delete_study")
         raise HttpInternalError() from err
@@ -248,10 +248,10 @@ async def upsert_metadata(
         await registry.upsert_metadata(
             study_id=study_id, metadata=body.metadata
         )
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
+        raise HttpStatusConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in upsert_metadata")
         raise HttpInternalError() from err
@@ -272,8 +272,8 @@ async def get_metadata(
     """Get experimental metadata for a study."""
     try:
         return await registry.get_metadata(study_id=study_id)
-    except StudyRegistryPort.MetadataNotFoundError:
-        raise HttpMetadataNotFoundError(study_id=study_id)
+    except StudyRegistryPort.MetadataNotFoundError as err:
+        raise HttpMetadataNotFoundError(study_id=study_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_metadata")
         raise HttpInternalError() from err
@@ -294,12 +294,12 @@ async def delete_metadata(
     """Delete experimental metadata for a study."""
     try:
         await registry.delete_metadata(study_id=study_id)
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
-    except StudyRegistryPort.MetadataNotFoundError:
-        raise HttpMetadataNotFoundError(study_id=study_id)
+        raise HttpStatusConflictError(detail=str(err)) from err
+    except StudyRegistryPort.MetadataNotFoundError as err:
+        raise HttpMetadataNotFoundError(study_id=study_id) from err
     except Exception as err:
         log.exception("Unexpected error in delete_metadata")
         raise HttpInternalError() from err
@@ -333,10 +333,10 @@ async def create_publication(
             doi=body.doi,
             study_id=study_id,
         )
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
+        raise HttpStatusConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in create_publication")
         raise HttpInternalError() from err
@@ -391,10 +391,10 @@ async def get_publication(
             user_id=get_user_id(auth),
             is_data_steward=is_data_steward(auth),
         )
-    except StudyRegistryPort.PublicationNotFoundError:
-        raise HttpPublicationNotFoundError(publication_id=publication_id)
-    except StudyRegistryPort.AccessDeniedError:
-        raise HttpNotAuthorizedError()
+    except StudyRegistryPort.PublicationNotFoundError as err:
+        raise HttpPublicationNotFoundError(publication_id=publication_id) from err
+    except StudyRegistryPort.AccessDeniedError as err:
+        raise HttpNotAuthorizedError() from err
     except Exception as err:
         log.exception("Unexpected error in get_publication")
         raise HttpInternalError() from err
@@ -415,10 +415,10 @@ async def delete_publication(
     """Delete a publication."""
     try:
         await registry.delete_publication(publication_id=publication_id)
-    except StudyRegistryPort.PublicationNotFoundError:
-        raise HttpPublicationNotFoundError(publication_id=publication_id)
+    except StudyRegistryPort.PublicationNotFoundError as err:
+        raise HttpPublicationNotFoundError(publication_id=publication_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
+        raise HttpStatusConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in delete_publication")
         raise HttpInternalError() from err
@@ -448,7 +448,7 @@ async def create_dac(
             institute=body.institute,
         )
     except StudyRegistryPort.DuplicateError as err:
-        raise HttpDuplicateError(detail=str(err))
+        raise HttpDuplicateError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in create_dac")
         raise HttpInternalError() from err
@@ -488,8 +488,8 @@ async def get_dac(
     """Get a data access committee by ID."""
     try:
         return await registry.get_dac(dac_id=dac_id)
-    except StudyRegistryPort.DacNotFoundError:
-        raise HttpDacNotFoundError(dac_id=dac_id)
+    except StudyRegistryPort.DacNotFoundError as err:
+        raise HttpDacNotFoundError(dac_id=dac_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_dac")
         raise HttpInternalError() from err
@@ -517,8 +517,8 @@ async def update_dac(
             institute=body.institute,
             active=body.active,
         )
-    except StudyRegistryPort.DacNotFoundError:
-        raise HttpDacNotFoundError(dac_id=dac_id)
+    except StudyRegistryPort.DacNotFoundError as err:
+        raise HttpDacNotFoundError(dac_id=dac_id) from err
     except Exception as err:
         log.exception("Unexpected error in update_dac")
         raise HttpInternalError() from err
@@ -539,10 +539,10 @@ async def delete_dac(
     """Delete a data access committee."""
     try:
         await registry.delete_dac(dac_id=dac_id)
-    except StudyRegistryPort.DacNotFoundError:
-        raise HttpDacNotFoundError(dac_id=dac_id)
+    except StudyRegistryPort.DacNotFoundError as err:
+        raise HttpDacNotFoundError(dac_id=dac_id) from err
     except StudyRegistryPort.ReferenceConflictError as err:
-        raise HttpReferenceConflictError(detail=str(err))
+        raise HttpReferenceConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in delete_dac")
         raise HttpInternalError() from err
@@ -578,7 +578,7 @@ async def create_dap(
     except StudyRegistryPort.DacNotFoundError as err:
         raise HttpDacNotFoundError(dac_id=body.dac_id) from err
     except StudyRegistryPort.DuplicateError as err:
-        raise HttpDuplicateError(detail=str(err))
+        raise HttpDuplicateError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in create_dap")
         raise HttpInternalError() from err
@@ -618,8 +618,8 @@ async def get_dap(
     """Get a data access policy by ID."""
     try:
         return await registry.get_dap(dap_id=dap_id)
-    except StudyRegistryPort.DapNotFoundError:
-        raise HttpDapNotFoundError(dap_id=dap_id)
+    except StudyRegistryPort.DapNotFoundError as err:
+        raise HttpDapNotFoundError(dap_id=dap_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_dap")
         raise HttpInternalError() from err
@@ -651,10 +651,10 @@ async def update_dap(
             dac_id=body.dac_id,
             active=body.active,
         )
-    except StudyRegistryPort.DapNotFoundError:
-        raise HttpDapNotFoundError(dap_id=dap_id)
+    except StudyRegistryPort.DapNotFoundError as err:
+        raise HttpDapNotFoundError(dap_id=dap_id) from err
     except StudyRegistryPort.DacNotFoundError as err:
-        raise HttpDacNotFoundError(dac_id=body.dac_id or "")
+        raise HttpDacNotFoundError(dac_id=body.dac_id or "") from err
     except Exception as err:
         log.exception("Unexpected error in update_dap")
         raise HttpInternalError() from err
@@ -675,10 +675,10 @@ async def delete_dap(
     """Delete a data access policy."""
     try:
         await registry.delete_dap(dap_id=dap_id)
-    except StudyRegistryPort.DapNotFoundError:
-        raise HttpDapNotFoundError(dap_id=dap_id)
+    except StudyRegistryPort.DapNotFoundError as err:
+        raise HttpDapNotFoundError(dap_id=dap_id) from err
     except StudyRegistryPort.ReferenceConflictError as err:
-        raise HttpReferenceConflictError(detail=str(err))
+        raise HttpReferenceConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in delete_dap")
         raise HttpInternalError() from err
@@ -711,14 +711,14 @@ async def create_dataset(
             dap_id=body.dap_id,
             files=body.files,
         )
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
-    except StudyRegistryPort.DapNotFoundError:
-        raise HttpDapNotFoundError(dap_id=body.dap_id)
+        raise HttpStatusConflictError(detail=str(err)) from err
+    except StudyRegistryPort.DapNotFoundError as err:
+        raise HttpDapNotFoundError(dap_id=body.dap_id) from err
     except StudyRegistryPort.ValidationError as err:
-        raise HttpValidationError(detail=str(err))
+        raise HttpValidationError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in create_dataset")
         raise HttpInternalError() from err
@@ -775,10 +775,10 @@ async def get_dataset(
             user_id=get_user_id(auth),
             is_data_steward=is_data_steward(auth),
         )
-    except StudyRegistryPort.DatasetNotFoundError:
-        raise HttpDatasetNotFoundError(dataset_id=dataset_id)
-    except StudyRegistryPort.AccessDeniedError:
-        raise HttpNotAuthorizedError()
+    except StudyRegistryPort.DatasetNotFoundError as err:
+        raise HttpDatasetNotFoundError(dataset_id=dataset_id) from err
+    except StudyRegistryPort.AccessDeniedError as err:
+        raise HttpNotAuthorizedError() from err
     except Exception as err:
         log.exception("Unexpected error in get_dataset")
         raise HttpInternalError() from err
@@ -802,10 +802,10 @@ async def update_dataset(
         await registry.update_dataset(
             dataset_id=dataset_id, dap_id=body.dap_id
         )
-    except StudyRegistryPort.DatasetNotFoundError:
-        raise HttpDatasetNotFoundError(dataset_id=dataset_id)
-    except StudyRegistryPort.DapNotFoundError:
-        raise HttpDapNotFoundError(dap_id=body.dap_id)
+    except StudyRegistryPort.DatasetNotFoundError as err:
+        raise HttpDatasetNotFoundError(dataset_id=dataset_id) from err
+    except StudyRegistryPort.DapNotFoundError as err:
+        raise HttpDapNotFoundError(dap_id=body.dap_id) from err
     except Exception as err:
         log.exception("Unexpected error in update_dataset")
         raise HttpInternalError() from err
@@ -826,10 +826,10 @@ async def delete_dataset(
     """Delete a dataset."""
     try:
         await registry.delete_dataset(dataset_id=dataset_id)
-    except StudyRegistryPort.DatasetNotFoundError:
-        raise HttpDatasetNotFoundError(dataset_id=dataset_id)
+    except StudyRegistryPort.DatasetNotFoundError as err:
+        raise HttpDatasetNotFoundError(dataset_id=dataset_id) from err
     except StudyRegistryPort.StatusConflictError as err:
-        raise HttpStatusConflictError(detail=str(err))
+        raise HttpStatusConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in delete_dataset")
         raise HttpInternalError() from err
@@ -907,8 +907,8 @@ async def get_resource_type(
         return await registry.get_resource_type(
             resource_type_id=resource_type_id
         )
-    except StudyRegistryPort.ResourceTypeNotFoundError:
-        raise HttpResourceTypeNotFoundError()
+    except StudyRegistryPort.ResourceTypeNotFoundError as err:
+        raise HttpResourceTypeNotFoundError() from err
     except Exception as err:
         log.exception("Unexpected error in get_resource_type")
         raise HttpInternalError() from err
@@ -935,8 +935,8 @@ async def update_resource_type(
             description=body.description,
             active=body.active,
         )
-    except StudyRegistryPort.ResourceTypeNotFoundError:
-        raise HttpResourceTypeNotFoundError()
+    except StudyRegistryPort.ResourceTypeNotFoundError as err:
+        raise HttpResourceTypeNotFoundError() from err
     except Exception as err:
         log.exception("Unexpected error in update_resource_type")
         raise HttpInternalError() from err
@@ -959,10 +959,10 @@ async def delete_resource_type(
         await registry.delete_resource_type(
             resource_type_id=resource_type_id
         )
-    except StudyRegistryPort.ResourceTypeNotFoundError:
-        raise HttpResourceTypeNotFoundError()
+    except StudyRegistryPort.ResourceTypeNotFoundError as err:
+        raise HttpResourceTypeNotFoundError() from err
     except StudyRegistryPort.ReferenceConflictError as err:
-        raise HttpReferenceConflictError(detail=str(err))
+        raise HttpReferenceConflictError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in delete_resource_type")
         raise HttpInternalError() from err
@@ -986,8 +986,8 @@ async def get_accession(
     """Look up a primary accession."""
     try:
         return await registry.get_accession(accession_id=accession_id)
-    except StudyRegistryPort.AccessionNotFoundError:
-        raise HttpAccessionNotFoundError(accession_id=accession_id)
+    except StudyRegistryPort.AccessionNotFoundError as err:
+        raise HttpAccessionNotFoundError(accession_id=accession_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_accession")
         raise HttpInternalError() from err
@@ -1011,8 +1011,8 @@ async def get_alt_accession(
         return await registry.get_alt_accession(
             accession_id=accession_id, alt_type=alt_type
         )
-    except StudyRegistryPort.AccessionNotFoundError:
-        raise HttpAccessionNotFoundError(accession_id=accession_id)
+    except StudyRegistryPort.AccessionNotFoundError as err:
+        raise HttpAccessionNotFoundError(accession_id=accession_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_alt_accession")
         raise HttpInternalError() from err
@@ -1036,10 +1036,10 @@ async def get_filenames(
     """Get file accession to filename/alias mapping for a study."""
     try:
         return await registry.get_filenames(study_id=study_id)
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
-    except StudyRegistryPort.MetadataNotFoundError:
-        raise HttpMetadataNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
+    except StudyRegistryPort.MetadataNotFoundError as err:
+        raise HttpMetadataNotFoundError(study_id=study_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_filenames")
         raise HttpInternalError() from err
@@ -1063,10 +1063,10 @@ async def post_filenames(
         await registry.post_filenames(
             study_id=study_id, file_id_map=body.file_id_map
         )
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.ValidationError as err:
-        raise HttpValidationError(detail=str(err))
+        raise HttpValidationError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in post_filenames")
         raise HttpInternalError() from err
@@ -1090,10 +1090,10 @@ async def publish_study(
     """Validate and publish a study's annotated experimental metadata."""
     try:
         await registry.publish_study(study_id=study_id)
-    except StudyRegistryPort.StudyNotFoundError:
-        raise HttpStudyNotFoundError(study_id=study_id)
+    except StudyRegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
     except StudyRegistryPort.ValidationError as err:
-        raise HttpValidationError(detail=str(err))
+        raise HttpValidationError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in publish_study")
         raise HttpInternalError() from err
