@@ -18,9 +18,10 @@
 Spec: GET /accession/{id}, GET /accession/{id}?type={type}
 """
 
-from datetime import date
+from datetime import datetime
 
 import pytest
+from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from srs.core.models import AltAccession, AltAccessionType
 from srs.ports.inbound.study_registry import StudyRegistryPort
@@ -44,7 +45,7 @@ async def test_get_accession(controller, accession_dao):
     acc = await controller.get_accession(accession_id=study.id)
     assert acc.id == study.id
     assert acc.type == "STUDY"
-    assert isinstance(acc.created, date)
+    assert isinstance(acc.created, datetime)
 
 
 @pytest.mark.asyncio
@@ -65,7 +66,7 @@ async def test_get_alt_accession(controller, alt_accession_dao):
         id="FILE-001",
         pid="GHGAF00000000000001",
         type=AltAccessionType.FILE_ID,
-        created=date.today(),
+        created=now_as_utc(),
     )
     await alt_accession_dao.insert(alt)
 
@@ -91,7 +92,7 @@ async def test_get_alt_accession_wrong_type(controller, alt_accession_dao):
         id="FILE-001",
         pid="GHGAF00000000000001",
         type=AltAccessionType.FILE_ID,
-        created=date.today(),
+        created=now_as_utc(),
     )
     await alt_accession_dao.insert(alt)
 

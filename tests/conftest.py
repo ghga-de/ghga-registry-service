@@ -35,7 +35,18 @@ from srs.core.models import (
 from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
+from tests.fixtures.joint import JointFixture, joint_fixture  # noqa: F401
 from tests.fixtures.mocks import InMemoryDao, InMemoryEventPublisher
+
+# Re-export hexkit container/fixture definitions so pytest can discover them
+from hexkit.providers.akafka.testutils import (  # noqa: F401
+    kafka_container_fixture,
+    kafka_fixture,
+)
+from hexkit.providers.mongodb.testutils import (  # noqa: F401
+    mongodb_container_fixture,
+    mongodb_fixture,
+)
 
 # Standard test user UUIDs
 USER_STEWARD = UUID("00000000-0000-0000-0000-000000000001")

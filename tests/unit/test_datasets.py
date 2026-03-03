@@ -19,9 +19,8 @@ Spec: POST /datasets, GET /datasets, GET /datasets/{id},
 PATCH /datasets/{id}, DELETE /datasets/{id}
 """
 
-from datetime import date
-
 import pytest
+from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 from srs.ports.inbound.study_registry import StudyRegistryPort
@@ -62,7 +61,7 @@ async def _setup(controller):
 async def _persist_study(controller, study_id, metadata_dao, publication_dao):
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=study_id, metadata={}, submitted=date.today()
+            id=study_id, metadata={}, submitted=now_as_utc()
         )
     )
     await publication_dao.insert(
@@ -75,7 +74,7 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
             journal=None,
             doi=None,
             study_id=study_id,
-            created=date.today(),
+            created=now_as_utc(),
         )
     )
     await controller.update_study(

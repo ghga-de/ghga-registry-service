@@ -328,13 +328,13 @@ async def test_update_study_status_pending_to_persisted(
         created_by=USER_SUBMITTER,
     )
     # Satisfy completeness: add EM and publication
-    from datetime import date
+    from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata, Publication
 
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=study.id, metadata={"files": {}}, submitted=date.today()
+            id=study.id, metadata={"files": {}}, submitted=now_as_utc()
         )
     )
     await publication_dao.insert(
@@ -347,7 +347,7 @@ async def test_update_study_status_pending_to_persisted(
             journal=None,
             doi=None,
             study_id=study.id,
-            created=date.today(),
+            created=now_as_utc(),
         )
     )
 
@@ -418,13 +418,13 @@ async def test_delete_study_cascade(
         affiliations=[],
         created_by=USER_SUBMITTER,
     )
-    from datetime import date
+    from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata
 
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=study.id, metadata={}, submitted=date.today()
+            id=study.id, metadata={}, submitted=now_as_utc()
         )
     )
     pub = await controller.create_publication(
@@ -459,13 +459,13 @@ async def test_delete_study_rejects_non_pending(
         created_by=USER_SUBMITTER,
     )
     # Force status change for the test
-    from datetime import date
+    from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata, Publication
 
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=study.id, metadata={}, submitted=date.today()
+            id=study.id, metadata={}, submitted=now_as_utc()
         )
     )
     await publication_dao.insert(
@@ -478,7 +478,7 @@ async def test_delete_study_rejects_non_pending(
             journal=None,
             doi=None,
             study_id=study.id,
-            created=date.today(),
+            created=now_as_utc(),
         )
     )
     await controller.update_study(

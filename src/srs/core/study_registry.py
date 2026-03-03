@@ -16,7 +16,7 @@
 """Core implementation of the Study Registry Service."""
 
 import logging
-from datetime import date, datetime, timezone
+from ghga_service_commons.utils.utc_dates import UTCDatetime, now_as_utc
 from uuid import UUID, uuid4
 
 from hexkit.protocols.dao import ResourceNotFoundError
@@ -66,9 +66,9 @@ from srs.ports.outbound.event_pub import EventPublisherPort
 log = logging.getLogger(__name__)
 
 
-def _today() -> date:
-    """Return today's date in UTC."""
-    return datetime.now(tz=timezone.utc).date()
+def _now() -> UTCDatetime:
+    """Return the current UTC datetime."""
+    return now_as_utc()
 
 
 class StudyRegistryController(StudyRegistryPort):
@@ -170,7 +170,7 @@ class StudyRegistryController(StudyRegistryPort):
         """Generate accession numbers for all EM resources and store them."""
         em = await self._metadata_dao.get_by_id(study_id)
         metadata = em.metadata
-        today = _today()
+        today = _now()
         accession_maps: dict[str, dict[str, str]] = {}
 
         for resource_name, accession_type in EM_RESOURCE_TO_ACCESSION_TYPE.items():
@@ -293,7 +293,7 @@ class StudyRegistryController(StudyRegistryPort):
     ) -> Study:
         """Create a new study with status PENDING."""
         study_accession = generate_accession(AccessionType.STUDY)
-        today = _today()
+        today = _now()
 
         # Register the accession
         accession = Accession(
@@ -475,7 +475,7 @@ class StudyRegistryController(StudyRegistryPort):
         study = await self._get_study_or_raise(study_id)
         await self._require_pending(study)
 
-        today = _today()
+        today = _now()
         em = ExperimentalMetadata(
             id=study_id,
             metadata=metadata,
@@ -522,7 +522,7 @@ class StudyRegistryController(StudyRegistryPort):
         await self._require_pending(study)
 
         pub_accession = generate_accession(AccessionType.PUBLICATION)
-        today = _today()
+        today = _now()
 
         # Register the accession
         accession = Accession(
@@ -638,7 +638,7 @@ class StudyRegistryController(StudyRegistryPort):
         institute: str,
     ) -> None:
         """Create a new DAC."""
-        today = _today()
+        today = _now()
         dac = DataAccessCommittee(
             id=id,
             name=name,
@@ -682,7 +682,7 @@ class StudyRegistryController(StudyRegistryPort):
         except ResourceNotFoundError as err:
             raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        updates: dict = {"changed": _today()}
+        updates: dict = {"changed": _now()}
         if name is not None:
             updates["name"] = name
         if email is not None:
@@ -734,7 +734,7 @@ class StudyRegistryController(StudyRegistryPort):
         except ResourceNotFoundError as err:
             raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        today = _today()
+        today = _now()
         dap = DataAccessPolicy(
             id=id,
             name=name,
@@ -792,7 +792,7 @@ class StudyRegistryController(StudyRegistryPort):
             except ResourceNotFoundError as err:
                 raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        updates: dict = {"changed": _today()}
+        updates: dict = {"changed": _now()}
         if name is not None:
             updates["name"] = name
         if description is not None:
@@ -866,7 +866,7 @@ class StudyRegistryController(StudyRegistryPort):
                 seen.add(f)
 
         dataset_accession = generate_accession(AccessionType.DATASET)
-        today = _today()
+        today = _now()
 
         accession = Accession(
             id=dataset_accession,
@@ -970,7 +970,7 @@ class StudyRegistryController(StudyRegistryPort):
             raise self.DapNotFoundError(dap_id=dap_id) from err
 
         dataset = dataset.model_copy(
-            update={"dap_id": dap_id, "changed": _today()}
+            update={"dap_id": dap_id, "changed": _now()}
         )
         await self._dataset_dao.update(dataset)
         log.info("Updated dataset %s DAP to %s", dataset_id, dap_id)
@@ -1003,7 +1003,7 @@ class StudyRegistryController(StudyRegistryPort):
         description: str | None,
     ) -> ResourceType:
         """Create a new resource type."""
-        today = _today()
+        today = _now()
         rt = ResourceType(
             id=uuid4(),
             code=code.upper(),
@@ -1075,7 +1075,7 @@ class StudyRegistryController(StudyRegistryPort):
                 resource_type_id=resource_type_id
             ) from err
 
-        updates: dict = {"changed": _today()}
+        updates: dict = {"changed": _now()}
         if name is not None:
             updates["name"] = name
         if description is not None:
@@ -1183,7 +1183,7 @@ class StudyRegistryController(StudyRegistryPort):
         """Store file accession to internal file ID mappings."""
         await self._get_study_or_raise(study_id)
 
-        today = _today()
+        today = _now()
         for pid, file_id in file_id_map.items():
             # Verify the file accession exists
             try:

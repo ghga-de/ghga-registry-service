@@ -94,14 +94,14 @@ async def test_create_publication_study_not_pending(
     controller, metadata_dao, publication_dao
 ):
     """Publications cannot be added to a non-PENDING study."""
-    from datetime import date
+    from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 
     sid = await _create_study(controller)
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=sid, metadata={}, submitted=date.today()
+            id=sid, metadata={}, submitted=now_as_utc()
         )
     )
     await publication_dao.insert(
@@ -114,7 +114,7 @@ async def test_create_publication_study_not_pending(
             journal=None,
             doi=None,
             study_id=sid,
-            created=date.today(),
+            created=now_as_utc(),
         )
     )
     await controller.update_study(
@@ -275,7 +275,7 @@ async def test_delete_publication_study_not_pending(
     controller, metadata_dao, publication_dao
 ):
     """Deleting a publication when the study is not PENDING must raise StatusConflictError."""
-    from datetime import date
+    from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 
@@ -283,7 +283,7 @@ async def test_delete_publication_study_not_pending(
     pub = await _create_pub(controller, sid, title="First")
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=sid, metadata={}, submitted=date.today()
+            id=sid, metadata={}, submitted=now_as_utc()
         )
     )
     await controller.update_study(

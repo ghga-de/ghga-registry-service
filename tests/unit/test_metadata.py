@@ -18,9 +18,10 @@
 Spec: POST (upsert) /metadata, GET /metadata/{study_id}, DELETE /metadata/{study_id}
 """
 
-from datetime import date
+from datetime import datetime
 
 import pytest
+from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 from srs.ports.inbound.study_registry import StudyRegistryPort
@@ -46,7 +47,7 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
     """Transition a study to PERSISTED by satisfying completeness."""
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=study_id, metadata={"files": {}}, submitted=date.today()
+            id=study_id, metadata={"files": {}}, submitted=now_as_utc()
         )
     )
     await publication_dao.insert(
@@ -59,7 +60,7 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
             journal=None,
             doi=None,
             study_id=study_id,
-            created=date.today(),
+            created=now_as_utc(),
         )
     )
     await controller.update_study(
@@ -128,7 +129,7 @@ async def test_get_metadata(controller):
     )
     em = await controller.get_metadata(study_id=sid)
     assert em.id == sid
-    assert isinstance(em.submitted, date)
+    assert isinstance(em.submitted, datetime)
 
 
 @pytest.mark.asyncio

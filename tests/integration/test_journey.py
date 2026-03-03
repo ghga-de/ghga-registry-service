@@ -15,6 +15,8 @@
 
 """End-to-end journey test: New Study lifecycle.
 
+Uses the JointFixture backed by real MongoDB and Kafka containers.
+
 Covers the full workflow:
   1. Create study
   2. Upsert experimental metadata
@@ -31,12 +33,17 @@ Covers the full workflow:
 import pytest
 
 from srs.core.models import StudyStatus
-from tests.conftest import USER_STEWARD, USER_SUBMITTER
+from srs.ports.inbound.study_registry import StudyRegistryPort
+from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
+from tests.fixtures.joint import JointFixture
+
+pytestmark = pytest.mark.asyncio(loop_scope="function")
 
 
-@pytest.mark.asyncio
-async def test_new_study_journey(controller, event_publisher, study_dao):
+async def test_new_study_journey(joint_fixture: JointFixture):
     """Full lifecycle: create → publish → filenames → persist → republish."""
+    controller = joint_fixture.controller
+    kafka = joint_fixture.kafka
 
     # 1 ── Create study ───────────────────────────────────────────
     study = await controller.create_study(
@@ -123,25 +130,19 @@ async def test_new_study_journey(controller, event_publisher, study_dao):
     assert ds.study_id == study_id
 
     # 7 ── Publish study ─────────────────────────────────────────
-    await controller.publish_study(study_id=study_id)
+    async with kafka.record_events(
+        in_topic=joint_fixture.config.annotated_metadata_topic,
+    ) as recorder:
+        await controller.publish_study(study_id=study_id)
 
-    assert len(event_publisher.annotated_metadata_events) == 1
-    aem = event_publisher.annotated_metadata_events[0]
-
-    # Check AEM structure
-    assert aem.study.id == study_id
-    assert aem.study.publication is not None
-    assert aem.study.publication.doi == "10.1038/s41588-025-00001-x"
-    assert len(aem.datasets) == 1
-    assert aem.datasets[0].dap.dac.id == "DAC-DIABETES"
-
-    # Check accession maps
-    assert "files" in aem.accessions
-    assert "samples" in aem.accessions
-    assert "individuals" in aem.accessions
-    assert "experiments" in aem.accessions
-    assert len(aem.accessions["files"]) == 2
-    assert len(aem.accessions["samples"]) == 2
+    assert len(recorder.recorded_events) == 1
+    aem_payload = recorder.recorded_events[0].payload
+    assert aem_payload["study"]["id"] == study_id
+    assert aem_payload["study"]["publication"]["doi"] == "10.1038/s41588-025-00001-x"
+    assert len(aem_payload["datasets"]) == 1
+    assert aem_payload["datasets"][0]["dap"]["dac"]["id"] == "DAC-DIABETES"
+    assert len(aem_payload["accessions"]["files"]) == 2
+    assert len(aem_payload["accessions"]["samples"]) == 2
 
     # 8 ── Post filenames ────────────────────────────────────────
     filenames = await controller.get_filenames(study_id=study_id)
@@ -152,12 +153,15 @@ async def test_new_study_journey(controller, event_publisher, study_dao):
         file_acc_ids[0]: "s3://bucket/file_a.bam",
         file_acc_ids[1]: "s3://bucket/file_b.bam",
     }
-    await controller.post_filenames(
-        study_id=study_id, file_id_map=file_id_map
-    )
+    async with kafka.record_events(
+        in_topic=joint_fixture.config.file_id_mapping_topic,
+    ) as mapping_recorder:
+        await controller.post_filenames(
+            study_id=study_id, file_id_map=file_id_map
+        )
 
-    assert len(event_publisher.file_id_mapping_events) == 1
-    assert event_publisher.file_id_mapping_events[0] == file_id_map
+    assert len(mapping_recorder.recorded_events) == 1
+    assert mapping_recorder.recorded_events[0].payload["mapping"] == file_id_map
 
     # 9 ── Persist study (PENDING → PERSISTED) ───────────────────
     await controller.update_study(
@@ -165,29 +169,33 @@ async def test_new_study_journey(controller, event_publisher, study_dao):
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
     )
-    persisted = await study_dao.get_by_id(study_id)
+    persisted = await controller.get_study(
+        study_id=study_id,
+        user_id=USER_STEWARD,
+        is_data_steward=True,
+    )
     assert persisted.status == StudyStatus.PERSISTED
     assert persisted.approved_by == USER_STEWARD
 
     # 10 ── Republish study ──────────────────────────────────────
-    await controller.publish_study(study_id=study_id)
-    assert len(event_publisher.annotated_metadata_events) == 2
-    aem2 = event_publisher.annotated_metadata_events[1]
-    assert aem2.study.id == study_id
+    async with kafka.record_events(
+        in_topic=joint_fixture.config.annotated_metadata_topic,
+    ) as recorder2:
+        await controller.publish_study(study_id=study_id)
+
+    assert len(recorder2.recorded_events) == 1
+    aem2_payload = recorder2.recorded_events[0].payload
+    assert aem2_payload["study"]["id"] == study_id
     # New publish generates new accessions
-    assert aem2.accessions["files"] != aem.accessions["files"]
+    assert aem2_payload["accessions"]["files"] != aem_payload["accessions"]["files"]
 
 
-@pytest.mark.asyncio
 async def test_journey_delete_pending_study_cleans_everything(
-    controller,
-    study_dao,
-    metadata_dao,
-    publication_dao,
-    dataset_dao,
-    accession_dao,
+    joint_fixture: JointFixture,
 ):
     """Deleting a PENDING study must cascade-remove all related entities."""
+    controller = joint_fixture.controller
+
     study = await controller.create_study(
         title="Temp Study",
         description="",
@@ -238,22 +246,26 @@ async def test_journey_delete_pending_study_cleans_everything(
     # Delete the study
     await controller.delete_study(study_id=sid)
 
-    # Verify everything is gone
-    assert sid not in study_dao.data
-    assert sid not in metadata_dao.data
-    assert pub.id not in publication_dao.data
-    assert ds.id not in dataset_dao.data
-    assert sid not in accession_dao.data
-    assert pub.id not in accession_dao.data
-    assert ds.id not in accession_dao.data
+    # Verify study and related entities are gone
+    with pytest.raises(StudyRegistryPort.StudyNotFoundError):
+        await controller.get_study(
+            study_id=sid, user_id=USER_STEWARD, is_data_steward=True
+        )
+    with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
+        await controller.get_metadata(study_id=sid)
+    with pytest.raises(StudyRegistryPort.PublicationNotFoundError):
+        await controller.get_publication(publication_id=pub.id)
+    with pytest.raises(StudyRegistryPort.DatasetNotFoundError):
+        await controller.get_dataset(
+            dataset_id=ds.id, user_id=USER_STEWARD, is_data_steward=True
+        )
 
     # DAC and DAP should still exist (they are independent)
     dac = await controller.get_dac(dac_id="DAC-TMP")
     assert dac.name == "Board"
 
 
-@pytest.mark.asyncio
-async def test_unhappy_journey(controller, study_dao, event_publisher):
+async def test_unhappy_journey(joint_fixture: JointFixture):
     """Unhappy path: every step that can go wrong does go wrong first.
 
     Walks through the study lifecycle hitting every error condition:
@@ -265,8 +277,8 @@ async def test_unhappy_journey(controller, study_dao, event_publisher):
       - duplicate detection (409)
     before eventually recovering and completing the happy path.
     """
-    from srs.ports.inbound.study_registry import StudyRegistryPort
-    from tests.conftest import USER_OTHER
+    controller = joint_fixture.controller
+    kafka = joint_fixture.kafka
 
     # ── 1. Operate on non-existent study ─────────────────────────
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
@@ -432,8 +444,12 @@ async def test_unhappy_journey(controller, study_dao, event_publisher):
         await controller.delete_dap(dap_id="DAP-1")
 
     # ── 17. Publish study (now complete) ─────────────────────────
-    await controller.publish_study(study_id=sid)
-    assert len(event_publisher.annotated_metadata_events) == 1
+    async with kafka.record_events(
+        in_topic=joint_fixture.config.annotated_metadata_topic,
+    ) as recorder:
+        await controller.publish_study(study_id=sid)
+
+    assert len(recorder.recorded_events) == 1
 
     # ── 18. Post filenames with invalid accession ────────────────
     with pytest.raises(StudyRegistryPort.ValidationError):
@@ -446,8 +462,12 @@ async def test_unhappy_journey(controller, study_dao, event_publisher):
     filenames = await controller.get_filenames(study_id=sid)
     file_acc_ids = list(filenames.keys())
     file_id_map = {acc: f"s3://bucket/{acc}" for acc in file_acc_ids}
-    await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
-    assert len(event_publisher.file_id_mapping_events) == 1
+    async with kafka.record_events(
+        in_topic=joint_fixture.config.file_id_mapping_topic,
+    ) as mapping_recorder:
+        await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
+
+    assert len(mapping_recorder.recorded_events) == 1
 
     # ── 20. Persist study ────────────────────────────────────────
     await controller.update_study(
@@ -455,7 +475,9 @@ async def test_unhappy_journey(controller, study_dao, event_publisher):
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
     )
-    persisted = await study_dao.get_by_id(sid)
+    persisted = await controller.get_study(
+        study_id=sid, user_id=USER_STEWARD, is_data_steward=True
+    )
     assert persisted.status == StudyStatus.PERSISTED
 
     # ── 21. Mutations blocked on PERSISTED study ─────────────────
@@ -502,5 +524,9 @@ async def test_unhappy_journey(controller, study_dao, event_publisher):
         )
 
     # ── 23. Republish still works on PERSISTED study ─────────────
-    await controller.publish_study(study_id=sid)
-    assert len(event_publisher.annotated_metadata_events) == 2
+    async with kafka.record_events(
+        in_topic=joint_fixture.config.annotated_metadata_topic,
+    ) as recorder2:
+        await controller.publish_study(study_id=sid)
+
+    assert len(recorder2.recorded_events) == 1

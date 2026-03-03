@@ -15,7 +15,7 @@
 
 """Entity models and enumerations for the Study Registry Service."""
 
-from datetime import date
+from ghga_service_commons.utils.utc_dates import UTCDatetime
 from enum import StrEnum
 from uuid import UUID
 
@@ -120,7 +120,7 @@ class Study(BaseModel):
     affiliations: list[str]
     status: StudyStatus = StudyStatus.PENDING
     users: list[UUID] | None = None
-    created: date
+    created: UTCDatetime
     created_by: UUID
     approved_by: UUID | None = None
 
@@ -130,7 +130,7 @@ class ExperimentalMetadata(BaseModel):
 
     id: str
     metadata: dict
-    submitted: date
+    submitted: UTCDatetime
 
 
 class Publication(BaseModel):
@@ -144,7 +144,7 @@ class Publication(BaseModel):
     journal: str | None = None
     doi: str | None = None
     study_id: str
-    created: date
+    created: UTCDatetime
 
 
 class DataAccessCommittee(BaseModel):
@@ -154,8 +154,8 @@ class DataAccessCommittee(BaseModel):
     name: str
     email: EmailStr
     institute: str
-    created: date
-    changed: date
+    created: UTCDatetime
+    changed: UTCDatetime
     active: bool = True
 
 
@@ -170,8 +170,8 @@ class DataAccessPolicy(BaseModel):
     duo_permission_id: DuoPermission
     duo_modifier_ids: list[DuoModifier] = []
     dac_id: str
-    created: date
-    changed: date
+    created: UTCDatetime
+    changed: UTCDatetime
     active: bool = True
 
 
@@ -185,8 +185,8 @@ class Dataset(BaseModel):
     study_id: str
     dap_id: str
     files: list[str]
-    created: date
-    changed: date
+    created: UTCDatetime
+    changed: UTCDatetime
 
 
 class ResourceType(BaseModel):
@@ -197,8 +197,8 @@ class ResourceType(BaseModel):
     resource: TypedResource
     name: str
     description: str | None = None
-    created: date
-    changed: date
+    created: UTCDatetime
+    changed: UTCDatetime
     active: bool = True
 
 
@@ -207,7 +207,7 @@ class Accession(BaseModel):
 
     id: str
     type: AccessionType
-    created: date
+    created: UTCDatetime
     superseded_by: str | None = None
 
 
@@ -217,7 +217,7 @@ class AltAccession(BaseModel):
     id: str
     pid: str
     type: AltAccessionType
-    created: date
+    created: UTCDatetime
 
 
 class EmAccessionMap(BaseModel):
