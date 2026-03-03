@@ -17,7 +17,7 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 # --- Study models ---
@@ -25,8 +25,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class StudyCreateRequest(BaseModel):
     """Request body for creating a study."""
-
-    model_config = ConfigDict(title="StudyCreate")
 
     title: str = Field(..., description="Title of the study.")
     description: str = Field(..., description="Description of the study.")
@@ -41,8 +39,6 @@ class StudyCreateRequest(BaseModel):
 class StudyUpdateRequest(BaseModel):
     """Request body for updating a study."""
 
-    model_config = ConfigDict(title="StudyUpdate")
-
     status: str | None = Field(None, description="New status for the study.")
     users: list[UUID] | None = Field(None, description="Updated user list.")
     approved_by: UUID | None = Field(None, description="UUID of approver.")
@@ -53,8 +49,6 @@ class StudyUpdateRequest(BaseModel):
 
 class PublicationCreateRequest(BaseModel):
     """Request body for creating a publication."""
-
-    model_config = ConfigDict(title="PublicationCreate")
 
     title: str = Field(..., description="Title of the publication.")
     abstract: str | None = Field(None, description="Abstract text.")
@@ -72,8 +66,6 @@ class PublicationCreateRequest(BaseModel):
 class DacCreateRequest(BaseModel):
     """Request body for creating a DAC."""
 
-    model_config = ConfigDict(title="DacCreate")
-
     id: str = Field(..., description="Unique DAC identifier.")
     name: str = Field(..., description="Name of the DAC.")
     email: EmailStr = Field(..., description="Contact email.")
@@ -82,8 +74,6 @@ class DacCreateRequest(BaseModel):
 
 class DacUpdateRequest(BaseModel):
     """Request body for updating a DAC."""
-
-    model_config = ConfigDict(title="DacUpdate")
 
     name: str | None = Field(None, description="Updated name.")
     email: EmailStr | None = Field(None, description="Updated email.")
@@ -96,8 +86,6 @@ class DacUpdateRequest(BaseModel):
 
 class DapCreateRequest(BaseModel):
     """Request body for creating a DAP."""
-
-    model_config = ConfigDict(title="DapCreate")
 
     id: str = Field(..., description="Unique DAP identifier.")
     name: str = Field(..., description="Name of the DAP.")
@@ -116,8 +104,6 @@ class DapCreateRequest(BaseModel):
 class DapUpdateRequest(BaseModel):
     """Request body for updating a DAP."""
 
-    model_config = ConfigDict(title="DapUpdate")
-
     name: str | None = None
     description: str | None = None
     text: str | None = None
@@ -134,8 +120,6 @@ class DapUpdateRequest(BaseModel):
 class DatasetCreateRequest(BaseModel):
     """Request body for creating a dataset."""
 
-    model_config = ConfigDict(title="DatasetCreate")
-
     title: str = Field(..., description="Title of the dataset.")
     description: str = Field(..., description="Description.")
     types: list[str] = Field(
@@ -151,8 +135,6 @@ class DatasetCreateRequest(BaseModel):
 class DatasetUpdateRequest(BaseModel):
     """Request body for updating a dataset."""
 
-    model_config = ConfigDict(title="DatasetUpdate")
-
     dap_id: str = Field(..., description="New DAP ID.")
 
 
@@ -161,8 +143,6 @@ class DatasetUpdateRequest(BaseModel):
 
 class ResourceTypeCreateRequest(BaseModel):
     """Request body for creating a resource type."""
-
-    model_config = ConfigDict(title="ResourceTypeCreate")
 
     code: str = Field(..., description="Unique code (uppercase).")
     resource: str = Field(
@@ -175,8 +155,6 @@ class ResourceTypeCreateRequest(BaseModel):
 class ResourceTypeUpdateRequest(BaseModel):
     """Request body for updating a resource type."""
 
-    model_config = ConfigDict(title="ResourceTypeUpdate")
-
     name: str | None = None
     description: str | None = None
     active: bool | None = None
@@ -188,8 +166,6 @@ class ResourceTypeUpdateRequest(BaseModel):
 class MetadataUpsertRequest(BaseModel):
     """Request body for upserting experimental metadata."""
 
-    model_config = ConfigDict(title="MetadataUpsert")
-
     metadata: dict = Field(
         ..., description="Free-form experimental metadata."
     )
@@ -200,8 +176,6 @@ class MetadataUpsertRequest(BaseModel):
 
 class FileIdMappingRequest(BaseModel):
     """Request body for posting file ID mappings."""
-
-    model_config = ConfigDict(title="FileIdMapping")
 
     file_id_map: dict[str, str] = Field(
         ..., description="Map of file accession PIDs to internal file IDs."
