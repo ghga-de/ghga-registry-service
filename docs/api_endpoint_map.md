@@ -61,8 +61,8 @@ graph LR
     end
 
     subgraph Filenames
-        F1["GET /studies/{id}/filenames → dict"]
-        F2["POST /studies/{id}/filenames → 204"]
+        F1["GET /filenames/{id} → dict"]
+        F2["POST /filenames/{id} → 204"]
     end
 
     subgraph Publish

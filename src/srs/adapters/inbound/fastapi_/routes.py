@@ -1022,7 +1022,7 @@ async def get_alt_accession(
 
 
 @router.get(
-    "/studies/{study_id}/filenames",
+    "/filenames/{study_id}",
     summary="Get file accession-to-name mapping",
     operation_id="getFilenames",
     response_model=dict[str, dict[str, str]],
@@ -1046,7 +1046,7 @@ async def get_filenames(
 
 
 @router.post(
-    "/studies/{study_id}/filenames",
+    "/filenames/{study_id}",
     summary="Post file ID mappings",
     operation_id="postFilenames",
     status_code=status.HTTP_204_NO_CONTENT,
