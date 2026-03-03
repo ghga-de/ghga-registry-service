@@ -22,6 +22,7 @@ from hexkit.log import LoggingConfig
 from hexkit.providers.akafka import KafkaConfig
 from hexkit.providers.mongodb import MongoDbConfig
 
+from srs.adapters.outbound.event_pub import EventPubConfig
 from srs.constants import SERVICE_NAME
 
 
@@ -32,5 +33,6 @@ class Config(
     KafkaConfig,
     AuthConfig,
     LoggingConfig,
+    EventPubConfig,
 ):
     """Composite configuration incorporating all required config mixins."""

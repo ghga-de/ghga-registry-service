@@ -17,34 +17,55 @@
 
 import json
 
-from hexkit.custom_types import JsonObject
-from hexkit.protocols.eventsub import EventSubscriberProtocol
-from hexkit.providers.akafka import KafkaEventPublisher
+from hexkit.protocols.eventpub import EventPublisherProtocol
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 from srs.core.models import AnnotatedExperimentalMetadata
 from srs.ports.outbound.event_pub import EventPublisherPort
 
 
+class EventPubConfig(BaseSettings):
+    """Config for event publishing topics and types."""
+
+    annotated_metadata_topic: str = Field(
+        default="annotated_metadata",
+        description="Kafka topic for annotated metadata events.",
+    )
+    annotated_metadata_type: str = Field(
+        default="annotated_metadata_created",
+        description="Event type for annotated metadata events.",
+    )
+    file_id_mapping_topic: str = Field(
+        default="file_id_mapping",
+        description="Kafka topic for file ID mapping events.",
+    )
+    file_id_mapping_type: str = Field(
+        default="file_id_mapping_created",
+        description="Event type for file ID mapping events.",
+    )
+
+
 class EventPubTranslator(EventPublisherPort):
     """Translates outbound events into Kafka messages."""
 
-    ANNOTATED_METADATA_TOPIC = "annotated_metadata"
-    ANNOTATED_METADATA_TYPE = "annotated_metadata_created"
-
-    FILE_ID_MAPPING_TOPIC = "file_id_mapping"
-    FILE_ID_MAPPING_TYPE = "file_id_mapping_created"
-
-    def __init__(self, *, kafka_publisher: KafkaEventPublisher):
-        self._publisher = kafka_publisher
+    def __init__(
+        self,
+        *,
+        config: EventPubConfig,
+        provider: EventPublisherProtocol,
+    ):
+        self._config = config
+        self._provider = provider
 
     async def publish_annotated_metadata(
         self, *, payload: AnnotatedExperimentalMetadata
     ) -> None:
         """Publish annotated metadata event to Kafka."""
-        await self._publisher.publish(
+        await self._provider.publish(
             payload=json.loads(payload.model_dump_json()),
-            topic=self.ANNOTATED_METADATA_TOPIC,
-            type_=self.ANNOTATED_METADATA_TYPE,
+            topic=self._config.annotated_metadata_topic,
+            type_=self._config.annotated_metadata_type,
             key=payload.study.id,
         )
 
@@ -52,9 +73,9 @@ class EventPubTranslator(EventPublisherPort):
         self, *, mapping: dict[str, str]
     ) -> None:
         """Publish file ID mapping event to Kafka."""
-        await self._publisher.publish(
+        await self._provider.publish(
             payload={"mapping": mapping},
-            topic=self.FILE_ID_MAPPING_TOPIC,
-            type_=self.FILE_ID_MAPPING_TYPE,
+            topic=self._config.file_id_mapping_topic,
+            type_=self._config.file_id_mapping_type,
             key="file_id_mapping",
         )

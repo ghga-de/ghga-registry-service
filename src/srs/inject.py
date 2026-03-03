@@ -70,7 +70,9 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             dao_factory=dao_factory
         )
 
-        event_publisher = EventPubTranslator(kafka_publisher=kafka_publisher)
+        event_publisher = EventPubTranslator(
+            config=config, provider=kafka_publisher
+        )
 
         yield StudyRegistryController(
             study_dao=study_dao,
