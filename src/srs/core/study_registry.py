@@ -27,6 +27,7 @@ from srs.core.accessions import (
 )
 from srs.core.models import (
     Accession,
+    AccessionType,
     AltAccession,
     AltAccessionType,
     AnnotatedExperimentalMetadata,

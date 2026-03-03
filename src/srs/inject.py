@@ -13,13 +13,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Dependency injection wiring for the Study Registry Service."""
+"""Module hosting the dependency injection container."""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from ghga_service_commons.auth.ghga import AuthContext, JWTAuthContextProvider
+from ghga_service_commons.auth.ghga import AuthContext
+from ghga_service_commons.auth.jwt_auth import JWTAuthContextProvider
+from ghga_service_commons.utils.context import asyncnullcontext
 from hexkit.providers.akafka import KafkaEventPublisher
 from hexkit.providers.mongodb import MongoDbDaoFactory
 
@@ -45,29 +47,32 @@ from srs.ports.inbound.study_registry import StudyRegistryPort
 
 
 @asynccontextmanager
-async def prepare_core(
-    *, config: Config
-) -> AsyncGenerator[StudyRegistryPort, None]:
-    """Set up the core controller with all outbound adapters."""
-    dao_factory = MongoDbDaoFactory(config=config)
+async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
+    """Construct and initialize all core components and their outbound dependencies."""
+    async with (
+        MongoDbDaoFactory.construct(config=config) as dao_factory,
+        KafkaEventPublisher.construct(config=config) as kafka_publisher,
+    ):
+        study_dao = await get_study_dao(dao_factory=dao_factory)
+        metadata_dao = await get_metadata_dao(dao_factory=dao_factory)
+        publication_dao = await get_publication_dao(dao_factory=dao_factory)
+        dac_dao = await get_dac_dao(dao_factory=dao_factory)
+        dap_dao = await get_dap_dao(dao_factory=dao_factory)
+        dataset_dao = await get_dataset_dao(dao_factory=dao_factory)
+        resource_type_dao = await get_resource_type_dao(
+            dao_factory=dao_factory
+        )
+        accession_dao = await get_accession_dao(dao_factory=dao_factory)
+        alt_accession_dao = await get_alt_accession_dao(
+            dao_factory=dao_factory
+        )
+        em_accession_map_dao = await get_em_accession_map_dao(
+            dao_factory=dao_factory
+        )
 
-    study_dao = await get_study_dao(dao_factory=dao_factory)
-    metadata_dao = await get_metadata_dao(dao_factory=dao_factory)
-    publication_dao = await get_publication_dao(dao_factory=dao_factory)
-    dac_dao = await get_dac_dao(dao_factory=dao_factory)
-    dap_dao = await get_dap_dao(dao_factory=dao_factory)
-    dataset_dao = await get_dataset_dao(dao_factory=dao_factory)
-    resource_type_dao = await get_resource_type_dao(dao_factory=dao_factory)
-    accession_dao = await get_accession_dao(dao_factory=dao_factory)
-    alt_accession_dao = await get_alt_accession_dao(dao_factory=dao_factory)
-    em_accession_map_dao = await get_em_accession_map_dao(
-        dao_factory=dao_factory
-    )
-
-    async with KafkaEventPublisher.construct(config=config) as kafka_publisher:
         event_publisher = EventPubTranslator(kafka_publisher=kafka_publisher)
 
-        controller = StudyRegistryController(
+        yield StudyRegistryController(
             study_dao=study_dao,
             metadata_dao=metadata_dao,
             publication_dao=publication_dao,
@@ -80,24 +85,43 @@ async def prepare_core(
             em_accession_map_dao=em_accession_map_dao,
             event_publisher=event_publisher,
         )
-        yield controller
+
+
+def prepare_core_with_override(
+    *,
+    config: Config,
+    controller_override: StudyRegistryPort | None = None,
+):
+    """Resolve the controller context manager based on config and override (if any)."""
+    return (
+        asyncnullcontext(controller_override)
+        if controller_override
+        else prepare_core(config=config)
+    )
 
 
 @asynccontextmanager
 async def prepare_rest_app(
-    *, config: Config
-) -> AsyncGenerator[FastAPI, None]:
-    """Prepare the complete FastAPI application with DI wiring."""
+    *,
+    config: Config,
+    controller_override: StudyRegistryPort | None = None,
+) -> AsyncGenerator[FastAPI]:
+    """Construct and initialize a REST API app along with all its dependencies.
+
+    By default, the core dependencies are automatically prepared but you can also
+    provide them using the controller_override parameter.
+    """
     app = get_configured_app(config=config)
 
-    async with prepare_core(config=config) as controller:
-        auth_context_provider = JWTAuthContextProvider[AuthContext](
-            config=config,
-            context_class=AuthContext,
-        )
-        auth_bundle = AuthProviderBundle(
-            context_provider=auth_context_provider
-        )
+    async with (
+        prepare_core_with_override(
+            config=config, controller_override=controller_override
+        ) as controller,
+        JWTAuthContextProvider.construct(
+            config=config, context_class=AuthContext
+        ) as auth_context,
+    ):
+        auth_bundle = AuthProviderBundle(context_provider=auth_context)
 
         app.dependency_overrides[dummies.study_registry_port] = (
             lambda: controller

@@ -20,7 +20,8 @@ from uuid import UUID
 
 from fastapi import Depends, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from ghga_service_commons.auth.ghga import AuthContext, JWTAuthContextProvider
+from ghga_service_commons.auth.ghga import AuthContext
+from ghga_service_commons.auth.jwt_auth import JWTAuthContextProvider
 from pydantic import BaseModel, ConfigDict
 
 from srs.adapters.inbound.fastapi_ import dummies
