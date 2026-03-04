@@ -30,6 +30,8 @@ Covers the full workflow:
   10. Republish study
 """
 
+from typing import Any, cast
+
 import pytest
 
 from srs.core.models import StudyStatus
@@ -94,7 +96,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
         await controller.publish_study(study_id=study_id)
 
     assert len(recorder.recorded_events) == 1
-    aem_payload = recorder.recorded_events[0].payload
+    aem_payload = cast(dict[str, Any], recorder.recorded_events[0].payload)
     assert aem_payload["study"]["id"] == study_id
     assert aem_payload["study"]["publication"]["doi"] == E["publications"]["journey"]["doi"]
     assert len(aem_payload["datasets"]) == 1
@@ -119,7 +121,8 @@ async def test_new_study_journey(joint_fixture: JointFixture):
         )
 
     assert len(mapping_recorder.recorded_events) == 1
-    assert mapping_recorder.recorded_events[0].payload["mapping"] == file_id_map
+    mapping_payload = cast(dict[str, Any], mapping_recorder.recorded_events[0].payload)
+    assert mapping_payload["mapping"] == file_id_map
 
     # 9 ── Persist study (PENDING → PERSISTED) ───────────────────
     await controller.update_study(
@@ -142,7 +145,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
         await controller.publish_study(study_id=study_id)
 
     assert len(recorder2.recorded_events) == 1
-    aem2_payload = recorder2.recorded_events[0].payload
+    aem2_payload = cast(dict[str, Any], recorder2.recorded_events[0].payload)
     assert aem2_payload["study"]["id"] == study_id
     # New publish generates new accessions
     assert aem2_payload["accessions"]["files"] != aem_payload["accessions"]["files"]
