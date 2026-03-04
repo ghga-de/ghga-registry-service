@@ -52,7 +52,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     kafka = joint_fixture.kafka
 
     # 1 ── Create study ───────────────────────────────────────────
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["journey"], created_by=USER_SUBMITTER,
     )
     assert study.status == StudyStatus.PENDING
@@ -60,14 +60,14 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     study_id = study.id
 
     # 2 ── Upsert experimental metadata ──────────────────────────
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=study_id, metadata=E["metadata"]["journey"],
     )
-    em = await controller.get_metadata(study_id=study_id)
+    em = await controller.metadata.get_metadata(study_id=study_id)
     assert em.metadata == E["metadata"]["journey"]
 
     # 3 ── Create publication ────────────────────────────────────
-    pub = await controller.create_publication(
+    pub = await controller.publications.create_publication(
         **E["publications"]["journey"], study_id=study_id,
     )
     assert pub.id.startswith("GHGAU")
@@ -84,7 +84,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     assert dap.dac_id == "DAC-DIABETES"
 
     # 6 ── Create dataset ────────────────────────────────────────
-    ds = await controller.create_dataset(
+    ds = await controller.datasets.create_dataset(
         **E["datasets"]["journey"], study_id=study_id, dap_id="DAP-DIABETES",
     )
     assert ds.id.startswith("GHGAD")
@@ -94,7 +94,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     async with kafka.record_events(
         in_topic=joint_fixture.config.annotated_metadata_topic,
     ) as recorder:
-        await controller.publish_study(study_id=study_id)
+        await controller.studies.publish_study(study_id=study_id)
 
     assert len(recorder.recorded_events) == 1
     aem_payload = cast(dict[str, Any], recorder.recorded_events[0].payload)
@@ -106,7 +106,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     assert len(aem_payload["accessions"]["samples"]) == 2
 
     # 8 ── Post filenames ────────────────────────────────────────
-    filenames = await controller.get_filenames(study_id=study_id)
+    filenames = await controller.filenames.get_filenames(study_id=study_id)
     assert len(filenames) == 2
 
     file_acc_ids = list(filenames.keys())
@@ -117,7 +117,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     async with kafka.record_events(
         in_topic=joint_fixture.config.file_id_mapping_topic,
     ) as mapping_recorder:
-        await controller.post_filenames(
+        await controller.filenames.post_filenames(
             study_id=study_id, file_id_map=file_id_map
         )
 
@@ -126,12 +126,12 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     assert mapping_payload["mapping"] == file_id_map
 
     # 9 ── Persist study (PENDING → PERSISTED) ───────────────────
-    await controller.update_study(
+    await controller.studies.update_study(
         study_id=study_id,
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
     )
-    persisted = await controller.get_study(
+    persisted = await controller.studies.get_study(
         study_id=study_id,
         user_id=USER_STEWARD,
         is_data_steward=True,
@@ -143,7 +143,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     async with kafka.record_events(
         in_topic=joint_fixture.config.annotated_metadata_topic,
     ) as recorder2:
-        await controller.publish_study(study_id=study_id)
+        await controller.studies.publish_study(study_id=study_id)
 
     assert len(recorder2.recorded_events) == 1
     aem2_payload = cast(dict[str, Any], recorder2.recorded_events[0].payload)
@@ -158,37 +158,37 @@ async def test_journey_delete_pending_study_cleans_everything(
     """Deleting a PENDING study must cascade-remove all related entities."""
     controller = joint_fixture.controller
 
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     sid = study.id
 
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=sid, metadata=E["metadata"]["with_named_file"],
     )
-    pub = await controller.create_publication(
+    pub = await controller.publications.create_publication(
         **E["publications"]["minimal"], study_id=sid,
     )
     await controller.data_access.create_dac(**E["dacs"]["tmp"])
     await controller.data_access.create_dap(**E["daps"]["tmp"])
-    ds = await controller.create_dataset(
+    ds = await controller.datasets.create_dataset(
         **E["datasets"]["with_files"], study_id=sid, dap_id="DAP-TMP",
     )
 
     # Delete the study
-    await controller.delete_study(study_id=sid)
+    await controller.studies.delete_study(study_id=sid)
 
     # Verify study and related entities are gone
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.get_study(
+        await controller.studies.get_study(
             study_id=sid, user_id=USER_STEWARD, is_data_steward=True
         )
     with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
-        await controller.get_metadata(study_id=sid)
+        await controller.metadata.get_metadata(study_id=sid)
     with pytest.raises(StudyRegistryPort.PublicationNotFoundError):
-        await controller.get_publication(publication_id=pub.id)
+        await controller.publications.get_publication(publication_id=pub.id)
     with pytest.raises(StudyRegistryPort.DatasetNotFoundError):
-        await controller.get_dataset(
+        await controller.datasets.get_dataset(
             dataset_id=ds.id, user_id=USER_STEWARD, is_data_steward=True
         )
 
@@ -214,56 +214,56 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
 
     # ── 1. Operate on non-existent study ─────────────────────────
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.get_study(study_id="GHGAS_FAKE", user_id=USER_SUBMITTER)
+        await controller.studies.get_study(study_id="GHGAS_FAKE", user_id=USER_SUBMITTER)
 
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.upsert_metadata(study_id="GHGAS_FAKE", metadata={})
+        await controller.metadata.upsert_metadata(study_id="GHGAS_FAKE", metadata={})
 
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.delete_study(study_id="GHGAS_FAKE")
+        await controller.studies.delete_study(study_id="GHGAS_FAKE")
 
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.publish_study(study_id="GHGAS_FAKE")
+        await controller.studies.publish_study(study_id="GHGAS_FAKE")
 
     # ── 2. Create a study successfully ───────────────────────────
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["unhappy"], created_by=USER_SUBMITTER,
     )
     sid = study.id
 
     # ── 3. Access control: unauthorized user blocked ─────────────
     with pytest.raises(StudyRegistryPort.AccessDeniedError):
-        await controller.get_study(study_id=sid, user_id=USER_OTHER)
+        await controller.studies.get_study(study_id=sid, user_id=USER_OTHER)
 
     # ── 4. Publish without metadata or publication → validation ──
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.publish_study(study_id=sid)
+        await controller.studies.publish_study(study_id=sid)
 
     # ── 5. Persist without completeness → validation ─────────────
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.update_study(
+        await controller.studies.update_study(
             study_id=sid, status=StudyStatus.FROZEN
         )
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.update_study(
+        await controller.studies.update_study(
             study_id=sid, status=StudyStatus.PERSISTED
         )
 
     # ── 6. Add metadata, still no publication → publish fails ────
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=sid, metadata=E["metadata"]["with_named_file"],
     )
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.publish_study(study_id=sid)
+        await controller.studies.publish_study(study_id=sid)
 
     # ── 7. Publication on non-existent study ─────────────────────
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.create_publication(
+        await controller.publications.create_publication(
             **E["publications"]["minimal"], study_id="GHGAS_FAKE",
         )
 
     # ── 8. Add publication → now publish succeeds ────────────────
-    pub = await controller.create_publication(
+    pub = await controller.publications.create_publication(
         **E["publications"]["paper"], study_id=sid,
     )
 
@@ -289,19 +289,19 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
 
     # ── 12. Dataset with non-existent DAP ────────────────────────
     with pytest.raises(StudyRegistryPort.DapNotFoundError):
-        await controller.create_dataset(
+        await controller.datasets.create_dataset(
             **E["datasets"]["minimal"], study_id=sid, dap_id="DAP-NONEXIST",
         )
 
     # ── 13. Dataset with duplicate file aliases ──────────────────
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.create_dataset(
+        await controller.datasets.create_dataset(
             **{**E["datasets"]["minimal"], "files": ["f1", "f1"]},
             study_id=sid, dap_id="DAP-1",
         )
 
     # ── 14. Create dataset successfully ──────────────────────────
-    ds = await controller.create_dataset(
+    ds = await controller.datasets.create_dataset(
         **{**E["datasets"]["with_files"], "types": ["WGS"]},
         study_id=sid, dap_id="DAP-1",
     )
@@ -318,68 +318,68 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
     async with kafka.record_events(
         in_topic=joint_fixture.config.annotated_metadata_topic,
     ) as recorder:
-        await controller.publish_study(study_id=sid)
+        await controller.studies.publish_study(study_id=sid)
 
     assert len(recorder.recorded_events) == 1
 
     # ── 18. Post filenames with invalid accession ────────────────
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.post_filenames(
+        await controller.filenames.post_filenames(
             study_id=sid,
             file_id_map={"GHGAF_INVALID_00000": "some-id"},
         )
 
     # ── 19. Post filenames with valid accession ──────────────────
-    filenames = await controller.get_filenames(study_id=sid)
+    filenames = await controller.filenames.get_filenames(study_id=sid)
     file_acc_ids = list(filenames.keys())
     file_id_map = {acc: f"s3://bucket/{acc}" for acc in file_acc_ids}
     async with kafka.record_events(
         in_topic=joint_fixture.config.file_id_mapping_topic,
     ) as mapping_recorder:
-        await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
+        await controller.filenames.post_filenames(study_id=sid, file_id_map=file_id_map)
 
     assert len(mapping_recorder.recorded_events) == 1
 
     # ── 20. Persist study ────────────────────────────────────────
-    await controller.update_study(
+    await controller.studies.update_study(
         study_id=sid,
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
     )
-    persisted = await controller.get_study(
+    persisted = await controller.studies.get_study(
         study_id=sid, user_id=USER_STEWARD, is_data_steward=True
     )
     assert persisted.status == StudyStatus.PERSISTED
 
     # ── 21. Mutations blocked on PERSISTED study ─────────────────
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.upsert_metadata(study_id=sid, metadata={"new": True})
+        await controller.metadata.upsert_metadata(study_id=sid, metadata={"new": True})
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.delete_metadata(study_id=sid)
+        await controller.metadata.delete_metadata(study_id=sid)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.create_publication(
+        await controller.publications.create_publication(
             **E["publications"]["minimal"], study_id=sid,
         )
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.delete_publication(publication_id=pub.id)
+        await controller.publications.delete_publication(publication_id=pub.id)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.create_dataset(
+        await controller.datasets.create_dataset(
             **E["datasets"]["minimal"], study_id=sid, dap_id="DAP-1",
         )
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.delete_dataset(dataset_id=ds.id)
+        await controller.datasets.delete_dataset(dataset_id=ds.id)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.delete_study(study_id=sid)
+        await controller.studies.delete_study(study_id=sid)
 
     # ── 22. Persisting again is also invalid ─────────────────────
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.update_study(
+        await controller.studies.update_study(
             study_id=sid, status=StudyStatus.PERSISTED
         )
 
@@ -387,6 +387,6 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
     async with kafka.record_events(
         in_topic=joint_fixture.config.annotated_metadata_topic,
     ) as recorder2:
-        await controller.publish_study(study_id=sid)
+        await controller.studies.publish_study(study_id=sid)
 
     assert len(recorder2.recorded_events) == 1

@@ -33,17 +33,17 @@ E = EXAMPLES
 
 async def _setup_published_study(controller, accession_dao):
     """Create a study, metadata with files, publish → return study_id."""
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=study.id, metadata=E["metadata"]["filenames"],
     )
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["minimal"], study_id=study.id,
     )
     # Publish to generate EM accessions (for files)
-    await controller.publish_study(study_id=study.id)
+    await controller.studies.publish_study(study_id=study.id)
     return study.id
 
 
@@ -54,7 +54,7 @@ async def _setup_published_study(controller, accession_dao):
 async def test_get_filenames(controller, accession_dao):
     """Getting filenames must return accession→{name, alias} mappings."""
     sid = await _setup_published_study(controller, accession_dao)
-    result = await controller.get_filenames(study_id=sid)
+    result = await controller.filenames.get_filenames(study_id=sid)
     # Should have 2 file accession entries
     assert len(result) == 2
     # Each entry must have name and alias
@@ -68,17 +68,17 @@ async def test_get_filenames(controller, accession_dao):
 async def test_get_filenames_study_not_found(controller):
     """Getting filenames for a non-existent study must raise StudyNotFoundError."""
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.get_filenames(study_id="NONEXIST")
+        await controller.filenames.get_filenames(study_id="NONEXIST")
 
 
 @pytest.mark.asyncio
 async def test_get_filenames_no_metadata(controller):
     """Getting filenames for a study without published EM must raise MetadataNotFoundError."""
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
-        await controller.get_filenames(study_id=study.id)
+        await controller.filenames.get_filenames(study_id=study.id)
 
 
 # ── POST /filenames/{study_id} ──────────────────────────────────
@@ -90,12 +90,12 @@ async def test_post_filenames_stores_alt_accessions(
 ):
     """Posting file IDs must create AltAccession entries with type FILE_ID."""
     sid = await _setup_published_study(controller, accession_dao)
-    filenames = await controller.get_filenames(study_id=sid)
+    filenames = await controller.filenames.get_filenames(study_id=sid)
     file_acc_ids = list(filenames.keys())
 
     # Map each file accession to an internal file ID
     file_id_map = {acc: f"internal-{i}" for i, acc in enumerate(file_acc_ids)}
-    await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
+    await controller.filenames.post_filenames(study_id=sid, file_id_map=file_id_map)
 
     # Verify AltAccession entries
     for expected_id in file_id_map.values():
@@ -109,7 +109,7 @@ async def test_post_filenames_publishes_event(
 ):
     """Posting file IDs must publish a file-ID mapping event."""
     sid = await _setup_published_study(controller, accession_dao)
-    filenames = await controller.get_filenames(study_id=sid)
+    filenames = await controller.filenames.get_filenames(study_id=sid)
     file_acc_ids = list(filenames.keys())
 
     file_id_map = {acc: f"id-{i}" for i, acc in enumerate(file_acc_ids)}
@@ -117,7 +117,7 @@ async def test_post_filenames_publishes_event(
     # The setup already published one AEM event; record baseline
     topic = event_store.topics["file_id_mapping"]
     baseline = len(topic)
-    await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
+    await controller.filenames.post_filenames(study_id=sid, file_id_map=file_id_map)
     assert len(topic) == baseline + 1
     assert topic[-1].payload == {"mapping": file_id_map}
 
@@ -126,7 +126,7 @@ async def test_post_filenames_publishes_event(
 async def test_post_filenames_study_not_found(controller):
     """Posting file IDs for a non-existent study must raise StudyNotFoundError."""
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.post_filenames(
+        await controller.filenames.post_filenames(
             study_id="NONEXIST", file_id_map={"X": "Y"}
         )
 
@@ -136,7 +136,7 @@ async def test_post_filenames_invalid_accession(controller, accession_dao):
     """Posting with a non-existent file accession must raise ValidationError."""
     sid = await _setup_published_study(controller, accession_dao)
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.post_filenames(
+        await controller.filenames.post_filenames(
             study_id=sid,
             file_id_map={"GHGAF_INVALID_00000": "some-id"},
         )

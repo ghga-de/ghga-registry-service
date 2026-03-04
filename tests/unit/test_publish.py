@@ -32,22 +32,22 @@ E = EXAMPLES
 
 async def _build_complete_study(controller):
     """Create a study with metadata, publication, DAC, DAP, and dataset."""
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["default"], created_by=USER_SUBMITTER,
     )
     sid = study.id
 
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=sid, metadata=E["metadata"]["rich"],
     )
 
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["full"], study_id=sid,
     )
 
     await controller.data_access.create_dac(**E["dacs"]["default"])
     await controller.data_access.create_dap(**E["daps"]["default"])
-    await controller.create_dataset(
+    await controller.datasets.create_dataset(
         **E["datasets"]["full"], study_id=sid, dap_id="DAP-1",
     )
 
@@ -63,7 +63,7 @@ async def test_publish_study_generates_em_accessions(
 ):
     """Publishing must generate accessions for each EM resource."""
     sid = await _build_complete_study(controller)
-    await controller.publish_study(study_id=sid)
+    await controller.studies.publish_study(study_id=sid)
 
     em_map = await em_accession_map_dao.get_by_id(sid)
     # Should have accession maps for: files, samples, individuals
@@ -82,7 +82,7 @@ async def test_publish_study_publishes_aem_event(
 ):
     """Publishing must emit an AnnotatedExperimentalMetadata event."""
     sid = await _build_complete_study(controller)
-    await controller.publish_study(study_id=sid)
+    await controller.studies.publish_study(study_id=sid)
 
     topic = event_store.topics["annotated_metadata"]
     assert len(topic) == 1
@@ -102,7 +102,7 @@ async def test_publish_study_aem_has_accessions(
 ):
     """The AEM event must contain the generated accession maps."""
     sid = await _build_complete_study(controller)
-    await controller.publish_study(study_id=sid)
+    await controller.studies.publish_study(study_id=sid)
 
     aem = event_store.topics["annotated_metadata"][0].payload
     assert "files" in aem["accessions"]
@@ -114,35 +114,35 @@ async def test_publish_study_aem_has_accessions(
 async def test_publish_study_not_found(controller):
     """Publishing a non-existent study must raise StudyNotFoundError."""
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.publish_study(study_id="NONEXIST")
+        await controller.studies.publish_study(study_id="NONEXIST")
 
 
 @pytest.mark.asyncio
 async def test_publish_study_missing_metadata(controller):
     """Publishing a study without EM must raise ValidationError."""
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     # No metadata added
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["minimal"], study_id=study.id,
     )
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.publish_study(study_id=study.id)
+        await controller.studies.publish_study(study_id=study.id)
 
 
 @pytest.mark.asyncio
 async def test_publish_study_missing_publication(controller):
     """Publishing a study without a publication must raise ValidationError."""
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=study.id, metadata=E["metadata"]["empty"]
     )
     # No publication added
     with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.publish_study(study_id=study.id)
+        await controller.studies.publish_study(study_id=study.id)
 
 
 @pytest.mark.asyncio
@@ -151,11 +151,11 @@ async def test_publish_study_republish_generates_new_accessions(
 ):
     """Republishing must regenerate EM accessions (new accession IDs)."""
     sid = await _build_complete_study(controller)
-    await controller.publish_study(study_id=sid)
+    await controller.studies.publish_study(study_id=sid)
     first_map = await em_accession_map_dao.get_by_id(sid)
     first_file_accessions = set(first_map.maps["files"].values())
 
-    await controller.publish_study(study_id=sid)
+    await controller.studies.publish_study(study_id=sid)
     second_map = await em_accession_map_dao.get_by_id(sid)
     second_file_accessions = set(second_map.maps["files"].values())
 

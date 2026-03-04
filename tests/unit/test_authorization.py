@@ -155,23 +155,23 @@ async def seeded_app(config: ConfigFixture, controller):
     """
     _seed = E["authorization"]["seed"]
     # Seed data through the controller
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **_seed["study"], created_by=USER_SUBMITTER,
     )
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=study.id, metadata=_seed["metadata"],
     )
-    pub = await controller.create_publication(
+    pub = await controller.publications.create_publication(
         **_seed["publication"], study_id=study.id,
     )
     await controller.data_access.create_dac(**E["dacs"]["default"])
     await controller.data_access.create_dap(**E["daps"]["default"])
     await controller.data_access.create_dac(**E["dacs"]["deletable"])
     await controller.data_access.create_dap(**E["daps"]["deletable"])
-    ds = await controller.create_dataset(
+    ds = await controller.datasets.create_dataset(
         **_seed["dataset"], study_id=study.id, dap_id="DAP-1",
     )
-    rt = await controller.create_resource_type(**_seed["resource_type"])
+    rt = await controller.resource_types.create_resource_type(**_seed["resource_type"])
 
     ids = {
         "study_id": study.id,

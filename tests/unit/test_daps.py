@@ -184,10 +184,10 @@ async def test_delete_dap_with_referencing_dataset(data_access, controller):
     """Deleting a DAP referenced by a dataset must raise ReferenceConflictError."""
     await _create_dac(data_access)
     await _create_dap(data_access)
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
-    await controller.create_dataset(
+    await controller.datasets.create_dataset(
         **E["datasets"]["minimal"],
         study_id=study.id,
         dap_id="DAP-1",

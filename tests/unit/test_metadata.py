@@ -36,7 +36,7 @@ E = EXAMPLES
 
 async def _create_pending_study(controller) -> str:
     """Create a PENDING study and return its ID."""
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     return study.id
@@ -56,7 +56,7 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
             created=now_as_utc(),
         )
     )
-    await controller.update_study(
+    await controller.studies.update_study(
         study_id=study_id,
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
@@ -70,10 +70,10 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
 async def test_upsert_metadata_create(controller):
     """Upserting metadata for a PENDING study must create the EM."""
     sid = await _create_pending_study(controller)
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=sid, metadata=E["metadata"]["with_file"]
     )
-    em = await controller.get_metadata(study_id=sid)
+    em = await controller.metadata.get_metadata(study_id=sid)
     assert em.metadata == E["metadata"]["with_file"]
 
 
@@ -81,9 +81,9 @@ async def test_upsert_metadata_create(controller):
 async def test_upsert_metadata_update(controller):
     """Upserting twice must overwrite the existing EM."""
     sid = await _create_pending_study(controller)
-    await controller.upsert_metadata(study_id=sid, metadata={"v": 1})
-    await controller.upsert_metadata(study_id=sid, metadata={"v": 2})
-    em = await controller.get_metadata(study_id=sid)
+    await controller.metadata.upsert_metadata(study_id=sid, metadata={"v": 1})
+    await controller.metadata.upsert_metadata(study_id=sid, metadata={"v": 2})
+    em = await controller.metadata.get_metadata(study_id=sid)
     assert em.metadata == {"v": 2}
 
 
@@ -91,7 +91,7 @@ async def test_upsert_metadata_update(controller):
 async def test_upsert_metadata_study_not_found(controller):
     """Upserting metadata for a non-existent study must raise StudyNotFoundError."""
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await controller.upsert_metadata(
+        await controller.metadata.upsert_metadata(
             study_id="NONEXIST", metadata={}
         )
 
@@ -105,7 +105,7 @@ async def test_upsert_metadata_study_not_pending(
     await _persist_study(controller, sid, metadata_dao, publication_dao)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.upsert_metadata(
+        await controller.metadata.upsert_metadata(
             study_id=sid, metadata={"new": True}
         )
 
@@ -117,10 +117,10 @@ async def test_upsert_metadata_study_not_pending(
 async def test_get_metadata(controller):
     """Getting metadata must return the EM for the study."""
     sid = await _create_pending_study(controller)
-    await controller.upsert_metadata(
+    await controller.metadata.upsert_metadata(
         study_id=sid, metadata=E["metadata"]["with_file"]
     )
-    em = await controller.get_metadata(study_id=sid)
+    em = await controller.metadata.get_metadata(study_id=sid)
     assert em.id == sid
     assert isinstance(em.submitted, datetime)
 
@@ -130,7 +130,7 @@ async def test_get_metadata_not_found(controller):
     """Getting metadata for a study without EM must raise MetadataNotFoundError."""
     sid = await _create_pending_study(controller)
     with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
-        await controller.get_metadata(study_id=sid)
+        await controller.metadata.get_metadata(study_id=sid)
 
 
 # ── DELETE /metadata/{study_id} ─────────────────────────────────
@@ -140,8 +140,8 @@ async def test_get_metadata_not_found(controller):
 async def test_delete_metadata(controller, metadata_dao):
     """Deleting metadata for a PENDING study must remove it."""
     sid = await _create_pending_study(controller)
-    await controller.upsert_metadata(study_id=sid, metadata={"x": 1})
-    await controller.delete_metadata(study_id=sid)
+    await controller.metadata.upsert_metadata(study_id=sid, metadata={"x": 1})
+    await controller.metadata.delete_metadata(study_id=sid)
     assert sid not in metadata_dao.resources
 
 
@@ -154,7 +154,7 @@ async def test_delete_metadata_study_not_pending(
     await _persist_study(controller, sid, metadata_dao, publication_dao)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.delete_metadata(study_id=sid)
+        await controller.metadata.delete_metadata(study_id=sid)
 
 
 @pytest.mark.asyncio
@@ -162,4 +162,4 @@ async def test_delete_metadata_not_found(controller):
     """Deleting metadata that doesn't exist must raise MetadataNotFoundError."""
     sid = await _create_pending_study(controller)
     with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
-        await controller.delete_metadata(study_id=sid)
+        await controller.metadata.delete_metadata(study_id=sid)

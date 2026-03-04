@@ -32,14 +32,14 @@ E = EXAMPLES
 
 
 async def _create_study(controller) -> str:
-    study = await controller.create_study(
+    study = await controller.studies.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     return study.id
 
 
 async def _create_pub(controller, study_id: str, title: str = "P"):
-    return await controller.create_publication(
+    return await controller.publications.create_publication(
         **{**E["publications"]["minimal"], "title": title}, study_id=study_id,
     )
 
@@ -104,7 +104,7 @@ async def test_create_publication_study_not_pending(
             created=now_as_utc(),
         )
     )
-    await controller.update_study(
+    await controller.studies.update_study(
         study_id=sid,
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
@@ -119,7 +119,7 @@ async def test_create_publication_study_not_pending(
 @pytest.mark.asyncio
 async def test_get_publications_empty(controller):
     """With no publications, the list must be empty."""
-    result = await controller.get_publications(user_id=USER_STEWARD, is_data_steward=True)
+    result = await controller.publications.get_publications(user_id=USER_STEWARD, is_data_steward=True)
     assert result == []
 
 
@@ -127,13 +127,13 @@ async def test_get_publications_empty(controller):
 async def test_get_publications_filters_by_year(controller):
     """Filtering by year must only return matching publications."""
     sid = await _create_study(controller)
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["year_2024"], study_id=sid,
     )
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["year_2025"], study_id=sid,
     )
-    result = await controller.get_publications(
+    result = await controller.publications.get_publications(
         year=2024, user_id=USER_SUBMITTER
     )
     assert len(result) == 1
@@ -144,14 +144,14 @@ async def test_get_publications_filters_by_year(controller):
 async def test_get_publications_text_filter(controller):
     """Text filter must match partial text in title, authors, etc."""
     sid = await _create_study(controller)
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["cancer"], study_id=sid,
     )
-    await controller.create_publication(
+    await controller.publications.create_publication(
         **E["publications"]["heart"], study_id=sid,
     )
 
-    result = await controller.get_publications(
+    result = await controller.publications.get_publications(
         text="cancer", user_id=USER_SUBMITTER
     )
     assert len(result) == 1
@@ -165,15 +165,15 @@ async def test_get_publications_access_control(controller):
     await _create_pub(controller, sid)
 
     # Submitter can see it
-    result = await controller.get_publications(user_id=USER_SUBMITTER)
+    result = await controller.publications.get_publications(user_id=USER_SUBMITTER)
     assert len(result) == 1
 
     # Other user cannot
-    result = await controller.get_publications(user_id=USER_OTHER)
+    result = await controller.publications.get_publications(user_id=USER_OTHER)
     assert len(result) == 0
 
     # Steward can
-    result = await controller.get_publications(
+    result = await controller.publications.get_publications(
         user_id=USER_STEWARD, is_data_steward=True
     )
     assert len(result) == 1
@@ -187,7 +187,7 @@ async def test_get_publication_by_id(controller):
     """Getting a publication by ID must return it."""
     sid = await _create_study(controller)
     pub = await _create_pub(controller, sid)
-    fetched = await controller.get_publication(
+    fetched = await controller.publications.get_publication(
         publication_id=pub.id, user_id=USER_SUBMITTER
     )
     assert fetched.title == "P"
@@ -197,7 +197,7 @@ async def test_get_publication_by_id(controller):
 async def test_get_publication_not_found(controller):
     """Getting a non-existent publication must raise PublicationNotFoundError."""
     with pytest.raises(StudyRegistryPort.PublicationNotFoundError):
-        await controller.get_publication(
+        await controller.publications.get_publication(
             publication_id="NONEXIST", user_id=USER_SUBMITTER
         )
 
@@ -208,7 +208,7 @@ async def test_get_publication_access_denied(controller):
     sid = await _create_study(controller)
     pub = await _create_pub(controller, sid)
     with pytest.raises(StudyRegistryPort.AccessDeniedError):
-        await controller.get_publication(
+        await controller.publications.get_publication(
             publication_id=pub.id, user_id=USER_OTHER
         )
 
@@ -221,7 +221,7 @@ async def test_delete_publication(controller, publication_dao, accession_dao):
     """Deleting a publication must remove both the publication and its accession."""
     sid = await _create_study(controller)
     pub = await _create_pub(controller, sid)
-    await controller.delete_publication(publication_id=pub.id)
+    await controller.publications.delete_publication(publication_id=pub.id)
     assert pub.id not in publication_dao.resources
     assert pub.id not in accession_dao.resources
 
@@ -230,7 +230,7 @@ async def test_delete_publication(controller, publication_dao, accession_dao):
 async def test_delete_publication_not_found(controller):
     """Deleting a non-existent publication must raise PublicationNotFoundError."""
     with pytest.raises(StudyRegistryPort.PublicationNotFoundError):
-        await controller.delete_publication(publication_id="NONEXIST")
+        await controller.publications.delete_publication(publication_id="NONEXIST")
 
 
 @pytest.mark.asyncio
@@ -249,10 +249,10 @@ async def test_delete_publication_study_not_pending(
             id=sid, metadata={}, submitted=now_as_utc()
         )
     )
-    await controller.update_study(
+    await controller.studies.update_study(
         study_id=sid,
         status=StudyStatus.PERSISTED,
         approved_by=USER_STEWARD,
     )
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await controller.delete_publication(publication_id=pub.id)
+        await controller.publications.delete_publication(publication_id=pub.id)
