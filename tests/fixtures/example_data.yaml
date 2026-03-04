@@ -45,6 +45,16 @@ studies:
     description: ""
     types: []
     affiliations: []
+  journey:
+    title: "Genome-wide Association Study on Diabetes"
+    description: "A GWAS on type 2 diabetes in the European population."
+    types: ["WGS", "GWAS"]
+    affiliations: ["GHGA", "Heidelberg University"]
+  unhappy:
+    title: "Unhappy Study"
+    description: "Things will go wrong."
+    types: ["WGS"]
+    affiliations: ["GHGA"]
 
 dacs:
   default:
@@ -71,6 +81,16 @@ dacs:
     id: "DAC-DEL"
     name: "D"
     email: "d@x.org"
+    institute: "I"
+  journey:
+    id: "DAC-DIABETES"
+    name: "Diabetes Ethics Committee"
+    email: "dac-diabetes@example.org"
+    institute: "Heidelberg University Hospital"
+  tmp:
+    id: "DAC-TMP"
+    name: "Board"
+    email: "b@example.org"
     institute: "I"
 
 
@@ -111,6 +131,24 @@ daps:
     duo_permission_id: "DUO:0000042"
     duo_modifier_ids: []
     dac_id: "DAC-DEL"
+  journey:
+    id: "DAP-DIABETES"
+    name: "Diabetes Data Access Policy"
+    description: "Access for registered researchers."
+    text: "Applicants must provide IRB approval."
+    url: "https://policies.example.org/diabetes"
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: ["DUO:0000021"]
+    dac_id: "DAC-DIABETES"
+  tmp:
+    id: "DAP-TMP"
+    name: "P"
+    description: "d"
+    text: "t"
+    url: null
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: []
+    dac_id: "DAC-TMP"
 
 datasets:
   minimal:
@@ -128,6 +166,11 @@ datasets:
     description: "WGS data"
     types: ["WGS"]
     files: ["f1", "f2"]
+  journey:
+    title: "Diabetes WGS Dataset"
+    description: "BAM files from WGS runs"
+    types: ["WGS"]
+    files: ["file_a", "file_b"]
 
 publications:
   minimal:
@@ -144,6 +187,20 @@ publications:
     year: 2025
     journal: "Nature"
     doi: "10.1234/test"
+  journey:
+    title: "Type 2 Diabetes GWAS in Europe"
+    abstract: "We identified 42 novel loci associated with T2D."
+    authors: ["Alice Researcher", "Bob Analyst"]
+    year: 2025
+    journal: "Nature Genetics"
+    doi: "10.1038/s41588-025-00001-x"
+  paper:
+    title: "Paper"
+    abstract: null
+    authors: ["Alice"]
+    year: 2025
+    journal: null
+    doi: null
   cancer:
     title: "Cancer Genomics Paper"
     abstract: "Abstract about cancer"
@@ -213,6 +270,30 @@ metadata:
         name: "reads.bam"
       file_b:
         name: "index.bai"
+  journey:
+    files:
+      file_a:
+        name: "reads_sample1.bam"
+        format: "BAM"
+      file_b:
+        name: "reads_sample2.bam"
+        format: "BAM"
+    samples:
+      sample_1:
+        name: "Patient 001"
+      sample_2:
+        name: "Patient 002"
+    individuals:
+      ind_1:
+        name: "Donor 001"
+        sex: "male"
+    experiments:
+      exp_1:
+        name: "WGS run 1"
+  with_named_file:
+    files:
+      f1:
+        name: "reads.bam"
 
 resource_types:
   wgs_study:
