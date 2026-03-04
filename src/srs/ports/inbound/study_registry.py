@@ -31,103 +31,51 @@ from srs.core.models import (
     TypedResource,
 )
 from srs.ports.inbound.data_access import DataAccessPort
+from srs.ports.inbound.dataset import DatasetPort
+from srs.ports.inbound.errors import (
+    AccessDeniedError,
+    AccessionNotFoundError,
+    DacNotFoundError,
+    DapNotFoundError,
+    DatasetNotFoundError,
+    DuplicateError,
+    MetadataNotFoundError,
+    PublicationNotFoundError,
+    ReferenceConflictError,
+    RegistryError,
+    ResourceTypeNotFoundError,
+    StatusConflictError,
+    StudyNotFoundError,
+    ValidationError,
+)
+from srs.ports.inbound.filename import FilenamePort
+from srs.ports.inbound.metadata import MetadataPort
+from srs.ports.inbound.publication import PublicationPort
+from srs.ports.inbound.resource_type import ResourceTypePort
+from srs.ports.inbound.study import StudyPort
 
 
 class StudyRegistryPort(ABC):
     """Inbound port defining all operations of the Study Registry Service."""
 
-    # --- Error classes ---
+    # --- Error classes (shared with sub-ports via errors module) ---
 
-    class RegistryError(RuntimeError):
-        """Base error for all registry errors."""
+    RegistryError = RegistryError
+    StudyNotFoundError = StudyNotFoundError
+    PublicationNotFoundError = PublicationNotFoundError
+    DatasetNotFoundError = DatasetNotFoundError
+    DacNotFoundError = DacNotFoundError
+    DapNotFoundError = DapNotFoundError
+    ResourceTypeNotFoundError = ResourceTypeNotFoundError
+    MetadataNotFoundError = MetadataNotFoundError
+    AccessionNotFoundError = AccessionNotFoundError
+    StatusConflictError = StatusConflictError
+    ValidationError = ValidationError
+    ReferenceConflictError = ReferenceConflictError
+    DuplicateError = DuplicateError
+    AccessDeniedError = AccessDeniedError
 
-    class StudyNotFoundError(RegistryError):
-        """Raised when a study is not found."""
-
-        def __init__(self, *, study_id: str):
-            super().__init__(f"Study with ID {study_id} not found.")
-
-    class PublicationNotFoundError(RegistryError):
-        """Raised when a publication is not found."""
-
-        def __init__(self, *, publication_id: str):
-            super().__init__(
-                f"Publication with ID {publication_id} not found."
-            )
-
-    class DatasetNotFoundError(RegistryError):
-        """Raised when a dataset is not found."""
-
-        def __init__(self, *, dataset_id: str):
-            super().__init__(f"Dataset with ID {dataset_id} not found.")
-
-    class DacNotFoundError(RegistryError):
-        """Raised when a DAC is not found."""
-
-        def __init__(self, *, dac_id: str):
-            super().__init__(f"DAC with ID {dac_id} not found.")
-
-    class DapNotFoundError(RegistryError):
-        """Raised when a DAP is not found."""
-
-        def __init__(self, *, dap_id: str):
-            super().__init__(f"DAP with ID {dap_id} not found.")
-
-    class ResourceTypeNotFoundError(RegistryError):
-        """Raised when a resource type is not found."""
-
-        def __init__(self, *, resource_type_id: UUID):
-            super().__init__(
-                f"ResourceType with ID {resource_type_id} not found."
-            )
-
-    class MetadataNotFoundError(RegistryError):
-        """Raised when experimental metadata is not found."""
-
-        def __init__(self, *, study_id: str):
-            super().__init__(
-                f"ExperimentalMetadata for study {study_id} not found."
-            )
-
-    class AccessionNotFoundError(RegistryError):
-        """Raised when an accession is not found."""
-
-        def __init__(self, *, accession_id: str):
-            super().__init__(
-                f"Accession with ID {accession_id} not found."
-            )
-
-    class StatusConflictError(RegistryError):
-        """Raised when a status transition is not allowed."""
-
-        def __init__(self, *, detail: str):
-            super().__init__(detail)
-
-    class ValidationError(RegistryError):
-        """Raised when validation of a study fails."""
-
-        def __init__(self, *, detail: str):
-            super().__init__(detail)
-
-    class ReferenceConflictError(RegistryError):
-        """Raised when deleting an entity that is still referenced."""
-
-        def __init__(self, *, detail: str):
-            super().__init__(detail)
-
-    class DuplicateError(RegistryError):
-        """Raised when an entity with the same ID already exists."""
-
-        def __init__(self, *, detail: str):
-            super().__init__(detail)
-
-    class AccessDeniedError(RegistryError):
-        """Raised when the user does not have access."""
-
-        def __init__(self, *, detail: str = "Access denied."):
-            super().__init__(detail)
-
-    # --- Data access (composite) ---
+    # --- Composite sub-ports ---
 
     @property
     @abstractmethod
@@ -135,9 +83,44 @@ class StudyRegistryPort(ABC):
         """Return the data access controller for DAC/DAP operations."""
         ...
 
-    # --- Study operations ---
-
+    @property
     @abstractmethod
+    def studies(self) -> StudyPort:
+        """Return the study controller for study CRUD and publish operations."""
+        ...
+
+    @property
+    @abstractmethod
+    def datasets(self) -> DatasetPort:
+        """Return the dataset controller for dataset operations."""
+        ...
+
+    @property
+    @abstractmethod
+    def metadata(self) -> MetadataPort:
+        """Return the metadata controller for experimental metadata operations."""
+        ...
+
+    @property
+    @abstractmethod
+    def publications(self) -> PublicationPort:
+        """Return the publication controller for publication operations."""
+        ...
+
+    @property
+    @abstractmethod
+    def filenames(self) -> FilenamePort:
+        """Return the filename controller for filename operations."""
+        ...
+
+    @property
+    @abstractmethod
+    def resource_types(self) -> ResourceTypePort:
+        """Return the resource type controller for resource type operations."""
+        ...
+
+    # --- Delegated Study operations ---
+
     async def create_study(
         self,
         *,
@@ -147,13 +130,15 @@ class StudyRegistryPort(ABC):
         affiliations: list[str],
         created_by: UUID,
     ) -> Study:
-        """Create a new study with status PENDING.
+        """Create a new study with status PENDING."""
+        return await self.studies.create_study(
+            title=title,
+            description=description,
+            types=types,
+            affiliations=affiliations,
+            created_by=created_by,
+        )
 
-        Returns the created Study with generated PID.
-        """
-        ...
-
-    @abstractmethod
     async def get_studies(
         self,
         *,
@@ -165,13 +150,17 @@ class StudyRegistryPort(ABC):
         user_id: UUID | None = None,
         is_data_steward: bool = False,
     ) -> list[Study]:
-        """Get studies filtered by optional parameters.
+        """Get studies filtered by optional parameters."""
+        return await self.studies.get_studies(
+            status=status,
+            study_type=study_type,
+            text=text,
+            skip=skip,
+            limit=limit,
+            user_id=user_id,
+            is_data_steward=is_data_steward,
+        )
 
-        Only returns studies accessible to the user.
-        """
-        ...
-
-    @abstractmethod
     async def get_study(
         self,
         *,
@@ -179,15 +168,13 @@ class StudyRegistryPort(ABC):
         user_id: UUID | None = None,
         is_data_steward: bool = False,
     ) -> Study:
-        """Get a study by its PID.
+        """Get a study by its PID."""
+        return await self.studies.get_study(
+            study_id=study_id,
+            user_id=user_id,
+            is_data_steward=is_data_steward,
+        )
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - AccessDeniedError if the user does not have access.
-        """
-        ...
-
-    @abstractmethod
     async def update_study(
         self,
         *,
@@ -196,61 +183,36 @@ class StudyRegistryPort(ABC):
         users: list[UUID] | None = None,
         approved_by: UUID | None = None,
     ) -> None:
-        """Update study status and/or users.
+        """Update study status and/or users."""
+        await self.studies.update_study(
+            study_id=study_id,
+            status=status,
+            users=users,
+            approved_by=approved_by,
+        )
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - StatusConflictError if the status transition is not allowed.
-        - ValidationError if validation fails during status change.
-        """
-        ...
-
-    @abstractmethod
     async def delete_study(self, *, study_id: str) -> None:
-        """Delete a study and all related entities.
+        """Delete a study and all related entities."""
+        await self.studies.delete_study(study_id=study_id)
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
+    # --- Delegated Metadata operations ---
 
-    # --- ExperimentalMetadata operations ---
-
-    @abstractmethod
     async def upsert_metadata(
         self, *, study_id: str, metadata: dict
     ) -> None:
-        """Create or update experimental metadata for a study.
+        """Create or update experimental metadata for a study."""
+        await self.metadata.upsert_metadata(study_id=study_id, metadata=metadata)
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
-
-    @abstractmethod
     async def get_metadata(self, *, study_id: str) -> ExperimentalMetadata:
-        """Get experimental metadata for a study.
+        """Get experimental metadata for a study."""
+        return await self.metadata.get_metadata(study_id=study_id)
 
-        Raises:
-        - MetadataNotFoundError if metadata is not found.
-        """
-        ...
-
-    @abstractmethod
     async def delete_metadata(self, *, study_id: str) -> None:
-        """Delete experimental metadata for a study.
+        """Delete experimental metadata for a study."""
+        await self.metadata.delete_metadata(study_id=study_id)
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
+    # --- Delegated Publication operations ---
 
-    # --- Publication operations ---
-
-    @abstractmethod
     async def create_publication(
         self,
         *,
@@ -262,15 +224,17 @@ class StudyRegistryPort(ABC):
         doi: str | None,
         study_id: str,
     ) -> Publication:
-        """Create or update a publication for a study.
+        """Create or update a publication for a study."""
+        return await self.publications.create_publication(
+            title=title,
+            abstract=abstract,
+            authors=authors,
+            year=year,
+            journal=journal,
+            doi=doi,
+            study_id=study_id,
+        )
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
-
-    @abstractmethod
     async def get_publications(
         self,
         *,
@@ -282,9 +246,15 @@ class StudyRegistryPort(ABC):
         is_data_steward: bool = False,
     ) -> list[Publication]:
         """Get publications filtered by optional parameters."""
-        ...
+        return await self.publications.get_publications(
+            year=year,
+            text=text,
+            skip=skip,
+            limit=limit,
+            user_id=user_id,
+            is_data_steward=is_data_steward,
+        )
 
-    @abstractmethod
     async def get_publication(
         self,
         *,
@@ -292,27 +262,19 @@ class StudyRegistryPort(ABC):
         user_id: UUID | None = None,
         is_data_steward: bool = False,
     ) -> Publication:
-        """Get a publication by its PID.
+        """Get a publication by its PID."""
+        return await self.publications.get_publication(
+            publication_id=publication_id,
+            user_id=user_id,
+            is_data_steward=is_data_steward,
+        )
 
-        Raises:
-        - PublicationNotFoundError if the publication does not exist.
-        - AccessDeniedError if the user does not have access.
-        """
-        ...
-
-    @abstractmethod
     async def delete_publication(self, *, publication_id: str) -> None:
-        """Delete a publication and its accession.
+        """Delete a publication and its accession."""
+        await self.publications.delete_publication(publication_id=publication_id)
 
-        Raises:
-        - PublicationNotFoundError if the publication does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
+    # --- Delegated Dataset operations ---
 
-    # --- Dataset operations ---
-
-    @abstractmethod
     async def create_dataset(
         self,
         *,
@@ -323,17 +285,16 @@ class StudyRegistryPort(ABC):
         dap_id: str,
         files: list[str],
     ) -> Dataset:
-        """Create or update a dataset for a study.
+        """Create or update a dataset for a study."""
+        return await self.datasets.create_dataset(
+            title=title,
+            description=description,
+            types=types,
+            study_id=study_id,
+            dap_id=dap_id,
+            files=files,
+        )
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        - DapNotFoundError if the DAP does not exist.
-        - ValidationError if files don't exist in EM or are duplicated.
-        """
-        ...
-
-    @abstractmethod
     async def get_datasets(
         self,
         *,
@@ -346,9 +307,16 @@ class StudyRegistryPort(ABC):
         is_data_steward: bool = False,
     ) -> list[Dataset]:
         """Get datasets filtered by optional parameters."""
-        ...
+        return await self.datasets.get_datasets(
+            dataset_type=dataset_type,
+            study_id=study_id,
+            text=text,
+            skip=skip,
+            limit=limit,
+            user_id=user_id,
+            is_data_steward=is_data_steward,
+        )
 
-    @abstractmethod
     async def get_dataset(
         self,
         *,
@@ -356,39 +324,25 @@ class StudyRegistryPort(ABC):
         user_id: UUID | None = None,
         is_data_steward: bool = False,
     ) -> Dataset:
-        """Get a dataset by its PID.
+        """Get a dataset by its PID."""
+        return await self.datasets.get_dataset(
+            dataset_id=dataset_id,
+            user_id=user_id,
+            is_data_steward=is_data_steward,
+        )
 
-        Raises:
-        - DatasetNotFoundError if the dataset does not exist.
-        - AccessDeniedError if the user does not have access.
-        """
-        ...
-
-    @abstractmethod
     async def update_dataset(
         self, *, dataset_id: str, dap_id: str
     ) -> None:
-        """Update the DAP assignment for a dataset.
+        """Update the DAP assignment for a dataset."""
+        await self.datasets.update_dataset(dataset_id=dataset_id, dap_id=dap_id)
 
-        Raises:
-        - DatasetNotFoundError if the dataset does not exist.
-        - DapNotFoundError if the new DAP does not exist.
-        """
-        ...
-
-    @abstractmethod
     async def delete_dataset(self, *, dataset_id: str) -> None:
-        """Delete a dataset and its accession.
+        """Delete a dataset and its accession."""
+        await self.datasets.delete_dataset(dataset_id=dataset_id)
 
-        Raises:
-        - DatasetNotFoundError if the dataset does not exist.
-        - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
+    # --- Delegated ResourceType operations ---
 
-    # --- ResourceType operations ---
-
-    @abstractmethod
     async def create_resource_type(
         self,
         *,
@@ -397,13 +351,11 @@ class StudyRegistryPort(ABC):
         name: str,
         description: str | None,
     ) -> ResourceType:
-        """Create a new resource type.
+        """Create a new resource type."""
+        return await self.resource_types.create_resource_type(
+            code=code, resource=resource, name=name, description=description
+        )
 
-        Returns the created ResourceType.
-        """
-        ...
-
-    @abstractmethod
     async def get_resource_types(
         self,
         *,
@@ -413,20 +365,18 @@ class StudyRegistryPort(ABC):
         limit: int = 100,
     ) -> list[ResourceType]:
         """Get resource types filtered by optional parameters."""
-        ...
+        return await self.resource_types.get_resource_types(
+            resource=resource, text=text, skip=skip, limit=limit
+        )
 
-    @abstractmethod
     async def get_resource_type(
         self, *, resource_type_id: UUID
     ) -> ResourceType:
-        """Get a resource type by internal ID.
+        """Get a resource type by internal ID."""
+        return await self.resource_types.get_resource_type(
+            resource_type_id=resource_type_id
+        )
 
-        Raises:
-        - ResourceTypeNotFoundError if the resource type does not exist.
-        """
-        ...
-
-    @abstractmethod
     async def update_resource_type(
         self,
         *,
@@ -435,24 +385,21 @@ class StudyRegistryPort(ABC):
         description: str | None = None,
         active: bool | None = None,
     ) -> None:
-        """Update a resource type.
+        """Update a resource type."""
+        await self.resource_types.update_resource_type(
+            resource_type_id=resource_type_id,
+            name=name,
+            description=description,
+            active=active,
+        )
 
-        Raises:
-        - ResourceTypeNotFoundError if the resource type does not exist.
-        """
-        ...
-
-    @abstractmethod
     async def delete_resource_type(
         self, *, resource_type_id: UUID
     ) -> None:
-        """Delete a resource type.
-
-        Raises:
-        - ResourceTypeNotFoundError if the resource type does not exist.
-        - ReferenceConflictError if the type is still referenced.
-        """
-        ...
+        """Delete a resource type."""
+        await self.resource_types.delete_resource_type(
+            resource_type_id=resource_type_id
+        )
 
     # --- Accession operations ---
 
@@ -476,47 +423,24 @@ class StudyRegistryPort(ABC):
         """
         ...
 
-    # --- Filename operations ---
+    # --- Delegated Filename operations ---
 
-    @abstractmethod
     async def get_filenames(
         self, *, study_id: str
     ) -> dict[str, dict[str, str]]:
-        """Get file accession to filename/alias mapping for a study.
+        """Get file accession to filename/alias mapping for a study."""
+        return await self.filenames.get_filenames(study_id=study_id)
 
-        Returns a map from file accessions to {name, alias} objects.
-
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        """
-        ...
-
-    @abstractmethod
     async def post_filenames(
         self, *, study_id: str, file_id_map: dict[str, str]
     ) -> None:
-        """Store file accession to internal file ID mappings.
+        """Store file accession to internal file ID mappings."""
+        await self.filenames.post_filenames(
+            study_id=study_id, file_id_map=file_id_map
+        )
 
-        Creates AltAccession entries with type FILE_ID and republishes
-        the mapping as an event.
+    # --- Delegated Publish operations ---
 
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - ValidationError if accessions don't belong to the study.
-        """
-        ...
-
-    # --- Publish operations ---
-
-    @abstractmethod
     async def publish_study(self, *, study_id: str) -> None:
-        """Validate and publish a study.
-
-        Creates accession numbers for EM resources and publishes
-        an AnnotatedExperimentalMetadata event.
-
-        Raises:
-        - StudyNotFoundError if the study does not exist.
-        - ValidationError if the study is not complete or valid.
-        """
-        ...
+        """Validate and publish a study."""
+        await self.studies.publish_study(study_id=study_id)

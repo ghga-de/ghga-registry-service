@@ -18,39 +18,25 @@
 from abc import ABC, abstractmethod
 
 from srs.core.models import DataAccessCommittee, DataAccessPolicy
+from srs.ports.inbound.errors import (
+    DacNotFoundError,
+    DapNotFoundError,
+    DuplicateError,
+    ReferenceConflictError,
+    RegistryError,
+)
 
 
 class DataAccessPort(ABC):
     """Inbound port for Data Access Committee and Data Access Policy operations."""
 
-    # --- Error classes ---
+    # --- Error classes (shared via errors module) ---
 
-    class DataAccessError(RuntimeError):
-        """Base error for data access operations."""
-
-    class DacNotFoundError(DataAccessError):
-        """Raised when a DAC is not found."""
-
-        def __init__(self, *, dac_id: str):
-            super().__init__(f"DAC with ID {dac_id} not found.")
-
-    class DapNotFoundError(DataAccessError):
-        """Raised when a DAP is not found."""
-
-        def __init__(self, *, dap_id: str):
-            super().__init__(f"DAP with ID {dap_id} not found.")
-
-    class DuplicateError(DataAccessError):
-        """Raised when an entity with the same ID already exists."""
-
-        def __init__(self, *, detail: str):
-            super().__init__(detail)
-
-    class ReferenceConflictError(DataAccessError):
-        """Raised when deleting an entity that is still referenced."""
-
-        def __init__(self, *, detail: str):
-            super().__init__(detail)
+    DataAccessError = RegistryError
+    DacNotFoundError = DacNotFoundError
+    DapNotFoundError = DapNotFoundError
+    DuplicateError = DuplicateError
+    ReferenceConflictError = ReferenceConflictError
 
     # --- DAC operations ---
 

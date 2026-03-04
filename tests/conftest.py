@@ -39,6 +39,12 @@ from srs.core.models import (
     Study,
 )
 from srs.core.data_access import DataAccessController
+from srs.core.dataset import DatasetController
+from srs.core.filename import FilenameController
+from srs.core.metadata import MetadataController
+from srs.core.publication import PublicationController
+from srs.core.resource_type import ResourceTypeController
+from srs.core.study import StudyController
 from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
@@ -195,28 +201,110 @@ def data_access(dac_dao, dap_dao, dataset_dao):
 
 
 @pytest.fixture()
-def controller(
+def study_controller(
     study_dao,
     metadata_dao,
     publication_dao,
-    data_access,
     dataset_dao,
-    resource_type_dao,
+    accession_dao,
+    em_accession_map_dao,
+    event_publisher,
+    data_access,
+):
+    """Create a StudyController wired to in-memory DAOs."""
+    return StudyController(
+        study_dao=study_dao,
+        metadata_dao=metadata_dao,
+        publication_dao=publication_dao,
+        dataset_dao=dataset_dao,
+        accession_dao=accession_dao,
+        em_accession_map_dao=em_accession_map_dao,
+        event_publisher=event_publisher,
+        data_access=data_access,
+    )
+
+
+@pytest.fixture()
+def dataset_controller(dataset_dao, study_dao, accession_dao, data_access):
+    """Create a DatasetController wired to in-memory DAOs."""
+    return DatasetController(
+        dataset_dao=dataset_dao,
+        study_dao=study_dao,
+        accession_dao=accession_dao,
+        data_access=data_access,
+    )
+
+
+@pytest.fixture()
+def metadata_controller(study_dao, metadata_dao):
+    """Create a MetadataController wired to in-memory DAOs."""
+    return MetadataController(
+        study_dao=study_dao,
+        metadata_dao=metadata_dao,
+    )
+
+
+@pytest.fixture()
+def publication_controller(study_dao, publication_dao, accession_dao):
+    """Create a PublicationController wired to in-memory DAOs."""
+    return PublicationController(
+        study_dao=study_dao,
+        publication_dao=publication_dao,
+        accession_dao=accession_dao,
+    )
+
+
+@pytest.fixture()
+def filename_controller(
+    study_dao,
+    metadata_dao,
     accession_dao,
     alt_accession_dao,
     em_accession_map_dao,
     event_publisher,
 ):
-    """Create a StudyRegistryController wired to in-memory DAOs."""
-    return StudyRegistryController(
+    """Create a FilenameController wired to in-memory DAOs."""
+    return FilenameController(
         study_dao=study_dao,
         metadata_dao=metadata_dao,
-        publication_dao=publication_dao,
-        data_access=data_access,
-        dataset_dao=dataset_dao,
-        resource_type_dao=resource_type_dao,
         accession_dao=accession_dao,
         alt_accession_dao=alt_accession_dao,
         em_accession_map_dao=em_accession_map_dao,
         event_publisher=event_publisher,
+    )
+
+
+@pytest.fixture()
+def resource_type_controller(resource_type_dao, study_dao, dataset_dao):
+    """Create a ResourceTypeController wired to in-memory DAOs."""
+    return ResourceTypeController(
+        resource_type_dao=resource_type_dao,
+        study_dao=study_dao,
+        dataset_dao=dataset_dao,
+    )
+
+
+@pytest.fixture()
+def controller(
+    study_controller,
+    dataset_controller,
+    metadata_controller,
+    publication_controller,
+    filename_controller,
+    resource_type_controller,
+    data_access,
+    accession_dao,
+    alt_accession_dao,
+):
+    """Create a StudyRegistryController wired to in-memory DAOs."""
+    return StudyRegistryController(
+        study_controller=study_controller,
+        dataset_controller=dataset_controller,
+        metadata_controller=metadata_controller,
+        publication_controller=publication_controller,
+        filename_controller=filename_controller,
+        resource_type_controller=resource_type_controller,
+        data_access=data_access,
+        accession_dao=accession_dao,
+        alt_accession_dao=alt_accession_dao,
     )

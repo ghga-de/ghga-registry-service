@@ -41,6 +41,12 @@ from srs.adapters.outbound.dao import (
 from srs.adapters.outbound.event_pub import EventPubTranslator
 from srs.config import Config
 from srs.core.data_access import DataAccessController
+from srs.core.dataset import DatasetController
+from srs.core.filename import FilenameController
+from srs.core.metadata import MetadataController
+from srs.core.publication import PublicationController
+from srs.core.resource_type import ResourceTypeController
+from srs.core.study import StudyController
 from srs.core.study_registry import StudyRegistryController
 from srs.ports.inbound.study_registry import StudyRegistryPort
 
@@ -79,17 +85,60 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             dataset_dao=dataset_dao,
         )
 
-        yield StudyRegistryController(
+        study_controller = StudyController(
             study_dao=study_dao,
             metadata_dao=metadata_dao,
             publication_dao=publication_dao,
-            data_access=data_access,
             dataset_dao=dataset_dao,
-            resource_type_dao=resource_type_dao,
+            accession_dao=accession_dao,
+            em_accession_map_dao=em_accession_map_dao,
+            event_publisher=event_publisher,
+            data_access=data_access,
+        )
+
+        dataset_controller = DatasetController(
+            dataset_dao=dataset_dao,
+            study_dao=study_dao,
+            accession_dao=accession_dao,
+            data_access=data_access,
+        )
+
+        metadata_controller = MetadataController(
+            study_dao=study_dao,
+            metadata_dao=metadata_dao,
+        )
+
+        publication_controller = PublicationController(
+            study_dao=study_dao,
+            publication_dao=publication_dao,
+            accession_dao=accession_dao,
+        )
+
+        filename_controller = FilenameController(
+            study_dao=study_dao,
+            metadata_dao=metadata_dao,
             accession_dao=accession_dao,
             alt_accession_dao=alt_accession_dao,
             em_accession_map_dao=em_accession_map_dao,
             event_publisher=event_publisher,
+        )
+
+        resource_type_controller = ResourceTypeController(
+            resource_type_dao=resource_type_dao,
+            study_dao=study_dao,
+            dataset_dao=dataset_dao,
+        )
+
+        yield StudyRegistryController(
+            study_controller=study_controller,
+            dataset_controller=dataset_controller,
+            metadata_controller=metadata_controller,
+            publication_controller=publication_controller,
+            filename_controller=filename_controller,
+            resource_type_controller=resource_type_controller,
+            data_access=data_access,
+            accession_dao=accession_dao,
+            alt_accession_dao=alt_accession_dao,
         )
 
 

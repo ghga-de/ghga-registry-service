@@ -23,7 +23,13 @@ from ghga_service_commons.api import ApiConfigBase, configure_app
 
 from srs import __version__
 from srs.adapters.inbound.fastapi_.data_access_routes import data_access_router
+from srs.adapters.inbound.fastapi_.dataset_routes import dataset_router
+from srs.adapters.inbound.fastapi_.filename_routes import filename_router
+from srs.adapters.inbound.fastapi_.metadata_routes import metadata_router
+from srs.adapters.inbound.fastapi_.publication_routes import publication_router
+from srs.adapters.inbound.fastapi_.resource_type_routes import resource_type_router
 from srs.adapters.inbound.fastapi_.routes import router
+from srs.adapters.inbound.fastapi_.study_routes import study_router
 
 
 def _custom_openapi(app: FastAPI) -> dict[str, Any]:
@@ -44,6 +50,12 @@ def get_configured_app(*, config: ApiConfigBase) -> FastAPI:
     """Create, configure and return the FastAPI application."""
     app = FastAPI()
     app.include_router(router)
+    app.include_router(study_router)
+    app.include_router(metadata_router)
+    app.include_router(publication_router)
+    app.include_router(filename_router)
+    app.include_router(resource_type_router)
+    app.include_router(dataset_router)
     app.include_router(data_access_router)
     configure_app(app, config=config)
     app.openapi = lambda: _custom_openapi(app)  # type: ignore[assignment]
