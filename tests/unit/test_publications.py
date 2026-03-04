@@ -222,8 +222,8 @@ async def test_delete_publication(controller, publication_dao, accession_dao):
     sid = await _create_study(controller)
     pub = await _create_pub(controller, sid)
     await controller.delete_publication(publication_id=pub.id)
-    assert pub.id not in publication_dao.data
-    assert pub.id not in accession_dao.data
+    assert pub.id not in publication_dao.resources
+    assert pub.id not in accession_dao.resources
 
 
 @pytest.mark.asyncio

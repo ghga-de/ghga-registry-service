@@ -308,8 +308,8 @@ async def test_delete_dataset(controller, dataset_dao, accession_dao):
         **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     await controller.delete_dataset(dataset_id=ds.id)
-    assert ds.id not in dataset_dao.data
-    assert ds.id not in accession_dao.data
+    assert ds.id not in dataset_dao.resources
+    assert ds.id not in accession_dao.resources
 
 
 @pytest.mark.asyncio

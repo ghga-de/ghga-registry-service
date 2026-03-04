@@ -169,7 +169,7 @@ async def test_delete_dap(controller, dap_dao):
     await _create_dac(controller)
     await _create_dap(controller)
     await controller.delete_dap(dap_id="DAP-1")
-    assert "DAP-1" not in dap_dao.data
+    assert "DAP-1" not in dap_dao.resources
 
 
 @pytest.mark.asyncio

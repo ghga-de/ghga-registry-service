@@ -159,7 +159,7 @@ async def test_delete_resource_type(controller, resource_type_dao):
     """Deleting an unreferenced resource type must succeed."""
     rt = await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
     await controller.delete_resource_type(resource_type_id=rt.id)
-    assert str(rt.id) not in resource_type_dao.data
+    assert rt.id not in resource_type_dao.resources
 
 
 @pytest.mark.asyncio

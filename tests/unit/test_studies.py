@@ -357,11 +357,11 @@ async def test_delete_study_cascade(
 
     await controller.delete_study(study_id=study.id)
 
-    assert study.id not in study_dao.data
-    assert study.id not in metadata_dao.data
-    assert pub.id not in publication_dao.data
+    assert study.id not in study_dao.resources
+    assert study.id not in metadata_dao.resources
+    assert pub.id not in publication_dao.resources
     # Study accession also deleted
-    assert study.id not in accession_dao.data
+    assert study.id not in accession_dao.resources
 
 
 @pytest.mark.asyncio

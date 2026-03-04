@@ -142,7 +142,7 @@ async def test_delete_metadata(controller, metadata_dao):
     sid = await _create_pending_study(controller)
     await controller.upsert_metadata(study_id=sid, metadata={"x": 1})
     await controller.delete_metadata(study_id=sid)
-    assert sid not in metadata_dao.data
+    assert sid not in metadata_dao.resources
 
 
 @pytest.mark.asyncio

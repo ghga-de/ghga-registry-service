@@ -121,7 +121,7 @@ async def test_delete_dac(controller, dac_dao):
     """Deleting a DAC with no references must succeed."""
     await controller.create_dac(**E["dacs"]["a"])
     await controller.delete_dac(dac_id="DAC-1")
-    assert "DAC-1" not in dac_dao.data
+    assert "DAC-1" not in dac_dao.resources
 
 
 @pytest.mark.asyncio

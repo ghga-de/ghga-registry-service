@@ -15,10 +15,14 @@
 
 """Shared pytest fixtures for the SRS test suite."""
 
+from collections.abc import AsyncIterator, Mapping
+from typing import Any
 from uuid import UUID
 
 import pytest
 from ghga_service_commons.utils.jwt_helpers import generate_jwk
+from hexkit.providers.testing.dao import BaseInMemDao, new_mock_dao_class
+from pydantic import BaseModel
 
 from srs.core.models import (
     Accession,
@@ -36,7 +40,7 @@ from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
 from tests.fixtures.joint import JointFixture, joint_fixture  # noqa: F401
-from tests.fixtures.mocks import InMemoryDao, InMemoryEventPublisher
+from tests.fixtures.mocks import InMemoryEventPublisher
 
 # Re-export hexkit container/fixture definitions so pytest can discover them
 from hexkit.providers.akafka.testutils import (  # noqa: F401
@@ -47,6 +51,60 @@ from hexkit.providers.mongodb.testutils import (  # noqa: F401
     mongodb_container_fixture,
     mongodb_fixture,
 )
+
+
+def _safe_mock_dao_class(
+    *, dto_model: type[BaseModel], id_field: str
+) -> type[BaseInMemDao]:
+    """Create a mock DAO class with two test-safety patches:
+
+    1. ``find_all`` snapshots ``self.resources`` before iterating so that
+       callers can delete entries during iteration without a RuntimeError.
+    2. ``get_by_id`` / ``delete`` coerce string IDs to UUID when the stored
+       key is a UUID, matching the production code that calls
+       ``get_by_id(str(uuid))``.
+    """
+    Base = new_mock_dao_class(dto_model=dto_model, id_field=id_field)
+
+    class SafeDao(Base):
+        def _resolve_id(self, id_: Any) -> Any:
+            """If *id_* is a string and a UUID key exists, return that key."""
+            if isinstance(id_, str) and id_ not in self.resources:
+                try:
+                    uuid_key = UUID(id_)
+                    if uuid_key in self.resources:
+                        return uuid_key
+                except ValueError:
+                    pass
+            return id_
+
+        async def get_by_id(self, id_: Any):
+            return await super().get_by_id(self._resolve_id(id_))
+
+        async def delete(self, id_: Any) -> None:
+            await super().delete(self._resolve_id(id_))
+
+        async def find_all(  # type: ignore[override]
+            self, *, mapping: Mapping[str, Any]
+        ) -> AsyncIterator:
+            results = [item async for item in super().find_all(mapping=mapping)]
+            for item in results:
+                yield item
+
+    return SafeDao
+
+
+# Mock DAO classes
+StudyDao = _safe_mock_dao_class(dto_model=Study, id_field="id")
+MetadataDao = _safe_mock_dao_class(dto_model=ExperimentalMetadata, id_field="id")
+PublicationDao = _safe_mock_dao_class(dto_model=Publication, id_field="id")
+DacDao = _safe_mock_dao_class(dto_model=DataAccessCommittee, id_field="id")
+DapDao = _safe_mock_dao_class(dto_model=DataAccessPolicy, id_field="id")
+DatasetDao = _safe_mock_dao_class(dto_model=Dataset, id_field="id")
+ResourceTypeDao = _safe_mock_dao_class(dto_model=ResourceType, id_field="id")
+AccessionDao = _safe_mock_dao_class(dto_model=Accession, id_field="id")
+AltAccessionDao = _safe_mock_dao_class(dto_model=AltAccession, id_field="id")
+EmAccessionMapDao = _safe_mock_dao_class(dto_model=EmAccessionMap, id_field="id")
 
 # Standard test user UUIDs
 USER_STEWARD = UUID("00000000-0000-0000-0000-000000000001")
@@ -65,52 +123,52 @@ def config_fixture() -> ConfigFixture:
 
 @pytest.fixture()
 def study_dao():
-    return InMemoryDao[Study]()
+    return StudyDao()
 
 
 @pytest.fixture()
 def metadata_dao():
-    return InMemoryDao[ExperimentalMetadata]()
+    return MetadataDao()
 
 
 @pytest.fixture()
 def publication_dao():
-    return InMemoryDao[Publication]()
+    return PublicationDao()
 
 
 @pytest.fixture()
 def dac_dao():
-    return InMemoryDao[DataAccessCommittee]()
+    return DacDao()
 
 
 @pytest.fixture()
 def dap_dao():
-    return InMemoryDao[DataAccessPolicy]()
+    return DapDao()
 
 
 @pytest.fixture()
 def dataset_dao():
-    return InMemoryDao[Dataset]()
+    return DatasetDao()
 
 
 @pytest.fixture()
 def resource_type_dao():
-    return InMemoryDao[ResourceType]()
+    return ResourceTypeDao()
 
 
 @pytest.fixture()
 def accession_dao():
-    return InMemoryDao[Accession]()
+    return AccessionDao()
 
 
 @pytest.fixture()
 def alt_accession_dao():
-    return InMemoryDao[AltAccession]()
+    return AltAccessionDao()
 
 
 @pytest.fixture()
 def em_accession_map_dao():
-    return InMemoryDao[EmAccessionMap]()
+    return EmAccessionMapDao()
 
 
 @pytest.fixture()
