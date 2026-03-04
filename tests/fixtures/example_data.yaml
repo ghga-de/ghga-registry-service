@@ -11,23 +11,13 @@ studies:
     types: []
     affiliations: []
   default:
-    title: "My Study"
-    description: "Description"
+    title: "Full Study"
+    description: "A complete study"
     types: ["WGS"]
     affiliations: ["GHGA"]
   with_desc:
     title: "Study"
     description: "Desc"
-    types: []
-    affiliations: []
-  generic:
-    title: "Study"
-    description: ""
-    types: []
-    affiliations: []
-  default_no_types:
-    title: "My Study"
-    description: "Description"
     types: []
     affiliations: []
   cancer_genomics:
@@ -50,11 +40,6 @@ studies:
     description: ""
     types: ["RNA-Seq"]
     affiliations: []
-  full:
-    title: "Full Study"
-    description: "A complete study"
-    types: ["WGS"]
-    affiliations: ["GHGA"]
   private:
     title: "Private"
     description: ""
@@ -82,26 +67,12 @@ dacs:
     name: "B"
     email: "b@example.org"
     institute: "Y"
-  old:
-    id: "DAC-1"
-    name: "Old"
-    email: "old@example.org"
-    institute: "Inst"
   deletable:
     id: "DAC-DEL"
     name: "D"
     email: "d@x.org"
     institute: "I"
-  auth_seed:
-    id: "DAC-1"
-    name: "C"
-    email: "c@x.org"
-    institute: "I"
-  publish:
-    id: "DAC-1"
-    name: "Ethics Board"
-    email: "ethics@example.org"
-    institute: "Uni"
+
 
 daps:
   default:
@@ -131,15 +102,6 @@ daps:
     duo_permission_id: "DUO:0000042"
     duo_modifier_ids: []
     dac_id: "DAC-1"
-  main_policy:
-    id: "DAP-1"
-    name: "Main Policy"
-    description: "d"
-    text: "t"
-    url: null
-    duo_permission_id: "DUO:0000042"
-    duo_modifier_ids: []
-    dac_id: "DAC-1"
   deletable:
     id: "DAP-DEL"
     name: "D"
@@ -149,15 +111,6 @@ daps:
     duo_permission_id: "DUO:0000042"
     duo_modifier_ids: []
     dac_id: "DAC-DEL"
-  dacs_ref:
-    id: "DAP-1"
-    name: "Policy"
-    description: "desc"
-    text: "txt"
-    url: null
-    duo_permission_id: "DUO:0000042"
-    duo_modifier_ids: []
-    dac_id: "DAC-1"
 
 datasets:
   minimal:
@@ -170,16 +123,6 @@ datasets:
     description: "d"
     types: []
     files: ["f1"]
-  genomic:
-    title: "Genomic Data"
-    description: "WGS files"
-    types: []
-    files: []
-  clinical:
-    title: "Clinical Data"
-    description: "Phenotype info"
-    types: []
-    files: []
   full:
     title: "Dataset 1"
     description: "WGS data"
@@ -191,13 +134,6 @@ publications:
     title: "P"
     abstract: null
     authors: ["A"]
-    year: 2025
-    journal: null
-    doi: null
-  default:
-    title: "Pub"
-    abstract: null
-    authors: ["Author"]
     year: 2025
     journal: null
     doi: null

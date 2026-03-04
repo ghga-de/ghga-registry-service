@@ -33,7 +33,7 @@ E = EXAMPLES
 async def _build_complete_study(controller):
     """Create a study with metadata, publication, DAC, DAP, and dataset."""
     study = await controller.create_study(
-        **E["studies"]["full"], created_by=USER_SUBMITTER,
+        **E["studies"]["default"], created_by=USER_SUBMITTER,
     )
     sid = study.id
 
@@ -45,8 +45,8 @@ async def _build_complete_study(controller):
         **E["publications"]["full"], study_id=sid,
     )
 
-    await controller.create_dac(**E["dacs"]["publish"])
-    await controller.create_dap(**E["daps"]["main_policy"])
+    await controller.create_dac(**E["dacs"]["default"])
+    await controller.create_dap(**E["daps"]["default"])
     await controller.create_dataset(
         **E["datasets"]["full"], study_id=sid, dap_id="DAP-1",
     )

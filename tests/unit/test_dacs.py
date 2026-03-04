@@ -91,7 +91,7 @@ async def test_get_dac_not_found(controller):
 @pytest.mark.asyncio
 async def test_update_dac(controller):
     """Updating a DAC must persist the changes."""
-    await controller.create_dac(**E["dacs"]["old"])
+    await controller.create_dac(**E["dacs"]["default"])
     await controller.update_dac(dac_id="DAC-1", name="New Name")
     dac = await controller.get_dac(dac_id="DAC-1")
     assert dac.name == "New Name"
@@ -135,6 +135,6 @@ async def test_delete_dac_not_found(controller):
 async def test_delete_dac_with_referencing_dap(controller):
     """Deleting a DAC referenced by a DAP must raise ReferenceConflictError."""
     await controller.create_dac(**E["dacs"]["a"])
-    await controller.create_dap(**E["daps"]["dacs_ref"])
+    await controller.create_dap(**E["daps"]["default"])
     with pytest.raises(StudyRegistryPort.ReferenceConflictError):
         await controller.delete_dac(dac_id="DAC-1")

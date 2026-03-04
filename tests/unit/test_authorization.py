@@ -164,7 +164,7 @@ async def seeded_app(config: ConfigFixture, controller):
     pub = await controller.create_publication(
         **_seed["publication"], study_id=study.id,
     )
-    await controller.create_dac(**E["dacs"]["auth_seed"])
+    await controller.create_dac(**E["dacs"]["default"])
     await controller.create_dap(**E["daps"]["default"])
     await controller.create_dac(**E["dacs"]["deletable"])
     await controller.create_dap(**E["daps"]["deletable"])

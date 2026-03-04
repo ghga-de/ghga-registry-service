@@ -189,10 +189,12 @@ async def test_get_datasets_text_filter(controller):
     """Text filter must match partial text in title or description."""
     sid, dap_id = await _setup(controller)
     await controller.create_dataset(
-        **E["datasets"]["genomic"], study_id=sid, dap_id=dap_id,
+        **{**E["datasets"]["minimal"], "title": "Genomic Data", "description": "WGS files"},
+        study_id=sid, dap_id=dap_id,
     )
     await controller.create_dataset(
-        **E["datasets"]["clinical"], study_id=sid, dap_id=dap_id,
+        **{**E["datasets"]["minimal"], "title": "Clinical Data", "description": "Phenotype info"},
+        study_id=sid, dap_id=dap_id,
     )
     result = await controller.get_datasets(
         text="Genomic", user_id=USER_SUBMITTER

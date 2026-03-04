@@ -33,14 +33,14 @@ E = EXAMPLES
 
 async def _create_study(controller) -> str:
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     return study.id
 
 
-async def _create_pub(controller, study_id: str, title: str = "Pub"):
+async def _create_pub(controller, study_id: str, title: str = "P"):
     return await controller.create_publication(
-        **{**E["publications"]["default"], "title": title}, study_id=study_id,
+        **{**E["publications"]["minimal"], "title": title}, study_id=study_id,
     )
 
 
@@ -190,7 +190,7 @@ async def test_get_publication_by_id(controller):
     fetched = await controller.get_publication(
         publication_id=pub.id, user_id=USER_SUBMITTER
     )
-    assert fetched.title == "Pub"
+    assert fetched.title == "P"
 
 
 @pytest.mark.asyncio

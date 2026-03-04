@@ -45,7 +45,8 @@ async def test_create_study_returns_study_with_pending_status(controller):
 async def test_create_study_generates_pid(controller):
     """The study must receive an auto-generated PID starting with GHGAS."""
     study = await controller.create_study(
-        **E["studies"]["default_no_types"], created_by=USER_SUBMITTER,
+        **{**E["studies"]["default"], "types": [], "affiliations": []},
+        created_by=USER_SUBMITTER,
     )
     assert study.id.startswith("GHGAS")
     assert len(study.id) == 19
@@ -64,7 +65,7 @@ async def test_create_study_sets_users_to_creator(controller):
 async def test_create_study_registers_accession(controller, accession_dao):
     """Creating a study must also register an Accession entry."""
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     acc = await accession_dao.get_by_id(study.id)
     assert acc.type == "STUDY"
@@ -184,7 +185,7 @@ async def test_get_studies_only_returns_accessible_studies(controller):
 async def test_get_studies_strips_user_fields_for_non_steward(controller):
     """Non-steward callers must not see user-related fields."""
     await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     result = await controller.get_studies(user_id=USER_SUBMITTER)
     assert result[0].users is None  # stripped
@@ -233,7 +234,7 @@ async def test_get_study_access_denied_for_unauthorized_user(controller):
 async def test_get_study_steward_sees_user_fields(controller):
     """Data stewards must see the users field."""
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     fetched = await controller.get_study(
         study_id=study.id,
@@ -248,7 +249,7 @@ async def test_get_study_steward_sees_user_fields(controller):
 async def test_get_study_non_steward_gets_stripped(controller):
     """Non-steward users must not see user-related fields."""
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     fetched = await controller.get_study(
         study_id=study.id, user_id=USER_SUBMITTER
@@ -266,7 +267,7 @@ async def test_update_study_status_pending_to_persisted(
 ):
     """Status must change from PENDING to PERSISTED after validation."""
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     # Satisfy completeness: add EM and publication
     from ghga_service_commons.utils.utc_dates import now_as_utc
@@ -300,7 +301,7 @@ async def test_update_study_status_pending_to_persisted(
 async def test_update_study_rejects_invalid_status_transition(controller):
     """Only PENDING -> PERSISTED is allowed; other transitions raise 409."""
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.update_study(
@@ -312,7 +313,7 @@ async def test_update_study_rejects_invalid_status_transition(controller):
 async def test_update_study_validates_completeness_on_status_change(controller):
     """Changing status to PERSISTED must validate completeness first."""
     study = await controller.create_study(
-        **E["studies"]["generic"], created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     # No EM or publication → should fail
     with pytest.raises(StudyRegistryPort.ValidationError):
