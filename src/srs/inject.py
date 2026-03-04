@@ -19,8 +19,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from ghga_service_commons.auth.ghga import AuthContext
-from ghga_service_commons.auth.jwt_auth import JWTAuthContextProvider
+from ghga_service_commons.auth.ghga import AuthContext, GHGAAuthContextProvider
 from ghga_service_commons.utils.context import asyncnullcontext
 from hexkit.providers.akafka import KafkaEventPublisher
 from hexkit.providers.mongodb import MongoDbDaoFactory
@@ -118,7 +117,7 @@ async def prepare_rest_app(
         prepare_core_with_override(
             config=config, controller_override=controller_override
         ) as controller,
-        JWTAuthContextProvider.construct(
+        GHGAAuthContextProvider.construct(
             config=config, context_class=AuthContext
         ) as auth_context,
     ):
