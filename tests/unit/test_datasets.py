@@ -154,12 +154,7 @@ async def test_get_datasets_filter_by_study(controller):
     """Filtering by study_id must only return datasets of that study."""
     sid, dap_id = await _setup(controller)
     await controller.create_dataset(
-        title="DS1",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     result = await controller.get_datasets(
         study_id=sid, user_id=USER_SUBMITTER
