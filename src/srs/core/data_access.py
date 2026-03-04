@@ -105,15 +105,17 @@ class DataAccessController(DataAccessPort):
         except ResourceNotFoundError as err:
             raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        updates: dict = {"changed": now_as_utc()}
-        if name is not None:
-            updates["name"] = name
-        if email is not None:
-            updates["email"] = email
-        if institute is not None:
-            updates["institute"] = institute
-        if active is not None:
-            updates["active"] = active
+        updates = {
+            k: v
+            for k, v in {
+                "name": name,
+                "email": email,
+                "institute": institute,
+                "active": active,
+            }.items()
+            if v is not None
+        }
+        updates["changed"] = now_as_utc()
 
         dac = dac.model_copy(update=updates)
         await self._dac_dao.update(dac)
@@ -215,25 +217,29 @@ class DataAccessController(DataAccessPort):
             except ResourceNotFoundError as err:
                 raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        updates: dict = {"changed": now_as_utc()}
-        if name is not None:
-            updates["name"] = name
-        if description is not None:
-            updates["description"] = description
-        if text is not None:
-            updates["text"] = text
-        if url is not None:
-            updates["url"] = url
-        if duo_permission_id is not None:
-            updates["duo_permission_id"] = DuoPermission(duo_permission_id)
-        if duo_modifier_ids is not None:
-            updates["duo_modifier_ids"] = [
-                DuoModifier(m) for m in duo_modifier_ids
-            ]
-        if dac_id is not None:
-            updates["dac_id"] = dac_id
-        if active is not None:
-            updates["active"] = active
+        updates = {
+            k: v
+            for k, v in {
+                "name": name,
+                "description": description,
+                "text": text,
+                "url": url,
+                "duo_permission_id": (
+                    DuoPermission(duo_permission_id)
+                    if duo_permission_id is not None
+                    else None
+                ),
+                "duo_modifier_ids": (
+                    [DuoModifier(m) for m in duo_modifier_ids]
+                    if duo_modifier_ids is not None
+                    else None
+                ),
+                "dac_id": dac_id,
+                "active": active,
+            }.items()
+            if v is not None
+        }
+        updates["changed"] = now_as_utc()
 
         dap = dap.model_copy(update=updates)
         await self._dap_dao.update(dap)
