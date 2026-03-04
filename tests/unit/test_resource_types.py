@@ -24,6 +24,9 @@ import pytest
 from srs.core.models import TypedResource
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── POST /resource-types ────────────────────────────────────────
@@ -32,12 +35,7 @@ from tests.conftest import USER_SUBMITTER
 @pytest.mark.asyncio
 async def test_create_resource_type(controller, resource_type_dao):
     """Creating a resource type must persist it with active=True."""
-    rt = await controller.create_resource_type(
-        code="wgs",
-        resource=TypedResource.STUDY,
-        name="Whole Genome Sequencing",
-        description="WGS study type",
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["wgs_study"])
     assert rt.code == "WGS"  # code is uppercased
     assert rt.active is True
     stored = await resource_type_dao.get_by_id(str(rt.id))
@@ -47,12 +45,7 @@ async def test_create_resource_type(controller, resource_type_dao):
 @pytest.mark.asyncio
 async def test_create_resource_type_uppercases_code(controller):
     """The resource type code must be uppercased on creation."""
-    rt = await controller.create_resource_type(
-        code="rna-seq",
-        resource=TypedResource.DATASET,
-        name="RNA Sequencing",
-        description=None,
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["rna_seq_dataset"])
     assert rt.code == "RNA-SEQ"
 
 
@@ -69,18 +62,8 @@ async def test_get_resource_types_empty(controller):
 @pytest.mark.asyncio
 async def test_get_resource_types_filter_by_resource(controller):
     """Filtering by resource must only return matching resource types."""
-    await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="WGS",
-        description=None,
-    )
-    await controller.create_resource_type(
-        code="BAM",
-        resource=TypedResource.DATASET,
-        name="BAM",
-        description=None,
-    )
+    await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
+    await controller.create_resource_type(**E["resource_types"]["bam_dataset"])
     result = await controller.get_resource_types(
         resource=TypedResource.STUDY
     )
@@ -91,18 +74,8 @@ async def test_get_resource_types_filter_by_resource(controller):
 @pytest.mark.asyncio
 async def test_get_resource_types_text_filter(controller):
     """Text filter must match partial text in name, code, or description."""
-    await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="Whole Genome Sequencing",
-        description="Full genome analysis",
-    )
-    await controller.create_resource_type(
-        code="RNA",
-        resource=TypedResource.STUDY,
-        name="RNA Sequencing",
-        description=None,
-    )
+    await controller.create_resource_type(**E["resource_types"]["wgs_full_desc"])
+    await controller.create_resource_type(**E["resource_types"]["rna_study"])
     result = await controller.get_resource_types(text="genome")
     assert len(result) == 1
     assert result[0].code == "WGS"
@@ -128,12 +101,7 @@ async def test_get_resource_types_pagination(controller):
 @pytest.mark.asyncio
 async def test_get_resource_type_by_id(controller):
     """Getting a resource type by ID must return it."""
-    rt = await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="WGS",
-        description=None,
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
     fetched = await controller.get_resource_type(resource_type_id=rt.id)
     assert fetched.code == "WGS"
 
@@ -153,12 +121,7 @@ async def test_get_resource_type_not_found(controller):
 @pytest.mark.asyncio
 async def test_update_resource_type(controller):
     """Updating a resource type must persist the changes."""
-    rt = await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="WGS",
-        description=None,
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
     await controller.update_resource_type(
         resource_type_id=rt.id, name="Whole Genome Seq"
     )
@@ -169,12 +132,7 @@ async def test_update_resource_type(controller):
 @pytest.mark.asyncio
 async def test_update_resource_type_deactivate(controller):
     """Deactivating a resource type must set active=False."""
-    rt = await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="WGS",
-        description=None,
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
     await controller.update_resource_type(
         resource_type_id=rt.id, active=False
     )
@@ -199,12 +157,7 @@ async def test_update_resource_type_not_found(controller):
 @pytest.mark.asyncio
 async def test_delete_resource_type(controller, resource_type_dao):
     """Deleting an unreferenced resource type must succeed."""
-    rt = await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="WGS",
-        description=None,
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
     await controller.delete_resource_type(resource_type_id=rt.id)
     assert str(rt.id) not in resource_type_dao.data
 
@@ -221,17 +174,9 @@ async def test_delete_resource_type_not_found(controller):
 @pytest.mark.asyncio
 async def test_delete_resource_type_still_referenced(controller):
     """Deleting a resource type still used by a study must raise ReferenceConflictError."""
-    rt = await controller.create_resource_type(
-        code="WGS",
-        resource=TypedResource.STUDY,
-        name="WGS",
-        description=None,
-    )
+    rt = await controller.create_resource_type(**E["resource_types"]["wgs_minimal"])
     await controller.create_study(
-        title="S",
-        description="",
-        types=["WGS"],
-        affiliations=[],
+        **{**E["studies"]["minimal"], "types": ["WGS"]},
         created_by=USER_SUBMITTER,
     )
     with pytest.raises(StudyRegistryPort.ReferenceConflictError):

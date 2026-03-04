@@ -23,6 +23,9 @@ import pytest
 
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── helpers ──────────────────────────────────────────────────────
@@ -30,24 +33,14 @@ from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
 
 async def _create_study(controller) -> str:
     study = await controller.create_study(
-        title="Study",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["generic"], created_by=USER_SUBMITTER,
     )
     return study.id
 
 
 async def _create_pub(controller, study_id: str, title: str = "Pub"):
     return await controller.create_publication(
-        title=title,
-        abstract=None,
-        authors=["Author"],
-        year=2025,
-        journal=None,
-        doi=None,
-        study_id=study_id,
+        **{**E["publications"]["default"], "title": title}, study_id=study_id,
     )
 
 
@@ -106,13 +99,7 @@ async def test_create_publication_study_not_pending(
     )
     await publication_dao.insert(
         Publication(
-            id="PUB1",
-            title="P",
-            abstract=None,
-            authors=["A"],
-            year=2025,
-            journal=None,
-            doi=None,
+            **E["publications"]["pub1"],
             study_id=sid,
             created=now_as_utc(),
         )
@@ -141,22 +128,10 @@ async def test_get_publications_filters_by_year(controller):
     """Filtering by year must only return matching publications."""
     sid = await _create_study(controller)
     await controller.create_publication(
-        title="P1",
-        abstract=None,
-        authors=["A"],
-        year=2024,
-        journal=None,
-        doi=None,
-        study_id=sid,
+        **E["publications"]["year_2024"], study_id=sid,
     )
     await controller.create_publication(
-        title="P2",
-        abstract=None,
-        authors=["B"],
-        year=2025,
-        journal=None,
-        doi=None,
-        study_id=sid,
+        **E["publications"]["year_2025"], study_id=sid,
     )
     result = await controller.get_publications(
         year=2024, user_id=USER_SUBMITTER
@@ -170,22 +145,10 @@ async def test_get_publications_text_filter(controller):
     """Text filter must match partial text in title, authors, etc."""
     sid = await _create_study(controller)
     await controller.create_publication(
-        title="Cancer Genomics Paper",
-        abstract="Abstract about cancer",
-        authors=["Alice"],
-        year=2025,
-        journal="Nature",
-        doi=None,
-        study_id=sid,
+        **E["publications"]["cancer"], study_id=sid,
     )
     await controller.create_publication(
-        title="Heart Study Paper",
-        abstract=None,
-        authors=["Bob"],
-        year=2025,
-        journal=None,
-        doi=None,
-        study_id=sid,
+        **E["publications"]["heart"], study_id=sid,
     )
 
     result = await controller.get_publications(

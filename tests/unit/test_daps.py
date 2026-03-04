@@ -22,31 +22,22 @@ import pytest
 
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── helpers ──────────────────────────────────────────────────────
 
 
 async def _create_dac(controller, dac_id="DAC-1"):
-    await controller.create_dac(
-        id=dac_id,
-        name="Board",
-        email="board@example.org",
-        institute="Inst",
-    )
+    dac_data = {**E["dacs"]["default"], "id": dac_id}
+    await controller.create_dac(**dac_data)
 
 
 async def _create_dap(controller, dap_id="DAP-1", dac_id="DAC-1"):
-    await controller.create_dap(
-        id=dap_id,
-        name="Policy",
-        description="A policy",
-        text="Policy text",
-        url=None,
-        duo_permission_id="DUO:0000042",  # GRU
-        duo_modifier_ids=["DUO:0000011"],  # POA
-        dac_id=dac_id,
-    )
+    dap_data = {**E["daps"]["with_modifiers"], "id": dap_id, "dac_id": dac_id}
+    await controller.create_dap(**dap_data)
 
 
 # ── POST /daps ───────────────────────────────────────────────────
@@ -194,19 +185,12 @@ async def test_delete_dap_with_referencing_dataset(controller):
     await _create_dac(controller)
     await _create_dap(controller)
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     await controller.create_dataset(
-        title="DS",
-        description="desc",
-        types=[],
+        **E["datasets"]["minimal"],
         study_id=study.id,
         dap_id="DAP-1",
-        files=[],
     )
     with pytest.raises(StudyRegistryPort.ReferenceConflictError):
         await controller.delete_dap(dap_id="DAP-1")

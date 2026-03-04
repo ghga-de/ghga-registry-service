@@ -26,6 +26,9 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from srs.core.models import AltAccession, AltAccessionType
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── GET /accession/{id} (primary) ───────────────────────────────
@@ -36,11 +39,7 @@ async def test_get_accession(controller, accession_dao):
     """Getting a primary accession by ID must return it."""
     # Creating a study automatically registers an accession
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     acc = await controller.get_accession(accession_id=study.id)
     assert acc.id == study.id
@@ -63,9 +62,7 @@ async def test_get_alt_accession(controller, alt_accession_dao):
     """Getting an alt accession by ID and type must return it."""
     # Insert an alt accession directly
     alt = AltAccession(
-        id="FILE-001",
-        pid="GHGAF00000000000001",
-        type=AltAccessionType.FILE_ID,
+        **E["alt_accessions"]["file_id"],
         created=now_as_utc(),
     )
     await alt_accession_dao.insert(alt)
@@ -89,9 +86,7 @@ async def test_get_alt_accession_not_found(controller):
 async def test_get_alt_accession_wrong_type(controller, alt_accession_dao):
     """Requesting a different alt type must not return existing entries."""
     alt = AltAccession(
-        id="FILE-001",
-        pid="GHGAF00000000000001",
-        type=AltAccessionType.FILE_ID,
+        **E["alt_accessions"]["file_id"],
         created=now_as_utc(),
     )
     await alt_accession_dao.insert(alt)

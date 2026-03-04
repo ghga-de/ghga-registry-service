@@ -26,6 +26,9 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_STEWARD, USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── helpers ──────────────────────────────────────────────────────
@@ -34,11 +37,7 @@ from tests.conftest import USER_STEWARD, USER_SUBMITTER
 async def _create_pending_study(controller) -> str:
     """Create a PENDING study and return its ID."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     return study.id
 
@@ -47,18 +46,12 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
     """Transition a study to PERSISTED by satisfying completeness."""
     await metadata_dao.insert(
         ExperimentalMetadata(
-            id=study_id, metadata={"files": {}}, submitted=now_as_utc()
+            id=study_id, metadata=E["metadata"]["empty"], submitted=now_as_utc()
         )
     )
     await publication_dao.insert(
         Publication(
-            id="GHGAU00000000000001",
-            title="P",
-            abstract=None,
-            authors=["A"],
-            year=2025,
-            journal=None,
-            doi=None,
+            **E["publications"]["persisted"],
             study_id=study_id,
             created=now_as_utc(),
         )
@@ -78,10 +71,10 @@ async def test_upsert_metadata_create(controller):
     """Upserting metadata for a PENDING study must create the EM."""
     sid = await _create_pending_study(controller)
     await controller.upsert_metadata(
-        study_id=sid, metadata={"files": {"f1": {}}}
+        study_id=sid, metadata=E["metadata"]["with_file"]
     )
     em = await controller.get_metadata(study_id=sid)
-    assert em.metadata == {"files": {"f1": {}}}
+    assert em.metadata == E["metadata"]["with_file"]
 
 
 @pytest.mark.asyncio
@@ -125,7 +118,7 @@ async def test_get_metadata(controller):
     """Getting metadata must return the EM for the study."""
     sid = await _create_pending_study(controller)
     await controller.upsert_metadata(
-        study_id=sid, metadata={"files": {"f1": {}}}
+        study_id=sid, metadata=E["metadata"]["with_file"]
     )
     em = await controller.get_metadata(study_id=sid)
     assert em.id == sid

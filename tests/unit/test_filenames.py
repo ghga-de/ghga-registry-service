@@ -23,6 +23,9 @@ import pytest
 from srs.core.models import AltAccessionType
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── helpers ──────────────────────────────────────────────────────
@@ -31,29 +34,13 @@ from tests.conftest import USER_SUBMITTER
 async def _setup_published_study(controller, accession_dao):
     """Create a study, metadata with files, publish → return study_id."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     await controller.upsert_metadata(
-        study_id=study.id,
-        metadata={
-            "files": {
-                "file_a": {"name": "reads.bam"},
-                "file_b": {"name": "index.bai"},
-            },
-        },
+        study_id=study.id, metadata=E["metadata"]["filenames"],
     )
     await controller.create_publication(
-        title="P",
-        abstract=None,
-        authors=["A"],
-        year=2025,
-        journal=None,
-        doi=None,
-        study_id=study.id,
+        **E["publications"]["minimal"], study_id=study.id,
     )
     # Publish to generate EM accessions (for files)
     await controller.publish_study(study_id=study.id)
@@ -88,11 +75,7 @@ async def test_get_filenames_study_not_found(controller):
 async def test_get_filenames_no_metadata(controller):
     """Getting filenames for a study without published EM must raise MetadataNotFoundError."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
         await controller.get_filenames(study_id=study.id)

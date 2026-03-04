@@ -25,6 +25,9 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── helpers ──────────────────────────────────────────────────────
@@ -33,28 +36,10 @@ from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
 async def _setup(controller):
     """Create a study + DAC + DAP and return (study_id, dap_id)."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
-    await controller.create_dac(
-        id="DAC-1",
-        name="Board",
-        email="board@example.org",
-        institute="Inst",
-    )
-    await controller.create_dap(
-        id="DAP-1",
-        name="Policy",
-        description="d",
-        text="t",
-        url=None,
-        duo_permission_id="DUO:0000042",
-        duo_modifier_ids=[],
-        dac_id="DAC-1",
-    )
+    await controller.create_dac(**E["dacs"]["default"])
+    await controller.create_dap(**E["daps"]["default"])
     return study.id, "DAP-1"
 
 
@@ -66,13 +51,7 @@ async def _persist_study(controller, study_id, metadata_dao, publication_dao):
     )
     await publication_dao.insert(
         Publication(
-            id="PUB1",
-            title="P",
-            abstract=None,
-            authors=["A"],
-            year=2025,
-            journal=None,
-            doi=None,
+            **E["publications"]["pub1"],
             study_id=study_id,
             created=now_as_utc(),
         )
@@ -92,12 +71,7 @@ async def test_create_dataset_generates_pid(controller):
     """A dataset must receive an auto-generated PID starting with GHGAD."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     assert ds.id.startswith("GHGAD")
     assert len(ds.id) == 19
@@ -108,12 +82,7 @@ async def test_create_dataset_registers_accession(controller, accession_dao):
     """Creating a dataset must register an Accession entry."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     acc = await accession_dao.get_by_id(ds.id)
     assert acc.type == "DATASET"
@@ -122,30 +91,11 @@ async def test_create_dataset_registers_accession(controller, accession_dao):
 @pytest.mark.asyncio
 async def test_create_dataset_study_not_found(controller):
     """Creating a dataset for a non-existent study must raise StudyNotFoundError."""
-    await controller.create_dac(
-        id="DAC-1",
-        name="B",
-        email="b@example.org",
-        institute="I",
-    )
-    await controller.create_dap(
-        id="DAP-1",
-        name="P",
-        description="d",
-        text="t",
-        url=None,
-        duo_permission_id="DUO:0000042",
-        duo_modifier_ids=[],
-        dac_id="DAC-1",
-    )
+    await controller.create_dac(**E["dacs"]["default"])
+    await controller.create_dap(**E["daps"]["default"])
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
         await controller.create_dataset(
-            title="DS",
-            description="d",
-            types=[],
-            study_id="NONEXIST",
-            dap_id="DAP-1",
-            files=[],
+            **E["datasets"]["minimal"], study_id="NONEXIST", dap_id="DAP-1",
         )
 
 
@@ -159,12 +109,7 @@ async def test_create_dataset_study_not_pending(
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.create_dataset(
-            title="DS",
-            description="d",
-            types=[],
-            study_id=sid,
-            dap_id=dap_id,
-            files=[],
+            **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
         )
 
 
@@ -172,20 +117,11 @@ async def test_create_dataset_study_not_pending(
 async def test_create_dataset_dap_not_found(controller):
     """Creating a dataset with a non-existent DAP must raise DapNotFoundError."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     with pytest.raises(StudyRegistryPort.DapNotFoundError):
         await controller.create_dataset(
-            title="DS",
-            description="d",
-            types=[],
-            study_id=study.id,
-            dap_id="NONEXIST",
-            files=[],
+            **E["datasets"]["minimal"], study_id=study.id, dap_id="NONEXIST",
         )
 
 
@@ -195,12 +131,9 @@ async def test_create_dataset_duplicate_files(controller):
     sid, dap_id = await _setup(controller)
     with pytest.raises(StudyRegistryPort.ValidationError):
         await controller.create_dataset(
-            title="DS",
-            description="d",
-            types=[],
+            **{**E["datasets"]["minimal"], "files": ["f1", "f1"]},
             study_id=sid,
             dap_id=dap_id,
-            files=["f1", "f1"],
         )
 
 
@@ -239,12 +172,7 @@ async def test_get_datasets_access_control(controller):
     """Non-steward users must only see datasets of accessible studies."""
     sid, dap_id = await _setup(controller)
     await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
 
     # Submitter can see it
@@ -261,20 +189,10 @@ async def test_get_datasets_text_filter(controller):
     """Text filter must match partial text in title or description."""
     sid, dap_id = await _setup(controller)
     await controller.create_dataset(
-        title="Genomic Data",
-        description="WGS files",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["genomic"], study_id=sid, dap_id=dap_id,
     )
     await controller.create_dataset(
-        title="Clinical Data",
-        description="Phenotype info",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["clinical"], study_id=sid, dap_id=dap_id,
     )
     result = await controller.get_datasets(
         text="Genomic", user_id=USER_SUBMITTER
@@ -290,12 +208,7 @@ async def test_get_dataset_by_id(controller):
     """Getting a dataset by ID must return it."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=["f1"],
+        **E["datasets"]["with_files"], study_id=sid, dap_id=dap_id,
     )
     fetched = await controller.get_dataset(
         dataset_id=ds.id, user_id=USER_SUBMITTER
@@ -317,12 +230,7 @@ async def test_get_dataset_access_denied(controller):
     """Unauthorized users must get AccessDeniedError."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     with pytest.raises(StudyRegistryPort.AccessDeniedError):
         await controller.get_dataset(
@@ -338,23 +246,9 @@ async def test_update_dataset_dap(controller):
     """Updating a dataset's DAP assignment must persist the change."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
-    await controller.create_dap(
-        id="DAP-2",
-        name="P2",
-        description="d",
-        text="t",
-        url=None,
-        duo_permission_id="DUO:0000042",
-        duo_modifier_ids=[],
-        dac_id="DAC-1",
-    )
+    await controller.create_dap(**E["daps"]["second"])
     await controller.update_dataset(dataset_id=ds.id, dap_id="DAP-2")
     updated = await controller.get_dataset(
         dataset_id=ds.id, user_id=USER_SUBMITTER
@@ -369,25 +263,11 @@ async def test_update_dataset_dap_even_when_persisted(
     """The DAP assignment can be updated even when the study is PERSISTED."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     await _persist_study(controller, sid, metadata_dao, publication_dao)
 
-    await controller.create_dap(
-        id="DAP-2",
-        name="P2",
-        description="d",
-        text="t",
-        url=None,
-        duo_permission_id="DUO:0000042",
-        duo_modifier_ids=[],
-        dac_id="DAC-1",
-    )
+    await controller.create_dap(**E["daps"]["second"])
     await controller.update_dataset(dataset_id=ds.id, dap_id="DAP-2")
     updated = await controller.get_dataset(
         dataset_id=ds.id, user_id=USER_SUBMITTER
@@ -400,12 +280,7 @@ async def test_update_dataset_dap_not_found(controller):
     """Updating to a non-existent DAP must raise DapNotFoundError."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     with pytest.raises(StudyRegistryPort.DapNotFoundError):
         await controller.update_dataset(dataset_id=ds.id, dap_id="NONEXIST")
@@ -428,12 +303,7 @@ async def test_delete_dataset(controller, dataset_dao, accession_dao):
     """Deleting a dataset must remove both the dataset and its accession."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     await controller.delete_dataset(dataset_id=ds.id)
     assert ds.id not in dataset_dao.data
@@ -454,12 +324,7 @@ async def test_delete_dataset_study_not_pending(
     """Deleting a dataset when the study is not PENDING must raise StatusConflictError."""
     sid, dap_id = await _setup(controller)
     ds = await controller.create_dataset(
-        title="DS",
-        description="d",
-        types=[],
-        study_id=sid,
-        dap_id=dap_id,
-        files=[],
+        **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
     await _persist_study(controller, sid, metadata_dao, publication_dao)
 

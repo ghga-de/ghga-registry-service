@@ -37,6 +37,9 @@ from ghga_service_commons.utils.jwt_helpers import sign_and_serialize_token
 from srs.inject import prepare_rest_app
 from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
 from tests.fixtures import ConfigFixture
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── Token helpers ───────────────────────────────────────────────
@@ -46,31 +49,11 @@ def _claims_for_role(role: str) -> dict:
     """Return JWT claims for the given role name."""
     now = datetime.now(timezone.utc)
     base = {"iat": now, "exp": now + timedelta(hours=1)}
-    if role == "steward":
-        return {
-            **base,
-            "name": "Steward",
-            "email": "steward@test.org",
-            "id": str(USER_STEWARD),
-            "roles": ["data_steward"],
-        }
-    if role == "submitter":
-        return {
-            **base,
-            "name": "Submitter",
-            "email": "submitter@test.org",
-            "id": str(USER_SUBMITTER),
-            "roles": [],
-        }
-    if role == "other":
-        return {
-            **base,
-            "name": "Other",
-            "email": "other@test.org",
-            "id": str(USER_OTHER),
-            "roles": [],
-        }
-    raise ValueError(f"Unknown role: {role}")
+    claim_data = E["authorization"]["claims"].get(role)
+    if claim_data is None:
+        raise ValueError(f"Unknown role: {role}")
+    user_ids = {"steward": USER_STEWARD, "submitter": USER_SUBMITTER, "other": USER_OTHER}
+    return {**base, **claim_data, "id": str(user_ids[role])}
 
 
 def _headers_for_token(token: str) -> dict[str, str]:
@@ -142,37 +125,7 @@ ENDPOINTS: list[tuple[str, str, frozenset[str]]] = [
 
 # ── Request bodies for write endpoints ──────────────────────────
 
-REQUEST_BODIES: dict[str, dict] = {
-    "POST /studies": {
-        "title": "New", "description": "d", "types": [], "affiliations": [],
-    },
-    "PATCH /studies/{study_id}": {},
-    "PUT /studies/{study_id}/metadata": {"metadata": {"key": "val"}},
-    "POST /studies/{study_id}/publications": {
-        "title": "P", "abstract": None, "authors": ["A"],
-        "year": 2025, "journal": None, "doi": None,
-    },
-    "POST /dacs": {
-        "id": "DAC-NEW", "name": "N", "email": "n@x.org", "institute": "I",
-    },
-    "PATCH /dacs/{dac_id}": {},
-    "POST /daps": {
-        "id": "DAP-NEW", "name": "N", "description": "d", "text": "t",
-        "url": None, "duo_permission_id": "DUO:0000042",
-        "duo_modifier_ids": [], "dac_id": "DAC-1",
-    },
-    "PATCH /daps/{dap_id}": {},
-    "POST /studies/{study_id}/datasets": {
-        "title": "D", "description": "d", "types": [],
-        "dap_id": "DAP-1", "files": [],
-    },
-    "PATCH /datasets/{dataset_id}": {"dap_id": "DAP-1"},
-    "POST /resource-types": {
-        "code": "RT-NEW", "resource": "STUDY", "name": "N", "description": "d",
-    },
-    "PATCH /resource-types/{resource_type_id}": {},
-    "POST /filenames/{study_id}": {"file_id_map": {}},
-}
+REQUEST_BODIES: dict[str, dict] = E["authorization"]["request_bodies"]
 
 
 # ── Build parametrize list ──────────────────────────────────────
@@ -200,39 +153,25 @@ async def seeded_app(config: ConfigFixture, controller):
     Uses prepare_rest_app with controller_override so the real
     JWTAuthContextProvider validates tokens while the core is in-memory.
     """
+    _seed = E["authorization"]["seed"]
     # Seed data through the controller
     study = await controller.create_study(
-        title="S", description="d", types=[], affiliations=[],
-        created_by=USER_SUBMITTER,
+        **_seed["study"], created_by=USER_SUBMITTER,
     )
     await controller.upsert_metadata(
-        study_id=study.id, metadata={"key": "val"},
+        study_id=study.id, metadata=_seed["metadata"],
     )
     pub = await controller.create_publication(
-        title="P", abstract=None, authors=["A"], year=2025,
-        journal=None, doi=None, study_id=study.id,
+        **_seed["publication"], study_id=study.id,
     )
-    await controller.create_dac(
-        id="DAC-1", name="C", email="c@x.org", institute="I",
-    )
-    await controller.create_dap(
-        id="DAP-1", name="P", description="d", text="t", url=None,
-        duo_permission_id="DUO:0000042", duo_modifier_ids=[], dac_id="DAC-1",
-    )
-    await controller.create_dac(
-        id="DAC-DEL", name="D", email="d@x.org", institute="I",
-    )
-    await controller.create_dap(
-        id="DAP-DEL", name="D", description="d", text="t", url=None,
-        duo_permission_id="DUO:0000042", duo_modifier_ids=[], dac_id="DAC-DEL",
-    )
+    await controller.create_dac(**E["dacs"]["auth_seed"])
+    await controller.create_dap(**E["daps"]["default"])
+    await controller.create_dac(**E["dacs"]["deletable"])
+    await controller.create_dap(**E["daps"]["deletable"])
     ds = await controller.create_dataset(
-        title="DS", description="d", types=[], study_id=study.id,
-        dap_id="DAP-1", files=[],
+        **_seed["dataset"], study_id=study.id, dap_id="DAP-1",
     )
-    rt = await controller.create_resource_type(
-        code="RT1", resource="STUDY", name="Type", description="d",
-    )
+    rt = await controller.create_resource_type(**_seed["resource_type"])
 
     ids = {
         "study_id": study.id,

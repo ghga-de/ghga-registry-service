@@ -22,6 +22,9 @@ import pytest
 
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_SUBMITTER
+from tests.fixtures.examples import EXAMPLES
+
+E = EXAMPLES
 
 
 # ── helpers ──────────────────────────────────────────────────────
@@ -30,56 +33,22 @@ from tests.conftest import USER_SUBMITTER
 async def _build_complete_study(controller):
     """Create a study with metadata, publication, DAC, DAP, and dataset."""
     study = await controller.create_study(
-        title="Full Study",
-        description="A complete study",
-        types=["WGS"],
-        affiliations=["GHGA"],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["full"], created_by=USER_SUBMITTER,
     )
     sid = study.id
 
     await controller.upsert_metadata(
-        study_id=sid,
-        metadata={
-            "files": {"f1": {"name": "reads.bam"}, "f2": {"name": "reads.bai"}},
-            "samples": {"s1": {"name": "sample-1"}},
-            "individuals": {"ind1": {"name": "donor-1"}},
-        },
+        study_id=sid, metadata=E["metadata"]["rich"],
     )
 
     await controller.create_publication(
-        title="Research Paper",
-        abstract="Abstract",
-        authors=["Alice", "Bob"],
-        year=2025,
-        journal="Nature",
-        doi="10.1234/test",
-        study_id=sid,
+        **E["publications"]["full"], study_id=sid,
     )
 
-    await controller.create_dac(
-        id="DAC-1",
-        name="Ethics Board",
-        email="ethics@example.org",
-        institute="Uni",
-    )
-    await controller.create_dap(
-        id="DAP-1",
-        name="Main Policy",
-        description="d",
-        text="t",
-        url=None,
-        duo_permission_id="DUO:0000042",
-        duo_modifier_ids=[],
-        dac_id="DAC-1",
-    )
+    await controller.create_dac(**E["dacs"]["publish"])
+    await controller.create_dap(**E["daps"]["main_policy"])
     await controller.create_dataset(
-        title="Dataset 1",
-        description="WGS data",
-        types=["WGS"],
-        study_id=sid,
-        dap_id="DAP-1",
-        files=["f1", "f2"],
+        **E["datasets"]["full"], study_id=sid, dap_id="DAP-1",
     )
 
     return sid
@@ -151,21 +120,11 @@ async def test_publish_study_not_found(controller):
 async def test_publish_study_missing_metadata(controller):
     """Publishing a study without EM must raise ValidationError."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     # No metadata added
     await controller.create_publication(
-        title="P",
-        abstract=None,
-        authors=["A"],
-        year=2025,
-        journal=None,
-        doi=None,
-        study_id=study.id,
+        **E["publications"]["minimal"], study_id=study.id,
     )
     with pytest.raises(StudyRegistryPort.ValidationError):
         await controller.publish_study(study_id=study.id)
@@ -175,14 +134,10 @@ async def test_publish_study_missing_metadata(controller):
 async def test_publish_study_missing_publication(controller):
     """Publishing a study without a publication must raise ValidationError."""
     study = await controller.create_study(
-        title="S",
-        description="",
-        types=[],
-        affiliations=[],
-        created_by=USER_SUBMITTER,
+        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
     await controller.upsert_metadata(
-        study_id=study.id, metadata={"files": {}}
+        study_id=study.id, metadata=E["metadata"]["empty"]
     )
     # No publication added
     with pytest.raises(StudyRegistryPort.ValidationError):
