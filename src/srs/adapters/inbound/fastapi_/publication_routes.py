@@ -34,7 +34,6 @@ from srs.adapters.inbound.fastapi_.http_exceptions import (
     HttpStudyNotFoundError,
 )
 from srs.adapters.inbound.fastapi_.rest_models import PublicationCreateRequest
-from srs.constants import TRACER
 from srs.core.models import Publication
 from srs.ports.inbound.publication import PublicationPort
 
@@ -52,7 +51,6 @@ publication_router = APIRouter(tags=["Publications"])
     status_code=status.HTTP_201_CREATED,
     response_model=Publication,
 )
-@TRACER.start_as_current_span("routes.create_publication")
 async def create_publication(
     study_id: str,
     body: PublicationCreateRequest,
@@ -85,7 +83,6 @@ async def create_publication(
     operation_id="getPublications",
     response_model=list[Publication],
 )
-@TRACER.start_as_current_span("routes.get_publications")
 async def get_publications(
     registry: dummies.StudyRegistryDummy,
     auth: OptionalAuthContext = None,
@@ -115,7 +112,6 @@ async def get_publications(
     operation_id="getPublication",
     response_model=Publication,
 )
-@TRACER.start_as_current_span("routes.get_publication")
 async def get_publication(
     publication_id: str,
     registry: dummies.StudyRegistryDummy,
@@ -143,7 +139,6 @@ async def get_publication(
     operation_id="deletePublication",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_publication")
 async def delete_publication(
     publication_id: str,
     auth: StewardAuthContext,

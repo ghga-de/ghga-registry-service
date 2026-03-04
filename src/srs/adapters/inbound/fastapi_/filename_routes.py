@@ -46,7 +46,6 @@ filename_router = APIRouter(tags=["Filenames"])
     operation_id="getFilenames",
     response_model=dict[str, dict[str, str]],
 )
-@TRACER.start_as_current_span("routes.get_filenames")
 async def get_filenames(
     study_id: str,
     auth: StewardAuthContext,

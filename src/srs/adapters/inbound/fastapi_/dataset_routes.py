@@ -39,7 +39,6 @@ from srs.adapters.inbound.fastapi_.rest_models import (
     DatasetCreateRequest,
     DatasetUpdateRequest,
 )
-from srs.constants import TRACER
 from srs.core.models import Dataset
 from srs.ports.inbound.dataset import DatasetPort
 
@@ -57,7 +56,6 @@ dataset_router = APIRouter(tags=["Datasets"])
     status_code=status.HTTP_201_CREATED,
     response_model=Dataset,
 )
-@TRACER.start_as_current_span("routes.create_dataset")
 async def create_dataset(
     study_id: str,
     body: DatasetCreateRequest,
@@ -93,7 +91,6 @@ async def create_dataset(
     operation_id="getDatasets",
     response_model=list[Dataset],
 )
-@TRACER.start_as_current_span("routes.get_datasets")
 async def get_datasets(
     registry: dummies.StudyRegistryDummy,
     auth: OptionalAuthContext = None,
@@ -125,7 +122,6 @@ async def get_datasets(
     operation_id="getDataset",
     response_model=Dataset,
 )
-@TRACER.start_as_current_span("routes.get_dataset")
 async def get_dataset(
     dataset_id: str,
     registry: dummies.StudyRegistryDummy,
@@ -153,7 +149,6 @@ async def get_dataset(
     operation_id="updateDataset",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.update_dataset")
 async def update_dataset(
     dataset_id: str,
     body: DatasetUpdateRequest,
@@ -180,7 +175,6 @@ async def update_dataset(
     operation_id="deleteDataset",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_dataset")
 async def delete_dataset(
     dataset_id: str,
     auth: StewardAuthContext,

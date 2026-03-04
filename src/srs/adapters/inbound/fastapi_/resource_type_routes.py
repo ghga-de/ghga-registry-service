@@ -31,7 +31,6 @@ from srs.adapters.inbound.fastapi_.rest_models import (
     ResourceTypeCreateRequest,
     ResourceTypeUpdateRequest,
 )
-from srs.constants import TRACER
 from srs.core.models import ResourceType, TypedResource
 from srs.ports.inbound.resource_type import ResourceTypePort
 
@@ -49,7 +48,6 @@ resource_type_router = APIRouter(tags=["Resource Types"])
     status_code=status.HTTP_201_CREATED,
     response_model=ResourceType,
 )
-@TRACER.start_as_current_span("routes.create_resource_type")
 async def create_resource_type(
     body: ResourceTypeCreateRequest,
     auth: StewardAuthContext,
@@ -74,7 +72,6 @@ async def create_resource_type(
     operation_id="getResourceTypes",
     response_model=list[ResourceType],
 )
-@TRACER.start_as_current_span("routes.get_resource_types")
 async def get_resource_types(
     registry: dummies.StudyRegistryDummy,
     resource: str | None = Query(None),
@@ -99,7 +96,6 @@ async def get_resource_types(
     operation_id="getResourceType",
     response_model=ResourceType,
 )
-@TRACER.start_as_current_span("routes.get_resource_type")
 async def get_resource_type(
     resource_type_id: UUID,
     registry: dummies.StudyRegistryDummy,
@@ -122,7 +118,6 @@ async def get_resource_type(
     operation_id="updateResourceType",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.update_resource_type")
 async def update_resource_type(
     resource_type_id: UUID,
     body: ResourceTypeUpdateRequest,
@@ -150,7 +145,6 @@ async def update_resource_type(
     operation_id="deleteResourceType",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_resource_type")
 async def delete_resource_type(
     resource_type_id: UUID,
     auth: StewardAuthContext,

@@ -24,7 +24,6 @@ from srs.adapters.inbound.fastapi_.http_exceptions import (
     HttpAccessionNotFoundError,
     HttpInternalError,
 )
-from srs.constants import TRACER
 from srs.core.models import (
     Accession,
     AltAccession,
@@ -45,7 +44,6 @@ router = APIRouter(tags=["Accessions"])
     operation_id="getAccession",
     response_model=Accession,
 )
-@TRACER.start_as_current_span("routes.get_accession")
 async def get_accession(
     accession_id: str,
     registry: dummies.StudyRegistryDummy,
@@ -66,7 +64,6 @@ async def get_accession(
     operation_id="getAltAccession",
     response_model=AltAccession,
 )
-@TRACER.start_as_current_span("routes.get_alt_accession")
 async def get_alt_accession(
     accession_id: str,
     alt_type: AltAccessionType,

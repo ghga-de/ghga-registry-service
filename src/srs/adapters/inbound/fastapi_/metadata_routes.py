@@ -30,7 +30,6 @@ from srs.adapters.inbound.fastapi_.http_exceptions import (
     HttpStudyNotFoundError,
 )
 from srs.adapters.inbound.fastapi_.rest_models import MetadataUpsertRequest
-from srs.constants import TRACER
 from srs.core.models import ExperimentalMetadata
 from srs.ports.inbound.metadata import MetadataPort
 
@@ -47,7 +46,6 @@ metadata_router = APIRouter(tags=["Metadata"])
     operation_id="upsertMetadata",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.upsert_metadata")
 async def upsert_metadata(
     study_id: str,
     body: MetadataUpsertRequest,
@@ -74,7 +72,6 @@ async def upsert_metadata(
     operation_id="getMetadata",
     response_model=ExperimentalMetadata,
 )
-@TRACER.start_as_current_span("routes.get_metadata")
 async def get_metadata(
     study_id: str,
     auth: StewardAuthContext,
@@ -96,7 +93,6 @@ async def get_metadata(
     operation_id="deleteMetadata",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_metadata")
 async def delete_metadata(
     study_id: str,
     auth: StewardAuthContext,

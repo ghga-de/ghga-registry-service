@@ -34,7 +34,6 @@ from srs.adapters.inbound.fastapi_.rest_models import (
     DapCreateRequest,
     DapUpdateRequest,
 )
-from srs.constants import TRACER
 from srs.core.models import DataAccessCommittee, DataAccessPolicy
 from srs.ports.inbound.data_access import DataAccessPort
 
@@ -51,7 +50,6 @@ data_access_router = APIRouter(tags=["Data Access"])
     operation_id="createDac",
     status_code=status.HTTP_201_CREATED,
 )
-@TRACER.start_as_current_span("routes.create_dac")
 async def create_dac(
     body: DacCreateRequest,
     auth: StewardAuthContext,
@@ -78,7 +76,6 @@ async def create_dac(
     operation_id="getDacs",
     response_model=list[DataAccessCommittee],
 )
-@TRACER.start_as_current_span("routes.get_dacs")
 async def get_dacs(
     registry: dummies.StudyRegistryDummy,
 ):
@@ -96,7 +93,6 @@ async def get_dacs(
     operation_id="getDac",
     response_model=DataAccessCommittee,
 )
-@TRACER.start_as_current_span("routes.get_dac")
 async def get_dac(
     dac_id: str,
     registry: dummies.StudyRegistryDummy,
@@ -117,7 +113,6 @@ async def get_dac(
     operation_id="updateDac",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.update_dac")
 async def update_dac(
     dac_id: str,
     body: DacUpdateRequest,
@@ -146,7 +141,6 @@ async def update_dac(
     operation_id="deleteDac",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_dac")
 async def delete_dac(
     dac_id: str,
     auth: StewardAuthContext,
@@ -173,7 +167,6 @@ async def delete_dac(
     operation_id="createDap",
     status_code=status.HTTP_201_CREATED,
 )
-@TRACER.start_as_current_span("routes.create_dap")
 async def create_dap(
     body: DapCreateRequest,
     auth: StewardAuthContext,
@@ -206,7 +199,6 @@ async def create_dap(
     operation_id="getDaps",
     response_model=list[DataAccessPolicy],
 )
-@TRACER.start_as_current_span("routes.get_daps")
 async def get_daps(
     registry: dummies.StudyRegistryDummy,
 ):
@@ -224,7 +216,6 @@ async def get_daps(
     operation_id="getDap",
     response_model=DataAccessPolicy,
 )
-@TRACER.start_as_current_span("routes.get_dap")
 async def get_dap(
     dap_id: str,
     registry: dummies.StudyRegistryDummy,
@@ -245,7 +236,6 @@ async def get_dap(
     operation_id="updateDap",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.update_dap")
 async def update_dap(
     dap_id: str,
     body: DapUpdateRequest,
@@ -280,7 +270,6 @@ async def update_dap(
     operation_id="deleteDap",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_dap")
 async def delete_dap(
     dap_id: str,
     auth: StewardAuthContext,

@@ -60,7 +60,6 @@ study_router = APIRouter(tags=["Studies"])
     status_code=status.HTTP_201_CREATED,
     response_model=Study,
 )
-@TRACER.start_as_current_span("routes.create_study")
 async def create_study(
     body: StudyCreateRequest,
     auth: StewardAuthContext,
@@ -88,7 +87,6 @@ async def create_study(
     operation_id="getStudies",
     response_model=list[Study],
 )
-@TRACER.start_as_current_span("routes.get_studies")
 async def get_studies(
     registry: dummies.StudyRegistryDummy,
     auth: OptionalAuthContext = None,
@@ -120,7 +118,6 @@ async def get_studies(
     operation_id="getStudy",
     response_model=Study,
 )
-@TRACER.start_as_current_span("routes.get_study")
 async def get_study(
     study_id: str,
     registry: dummies.StudyRegistryDummy,
@@ -148,7 +145,6 @@ async def get_study(
     operation_id="updateStudy",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.update_study")
 async def update_study(
     study_id: str,
     body: StudyUpdateRequest,
@@ -181,7 +177,6 @@ async def update_study(
     operation_id="deleteStudy",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-@TRACER.start_as_current_span("routes.delete_study")
 async def delete_study(
     study_id: str,
     auth: StewardAuthContext,
