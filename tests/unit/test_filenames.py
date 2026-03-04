@@ -105,7 +105,7 @@ async def test_post_filenames_stores_alt_accessions(
 
 @pytest.mark.asyncio
 async def test_post_filenames_publishes_event(
-    controller, accession_dao, event_publisher
+    controller, accession_dao, event_store
 ):
     """Posting file IDs must publish a file-ID mapping event."""
     sid = await _setup_published_study(controller, accession_dao)
@@ -115,10 +115,11 @@ async def test_post_filenames_publishes_event(
     file_id_map = {acc: f"id-{i}" for i, acc in enumerate(file_acc_ids)}
 
     # The setup already published one AEM event; record baseline
-    baseline = len(event_publisher.file_id_mapping_events)
+    topic = event_store.topics["file_id_mapping"]
+    baseline = len(topic)
     await controller.post_filenames(study_id=sid, file_id_map=file_id_map)
-    assert len(event_publisher.file_id_mapping_events) == baseline + 1
-    assert event_publisher.file_id_mapping_events[-1] == file_id_map
+    assert len(topic) == baseline + 1
+    assert topic[-1].payload == {"mapping": file_id_map}
 
 
 @pytest.mark.asyncio

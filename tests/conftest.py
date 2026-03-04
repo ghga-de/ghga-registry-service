@@ -22,8 +22,10 @@ from uuid import UUID
 import pytest
 from ghga_service_commons.utils.jwt_helpers import generate_jwk
 from hexkit.providers.testing.dao import BaseInMemDao, new_mock_dao_class
+from hexkit.providers.testing.eventpub import InMemEventPublisher, InMemEventStore
 from pydantic import BaseModel
 
+from srs.adapters.outbound.event_pub import EventPubConfig, EventPubTranslator
 from srs.core.models import (
     Accession,
     AltAccession,
@@ -40,7 +42,6 @@ from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
 from tests.fixtures.joint import JointFixture, joint_fixture  # noqa: F401
-from tests.fixtures.mocks import InMemoryEventPublisher
 
 # Re-export hexkit container/fixture definitions so pytest can discover them
 from hexkit.providers.akafka.testutils import (  # noqa: F401
@@ -172,8 +173,14 @@ def em_accession_map_dao():
 
 
 @pytest.fixture()
-def event_publisher():
-    return InMemoryEventPublisher()
+def event_store():
+    return InMemEventStore()
+
+
+@pytest.fixture()
+def event_publisher(event_store):
+    provider = InMemEventPublisher(event_store=event_store)
+    return EventPubTranslator(config=EventPubConfig(), provider=provider)
 
 
 @pytest.fixture()

@@ -78,35 +78,36 @@ async def test_publish_study_generates_em_accessions(
 
 @pytest.mark.asyncio
 async def test_publish_study_publishes_aem_event(
-    controller, event_publisher
+    controller, event_store
 ):
     """Publishing must emit an AnnotatedExperimentalMetadata event."""
     sid = await _build_complete_study(controller)
     await controller.publish_study(study_id=sid)
 
-    assert len(event_publisher.annotated_metadata_events) == 1
-    aem = event_publisher.annotated_metadata_events[0]
-    assert aem.study.id == sid
-    assert aem.study.title == "Full Study"
-    assert aem.study.publication is not None
-    assert aem.study.publication.title == "Research Paper"
-    assert len(aem.datasets) == 1
-    assert aem.datasets[0].dap is not None
-    assert aem.datasets[0].dap.dac.id == "DAC-1"
+    topic = event_store.topics["annotated_metadata"]
+    assert len(topic) == 1
+    aem = topic[0].payload
+    assert aem["study"]["id"] == sid
+    assert aem["study"]["title"] == "Full Study"
+    assert aem["study"]["publication"] is not None
+    assert aem["study"]["publication"]["title"] == "Research Paper"
+    assert len(aem["datasets"]) == 1
+    assert aem["datasets"][0]["dap"] is not None
+    assert aem["datasets"][0]["dap"]["dac"]["id"] == "DAC-1"
 
 
 @pytest.mark.asyncio
 async def test_publish_study_aem_has_accessions(
-    controller, event_publisher
+    controller, event_store
 ):
     """The AEM event must contain the generated accession maps."""
     sid = await _build_complete_study(controller)
     await controller.publish_study(study_id=sid)
 
-    aem = event_publisher.annotated_metadata_events[0]
-    assert "files" in aem.accessions
-    assert "samples" in aem.accessions
-    assert "individuals" in aem.accessions
+    aem = event_store.topics["annotated_metadata"][0].payload
+    assert "files" in aem["accessions"]
+    assert "samples" in aem["accessions"]
+    assert "individuals" in aem["accessions"]
 
 
 @pytest.mark.asyncio
