@@ -22,8 +22,6 @@ from srs.core.models import (
     Accession,
     AltAccession,
     AltAccessionType,
-    DataAccessCommittee,
-    DataAccessPolicy,
     Dataset,
     ExperimentalMetadata,
     Publication,
@@ -32,6 +30,7 @@ from srs.core.models import (
     StudyStatus,
     TypedResource,
 )
+from srs.ports.inbound.data_access import DataAccessPort
 
 
 class StudyRegistryPort(ABC):
@@ -127,6 +126,14 @@ class StudyRegistryPort(ABC):
 
         def __init__(self, *, detail: str = "Access denied."):
             super().__init__(detail)
+
+    # --- Data access (composite) ---
+
+    @property
+    @abstractmethod
+    def data_access(self) -> DataAccessPort:
+        """Return the data access controller for DAC/DAP operations."""
+        ...
 
     # --- Study operations ---
 
@@ -300,134 +307,6 @@ class StudyRegistryPort(ABC):
         Raises:
         - PublicationNotFoundError if the publication does not exist.
         - StatusConflictError if the study is not in PENDING status.
-        """
-        ...
-
-    # --- DataAccessCommittee operations ---
-
-    @abstractmethod
-    async def create_dac(
-        self,
-        *,
-        id: str,
-        name: str,
-        email: str,
-        institute: str,
-    ) -> None:
-        """Create a new DAC.
-
-        Raises:
-        - DuplicateError if a DAC with this ID already exists.
-        """
-        ...
-
-    @abstractmethod
-    async def get_dacs(self) -> list[DataAccessCommittee]:
-        """Get all DACs."""
-        ...
-
-    @abstractmethod
-    async def get_dac(self, *, dac_id: str) -> DataAccessCommittee:
-        """Get a DAC by ID.
-
-        Raises:
-        - DacNotFoundError if the DAC does not exist.
-        """
-        ...
-
-    @abstractmethod
-    async def update_dac(
-        self,
-        *,
-        dac_id: str,
-        name: str | None = None,
-        email: str | None = None,
-        institute: str | None = None,
-        active: bool | None = None,
-    ) -> None:
-        """Update a DAC.
-
-        Raises:
-        - DacNotFoundError if the DAC does not exist.
-        """
-        ...
-
-    @abstractmethod
-    async def delete_dac(self, *, dac_id: str) -> None:
-        """Delete a DAC.
-
-        Raises:
-        - DacNotFoundError if the DAC does not exist.
-        - ReferenceConflictError if the DAC is referenced by any DAP.
-        """
-        ...
-
-    # --- DataAccessPolicy operations ---
-
-    @abstractmethod
-    async def create_dap(
-        self,
-        *,
-        id: str,
-        name: str,
-        description: str,
-        text: str,
-        url: str | None,
-        duo_permission_id: str,
-        duo_modifier_ids: list[str],
-        dac_id: str,
-    ) -> None:
-        """Create a new DAP.
-
-        Raises:
-        - DacNotFoundError if the referenced DAC does not exist.
-        - DuplicateError if a DAP with this ID already exists.
-        """
-        ...
-
-    @abstractmethod
-    async def get_daps(self) -> list[DataAccessPolicy]:
-        """Get all DAPs."""
-        ...
-
-    @abstractmethod
-    async def get_dap(self, *, dap_id: str) -> DataAccessPolicy:
-        """Get a DAP by ID.
-
-        Raises:
-        - DapNotFoundError if the DAP does not exist.
-        """
-        ...
-
-    @abstractmethod
-    async def update_dap(
-        self,
-        *,
-        dap_id: str,
-        name: str | None = None,
-        description: str | None = None,
-        text: str | None = None,
-        url: str | None = None,
-        duo_permission_id: str | None = None,
-        duo_modifier_ids: list[str] | None = None,
-        dac_id: str | None = None,
-        active: bool | None = None,
-    ) -> None:
-        """Update a DAP.
-
-        Raises:
-        - DapNotFoundError if the DAP does not exist.
-        - DacNotFoundError if the new DAC does not exist.
-        """
-        ...
-
-    @abstractmethod
-    async def delete_dap(self, *, dap_id: str) -> None:
-        """Delete a DAP.
-
-        Raises:
-        - DapNotFoundError if the DAP does not exist.
-        - ReferenceConflictError if the DAP is referenced by any dataset.
         """
         ...
 

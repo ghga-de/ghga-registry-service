@@ -35,6 +35,7 @@ from typing import Any, cast
 import pytest
 
 from srs.core.models import StudyStatus
+from srs.ports.inbound.data_access import DataAccessPort
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from tests.conftest import USER_OTHER, USER_STEWARD, USER_SUBMITTER
 from tests.fixtures.examples import EXAMPLES
@@ -73,13 +74,13 @@ async def test_new_study_journey(joint_fixture: JointFixture):
     assert pub.study_id == study_id
 
     # 4 ── Create DAC ────────────────────────────────────────────
-    await controller.create_dac(**E["dacs"]["journey"])
-    dac = await controller.get_dac(dac_id="DAC-DIABETES")
+    await controller.data_access.create_dac(**E["dacs"]["journey"])
+    dac = await controller.data_access.get_dac(dac_id="DAC-DIABETES")
     assert dac.active is True
 
     # 5 ── Create DAP ────────────────────────────────────────────
-    await controller.create_dap(**E["daps"]["journey"])
-    dap = await controller.get_dap(dap_id="DAP-DIABETES")
+    await controller.data_access.create_dap(**E["daps"]["journey"])
+    dap = await controller.data_access.get_dap(dap_id="DAP-DIABETES")
     assert dap.dac_id == "DAC-DIABETES"
 
     # 6 ── Create dataset ────────────────────────────────────────
@@ -168,8 +169,8 @@ async def test_journey_delete_pending_study_cleans_everything(
     pub = await controller.create_publication(
         **E["publications"]["minimal"], study_id=sid,
     )
-    await controller.create_dac(**E["dacs"]["tmp"])
-    await controller.create_dap(**E["daps"]["tmp"])
+    await controller.data_access.create_dac(**E["dacs"]["tmp"])
+    await controller.data_access.create_dap(**E["daps"]["tmp"])
     ds = await controller.create_dataset(
         **E["datasets"]["with_files"], study_id=sid, dap_id="DAP-TMP",
     )
@@ -192,7 +193,7 @@ async def test_journey_delete_pending_study_cleans_everything(
         )
 
     # DAC and DAP should still exist (they are independent)
-    dac = await controller.get_dac(dac_id="DAC-TMP")
+    dac = await controller.data_access.get_dac(dac_id="DAC-TMP")
     assert dac.name == "Board"
 
 
@@ -267,22 +268,22 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
     )
 
     # ── 9. DAP with non-existent DAC ────────────────────────────
-    with pytest.raises(StudyRegistryPort.DacNotFoundError):
-        await controller.create_dap(
+    with pytest.raises(DataAccessPort.DacNotFoundError):
+        await controller.data_access.create_dap(
             **{**E["daps"]["default"], "id": "DAP-BAD", "dac_id": "DAC-NONEXIST"},
         )
 
     # ── 10. Create DAC, then duplicate → error ──────────────────
-    await controller.create_dac(**E["dacs"]["default"])
-    with pytest.raises(StudyRegistryPort.DuplicateError):
-        await controller.create_dac(
+    await controller.data_access.create_dac(**E["dacs"]["default"])
+    with pytest.raises(DataAccessPort.DuplicateError):
+        await controller.data_access.create_dac(
             **{**E["dacs"]["default"], "name": "Dup", "email": "x@example.org", "institute": "Y"},
         )
 
     # ── 11. Create DAP, then duplicate → error ──────────────────
-    await controller.create_dap(**E["daps"]["default"])
-    with pytest.raises(StudyRegistryPort.DuplicateError):
-        await controller.create_dap(
+    await controller.data_access.create_dap(**E["daps"]["default"])
+    with pytest.raises(DataAccessPort.DuplicateError):
+        await controller.data_access.create_dap(
             **{**E["daps"]["default"], "name": "Dup"},
         )
 
@@ -306,12 +307,12 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
     )
 
     # ── 15. Delete DAC blocked by DAP reference ──────────────────
-    with pytest.raises(StudyRegistryPort.ReferenceConflictError):
-        await controller.delete_dac(dac_id="DAC-1")
+    with pytest.raises(DataAccessPort.ReferenceConflictError):
+        await controller.data_access.delete_dac(dac_id="DAC-1")
 
     # ── 16. Delete DAP blocked by dataset reference ──────────────
-    with pytest.raises(StudyRegistryPort.ReferenceConflictError):
-        await controller.delete_dap(dap_id="DAP-1")
+    with pytest.raises(DataAccessPort.ReferenceConflictError):
+        await controller.data_access.delete_dap(dap_id="DAP-1")
 
     # ── 17. Publish study (now complete) ─────────────────────────
     async with kafka.record_events(

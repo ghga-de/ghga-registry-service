@@ -38,6 +38,7 @@ from srs.core.models import (
     ResourceType,
     Study,
 )
+from srs.core.data_access import DataAccessController
 from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
@@ -184,12 +185,21 @@ def event_publisher(event_store):
 
 
 @pytest.fixture()
+def data_access(dac_dao, dap_dao, dataset_dao):
+    """Create a DataAccessController wired to in-memory DAOs."""
+    return DataAccessController(
+        dac_dao=dac_dao,
+        dap_dao=dap_dao,
+        dataset_dao=dataset_dao,
+    )
+
+
+@pytest.fixture()
 def controller(
     study_dao,
     metadata_dao,
     publication_dao,
-    dac_dao,
-    dap_dao,
+    data_access,
     dataset_dao,
     resource_type_dao,
     accession_dao,
@@ -202,8 +212,7 @@ def controller(
         study_dao=study_dao,
         metadata_dao=metadata_dao,
         publication_dao=publication_dao,
-        dac_dao=dac_dao,
-        dap_dao=dap_dao,
+        data_access=data_access,
         dataset_dao=dataset_dao,
         resource_type_dao=resource_type_dao,
         accession_dao=accession_dao,

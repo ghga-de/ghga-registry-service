@@ -45,8 +45,8 @@ async def _build_complete_study(controller):
         **E["publications"]["full"], study_id=sid,
     )
 
-    await controller.create_dac(**E["dacs"]["default"])
-    await controller.create_dap(**E["daps"]["default"])
+    await controller.data_access.create_dac(**E["dacs"]["default"])
+    await controller.data_access.create_dap(**E["daps"]["default"])
     await controller.create_dataset(
         **E["datasets"]["full"], study_id=sid, dap_id="DAP-1",
     )

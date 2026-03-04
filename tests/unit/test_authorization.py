@@ -164,10 +164,10 @@ async def seeded_app(config: ConfigFixture, controller):
     pub = await controller.create_publication(
         **_seed["publication"], study_id=study.id,
     )
-    await controller.create_dac(**E["dacs"]["default"])
-    await controller.create_dap(**E["daps"]["default"])
-    await controller.create_dac(**E["dacs"]["deletable"])
-    await controller.create_dap(**E["daps"]["deletable"])
+    await controller.data_access.create_dac(**E["dacs"]["default"])
+    await controller.data_access.create_dap(**E["daps"]["default"])
+    await controller.data_access.create_dac(**E["dacs"]["deletable"])
+    await controller.data_access.create_dap(**E["daps"]["deletable"])
     ds = await controller.create_dataset(
         **_seed["dataset"], study_id=study.id, dap_id="DAP-1",
     )

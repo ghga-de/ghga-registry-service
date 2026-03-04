@@ -22,6 +22,7 @@ from fastapi.openapi.utils import get_openapi
 from ghga_service_commons.api import ApiConfigBase, configure_app
 
 from srs import __version__
+from srs.adapters.inbound.fastapi_.data_access_routes import data_access_router
 from srs.adapters.inbound.fastapi_.routes import router
 
 
@@ -43,6 +44,7 @@ def get_configured_app(*, config: ApiConfigBase) -> FastAPI:
     """Create, configure and return the FastAPI application."""
     app = FastAPI()
     app.include_router(router)
+    app.include_router(data_access_router)
     configure_app(app, config=config)
     app.openapi = lambda: _custom_openapi(app)  # type: ignore[assignment]
     return app

@@ -40,6 +40,7 @@ from srs.adapters.outbound.dao import (
 )
 from srs.adapters.outbound.event_pub import EventPubTranslator
 from srs.config import Config
+from srs.core.data_access import DataAccessController
 from srs.core.study_registry import StudyRegistryController
 from srs.ports.inbound.study_registry import StudyRegistryPort
 
@@ -72,12 +73,17 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             config=config, provider=kafka_publisher
         )
 
+        data_access = DataAccessController(
+            dac_dao=dac_dao,
+            dap_dao=dap_dao,
+            dataset_dao=dataset_dao,
+        )
+
         yield StudyRegistryController(
             study_dao=study_dao,
             metadata_dao=metadata_dao,
             publication_dao=publication_dao,
-            dac_dao=dac_dao,
-            dap_dao=dap_dao,
+            data_access=data_access,
             dataset_dao=dataset_dao,
             resource_type_dao=resource_type_dao,
             accession_dao=accession_dao,

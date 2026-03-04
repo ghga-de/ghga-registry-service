@@ -38,8 +38,8 @@ async def _setup(controller):
     study = await controller.create_study(
         **E["studies"]["minimal"], created_by=USER_SUBMITTER,
     )
-    await controller.create_dac(**E["dacs"]["default"])
-    await controller.create_dap(**E["daps"]["default"])
+    await controller.data_access.create_dac(**E["dacs"]["default"])
+    await controller.data_access.create_dap(**E["daps"]["default"])
     return study.id, "DAP-1"
 
 
@@ -91,8 +91,8 @@ async def test_create_dataset_registers_accession(controller, accession_dao):
 @pytest.mark.asyncio
 async def test_create_dataset_study_not_found(controller):
     """Creating a dataset for a non-existent study must raise StudyNotFoundError."""
-    await controller.create_dac(**E["dacs"]["default"])
-    await controller.create_dap(**E["daps"]["default"])
+    await controller.data_access.create_dac(**E["dacs"]["default"])
+    await controller.data_access.create_dap(**E["daps"]["default"])
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
         await controller.create_dataset(
             **E["datasets"]["minimal"], study_id="NONEXIST", dap_id="DAP-1",
@@ -245,7 +245,7 @@ async def test_update_dataset_dap(controller):
     ds = await controller.create_dataset(
         **E["datasets"]["minimal"], study_id=sid, dap_id=dap_id,
     )
-    await controller.create_dap(**E["daps"]["second"])
+    await controller.data_access.create_dap(**E["daps"]["second"])
     await controller.update_dataset(dataset_id=ds.id, dap_id="DAP-2")
     updated = await controller.get_dataset(
         dataset_id=ds.id, user_id=USER_SUBMITTER
@@ -264,7 +264,7 @@ async def test_update_dataset_dap_even_when_persisted(
     )
     await _persist_study(controller, sid, metadata_dao, publication_dao)
 
-    await controller.create_dap(**E["daps"]["second"])
+    await controller.data_access.create_dap(**E["daps"]["second"])
     await controller.update_dataset(dataset_id=ds.id, dap_id="DAP-2")
     updated = await controller.get_dataset(
         dataset_id=ds.id, user_id=USER_SUBMITTER

@@ -31,13 +31,9 @@ from srs.core.models import (
     AltAccession,
     AltAccessionType,
     AnnotatedExperimentalMetadata,
-    DataAccessCommittee,
-    DataAccessPolicy,
     DataAccessPolicyNested,
     Dataset,
     DatasetWithDap,
-    DuoModifier,
-    DuoPermission,
     EmAccessionMap,
     ExperimentalMetadata,
     Publication,
@@ -48,12 +44,11 @@ from srs.core.models import (
     StudyWithPublication,
     TypedResource,
 )
+from srs.ports.inbound.data_access import DataAccessPort
 from srs.ports.inbound.study_registry import StudyRegistryPort
 from srs.ports.outbound.dao import (
     AccessionDao,
     AltAccessionDao,
-    DataAccessCommitteeDao,
-    DataAccessPolicyDao,
     DatasetDao,
     EmAccessionMapDao,
     ExperimentalMetadataDao,
@@ -80,8 +75,7 @@ class StudyRegistryController(StudyRegistryPort):
         study_dao: StudyDao,
         metadata_dao: ExperimentalMetadataDao,
         publication_dao: PublicationDao,
-        dac_dao: DataAccessCommitteeDao,
-        dap_dao: DataAccessPolicyDao,
+        data_access: DataAccessPort,
         dataset_dao: DatasetDao,
         resource_type_dao: ResourceTypeDao,
         accession_dao: AccessionDao,
@@ -92,14 +86,18 @@ class StudyRegistryController(StudyRegistryPort):
         self._study_dao = study_dao
         self._metadata_dao = metadata_dao
         self._publication_dao = publication_dao
-        self._dac_dao = dac_dao
-        self._dap_dao = dap_dao
+        self._data_access = data_access
         self._dataset_dao = dataset_dao
         self._resource_type_dao = resource_type_dao
         self._accession_dao = accession_dao
         self._alt_accession_dao = alt_accession_dao
         self._em_accession_map_dao = em_accession_map_dao
         self._event_publisher = event_publisher
+
+    @property
+    def data_access(self) -> DataAccessPort:
+        """Return the data-access sub-controller."""
+        return self._data_access
 
     # --- Helpers ---
 
@@ -248,9 +246,12 @@ class StudyRegistryController(StudyRegistryPort):
             mapping={"study_id": study_id}
         ):
             try:
-                dap = await self._dap_dao.get_by_id(dataset.dap_id)
-                dac = await self._dac_dao.get_by_id(dap.dac_id)
-            except ResourceNotFoundError:
+                dap = await self._data_access.get_dap(dap_id=dataset.dap_id)
+                dac = await self._data_access.get_dac(dac_id=dap.dac_id)
+            except (
+                DataAccessPort.DapNotFoundError,
+                DataAccessPort.DacNotFoundError,
+            ):
                 continue
             dap_nested = DataAccessPolicyNested(
                 id=dap.id,
@@ -627,212 +628,6 @@ class StudyRegistryController(StudyRegistryPort):
         await self._publication_dao.delete(publication_id)
         log.info("Deleted publication %s", publication_id)
 
-    # --- DataAccessCommittee operations ---
-
-    async def create_dac(
-        self,
-        *,
-        id: str,
-        name: str,
-        email: str,
-        institute: str,
-    ) -> None:
-        """Create a new DAC."""
-        today = _now()
-        dac = DataAccessCommittee(
-            id=id,
-            name=name,
-            email=email,
-            institute=institute,
-            created=today,
-            changed=today,
-            active=True,
-        )
-        try:
-            await self._dac_dao.insert(dac)
-        except Exception as err:
-            raise self.DuplicateError(
-                detail=f"DAC with ID {id} already exists."
-            ) from err
-        log.info("Created DAC %s", id)
-
-    async def get_dacs(self) -> list[DataAccessCommittee]:
-        """Get all DACs."""
-        return [dac async for dac in self._dac_dao.find_all(mapping={})]
-
-    async def get_dac(self, *, dac_id: str) -> DataAccessCommittee:
-        """Get a DAC by ID."""
-        try:
-            return await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
-
-    async def update_dac(
-        self,
-        *,
-        dac_id: str,
-        name: str | None = None,
-        email: str | None = None,
-        institute: str | None = None,
-        active: bool | None = None,
-    ) -> None:
-        """Update a DAC."""
-        try:
-            dac = await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
-
-        updates: dict = {"changed": _now()}
-        if name is not None:
-            updates["name"] = name
-        if email is not None:
-            updates["email"] = email
-        if institute is not None:
-            updates["institute"] = institute
-        if active is not None:
-            updates["active"] = active
-
-        dac = dac.model_copy(update=updates)
-        await self._dac_dao.update(dac)
-        log.info("Updated DAC %s", dac_id)
-
-    async def delete_dac(self, *, dac_id: str) -> None:
-        """Delete a DAC."""
-        try:
-            await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
-
-        # Check for referencing DAPs
-        async for dap in self._dap_dao.find_all(mapping={"dac_id": dac_id}):
-            raise self.ReferenceConflictError(
-                detail=f"Cannot delete DAC {dac_id}; "
-                f"it is referenced by DAP {dap.id}."
-            )
-
-        await self._dac_dao.delete(dac_id)
-        log.info("Deleted DAC %s", dac_id)
-
-    # --- DataAccessPolicy operations ---
-
-    async def create_dap(
-        self,
-        *,
-        id: str,
-        name: str,
-        description: str,
-        text: str,
-        url: str | None,
-        duo_permission_id: str,
-        duo_modifier_ids: list[str],
-        dac_id: str,
-    ) -> None:
-        """Create a new DAP."""
-        # Verify DAC exists
-        try:
-            await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
-
-        today = _now()
-        dap = DataAccessPolicy(
-            id=id,
-            name=name,
-            description=description,
-            text=text,
-            url=url,
-            duo_permission_id=DuoPermission(duo_permission_id),
-            duo_modifier_ids=[DuoModifier(m) for m in duo_modifier_ids],
-            dac_id=dac_id,
-            created=today,
-            changed=today,
-            active=True,
-        )
-        try:
-            await self._dap_dao.insert(dap)
-        except Exception as err:
-            raise self.DuplicateError(
-                detail=f"DAP with ID {id} already exists."
-            ) from err
-        log.info("Created DAP %s", id)
-
-    async def get_daps(self) -> list[DataAccessPolicy]:
-        """Get all DAPs."""
-        return [dap async for dap in self._dap_dao.find_all(mapping={})]
-
-    async def get_dap(self, *, dap_id: str) -> DataAccessPolicy:
-        """Get a DAP by ID."""
-        try:
-            return await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
-            raise self.DapNotFoundError(dap_id=dap_id) from err
-
-    async def update_dap(
-        self,
-        *,
-        dap_id: str,
-        name: str | None = None,
-        description: str | None = None,
-        text: str | None = None,
-        url: str | None = None,
-        duo_permission_id: str | None = None,
-        duo_modifier_ids: list[str] | None = None,
-        dac_id: str | None = None,
-        active: bool | None = None,
-    ) -> None:
-        """Update a DAP."""
-        try:
-            dap = await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
-            raise self.DapNotFoundError(dap_id=dap_id) from err
-
-        if dac_id is not None:
-            try:
-                await self._dac_dao.get_by_id(dac_id)
-            except ResourceNotFoundError as err:
-                raise self.DacNotFoundError(dac_id=dac_id) from err
-
-        updates: dict = {"changed": _now()}
-        if name is not None:
-            updates["name"] = name
-        if description is not None:
-            updates["description"] = description
-        if text is not None:
-            updates["text"] = text
-        if url is not None:
-            updates["url"] = url
-        if duo_permission_id is not None:
-            updates["duo_permission_id"] = DuoPermission(duo_permission_id)
-        if duo_modifier_ids is not None:
-            updates["duo_modifier_ids"] = [
-                DuoModifier(m) for m in duo_modifier_ids
-            ]
-        if dac_id is not None:
-            updates["dac_id"] = dac_id
-        if active is not None:
-            updates["active"] = active
-
-        dap = dap.model_copy(update=updates)
-        await self._dap_dao.update(dap)
-        log.info("Updated DAP %s", dap_id)
-
-    async def delete_dap(self, *, dap_id: str) -> None:
-        """Delete a DAP."""
-        try:
-            await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
-            raise self.DapNotFoundError(dap_id=dap_id) from err
-
-        # Check for referencing datasets
-        async for ds in self._dataset_dao.find_all(mapping={"dap_id": dap_id}):
-            raise self.ReferenceConflictError(
-                detail=f"Cannot delete DAP {dap_id}; "
-                f"it is referenced by dataset {ds.id}."
-            )
-
-        await self._dap_dao.delete(dap_id)
-        log.info("Deleted DAP %s", dap_id)
-
     # --- Dataset operations ---
 
     async def create_dataset(
@@ -851,8 +646,8 @@ class StudyRegistryController(StudyRegistryPort):
 
         # Verify DAP exists
         try:
-            await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
+            await self._data_access.get_dap(dap_id=dap_id)
+        except DataAccessPort.DapNotFoundError as err:
             raise self.DapNotFoundError(dap_id=dap_id) from err
 
         # Validate files exist in EM and are unique
@@ -965,8 +760,8 @@ class StudyRegistryController(StudyRegistryPort):
 
         # Verify DAP exists
         try:
-            await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
+            await self._data_access.get_dap(dap_id=dap_id)
+        except DataAccessPort.DapNotFoundError as err:
             raise self.DapNotFoundError(dap_id=dap_id) from err
 
         dataset = dataset.model_copy(
