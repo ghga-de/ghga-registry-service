@@ -69,47 +69,13 @@ class StudyRegistryPort(ABC):
 
     # --- Composite sub-ports ---
 
-    @property
-    @abstractmethod
-    def data_access(self) -> DataAccessPort:
-        """Return the data access controller for DAC/DAP operations."""
-        ...
-
-    @property
-    @abstractmethod
-    def studies(self) -> StudyPort:
-        """Return the study controller for study CRUD and publish operations."""
-        ...
-
-    @property
-    @abstractmethod
-    def datasets(self) -> DatasetPort:
-        """Return the dataset controller for dataset operations."""
-        ...
-
-    @property
-    @abstractmethod
-    def metadata(self) -> MetadataPort:
-        """Return the metadata controller for experimental metadata operations."""
-        ...
-
-    @property
-    @abstractmethod
-    def publications(self) -> PublicationPort:
-        """Return the publication controller for publication operations."""
-        ...
-
-    @property
-    @abstractmethod
-    def filenames(self) -> FilenamePort:
-        """Return the filename controller for filename operations."""
-        ...
-
-    @property
-    @abstractmethod
-    def resource_types(self) -> ResourceTypePort:
-        """Return the resource type controller for resource type operations."""
-        ...
+    data_access: DataAccessPort
+    studies: StudyPort
+    datasets: DatasetPort
+    metadata: MetadataPort
+    publications: PublicationPort
+    filenames: FilenamePort
+    resource_types: ResourceTypePort
 
     # --- Accession operations ---
 

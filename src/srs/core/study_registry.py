@@ -63,52 +63,16 @@ class StudyRegistryController(StudyRegistryPort):
         accession_dao: AccessionDao,
         alt_accession_dao: AltAccessionDao,
     ):
-        self._study_controller = study_controller
-        self._dataset_controller = dataset_controller
-        self._metadata_controller = metadata_controller
-        self._publication_controller = publication_controller
-        self._filename_controller = filename_controller
-        self._resource_type_controller = resource_type_controller
-        self._data_access = data_access
         self._accession_dao = accession_dao
         self._alt_accession_dao = alt_accession_dao
 
-    # --- Composite sub-ports ---
-
-    @property
-    def data_access(self) -> DataAccessPort:
-        """Return the data-access sub-controller."""
-        return self._data_access
-
-    @property
-    def studies(self) -> StudyPort:
-        """Return the study sub-controller."""
-        return self._study_controller
-
-    @property
-    def datasets(self) -> DatasetPort:
-        """Return the dataset sub-controller."""
-        return self._dataset_controller
-
-    @property
-    def metadata(self) -> MetadataPort:
-        """Return the metadata sub-controller."""
-        return self._metadata_controller
-
-    @property
-    def publications(self) -> PublicationPort:
-        """Return the publication sub-controller."""
-        return self._publication_controller
-
-    @property
-    def filenames(self) -> FilenamePort:
-        """Return the filename sub-controller."""
-        return self._filename_controller
-
-    @property
-    def resource_types(self) -> ResourceTypePort:
-        """Return the resource type sub-controller."""
-        return self._resource_type_controller
+        self.data_access = data_access
+        self.studies = study_controller
+        self.datasets = dataset_controller
+        self.metadata = metadata_controller
+        self.publications = publication_controller
+        self.filenames = filename_controller
+        self.resource_types = resource_type_controller
 
     # --- Accession operations ---
 
