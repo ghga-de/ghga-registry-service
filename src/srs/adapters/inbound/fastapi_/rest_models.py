@@ -106,7 +106,12 @@ class DacUpdateRequest(BaseModel):
 class DapCreateRequest(BaseModel):
     """Request body for creating a DAP."""
 
-    id: str = Field(..., description="Unique DAP identifier.")
+    id: str = Field(
+        ...,
+        description="Short uppercase code derived from the name "
+        "(e.g. 'GHGA_DAP'). Only uppercase letters, digits, and "
+        "underscores are allowed.",
+    )
     name: str = Field(..., description="Name of the DAP.")
     description: str = Field(..., description="Description.")
     text: str = Field(..., description="Full policy text.")
@@ -118,6 +123,20 @@ class DapCreateRequest(BaseModel):
         default_factory=list, description="DUO modifier codes."
     )
     dac_id: str = Field(..., description="Associated DAC ID.")
+
+    @field_validator("id")
+    @classmethod
+    def validate_dap_id(cls, v: str) -> str:
+        """Ensure the DAP id is a short uppercase code."""
+        import re
+
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]{1,30}", v):
+            raise ValueError(
+                "DAP id must be 2-31 characters, start with an uppercase "
+                "letter, and contain only uppercase letters, digits, and "
+                "underscores."
+            )
+        return v
 
 
 class DapUpdateRequest(BaseModel):
