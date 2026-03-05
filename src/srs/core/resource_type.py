@@ -16,6 +16,7 @@
 """Core implementation of ResourceType CRUD operations."""
 
 import logging
+from typing import Any
 from uuid import UUID, uuid4
 
 from ghga_service_commons.utils.utc_dates import UTCDatetime, now_as_utc
@@ -52,19 +53,16 @@ class ResourceTypeController(ResourceTypePort):
     async def create_resource_type(
         self,
         *,
-        code: str,
-        resource: TypedResource,
-        name: str,
-        description: str | None,
+        data: dict[str, Any],
     ) -> ResourceType:
         """Create a new resource type."""
         today = _now()
         rt = ResourceType(
             id=uuid4(),
-            code=code.upper(),
-            resource=resource,
-            name=name,
-            description=description,
+            code=data["code"].upper(),
+            resource=TypedResource(data["resource"]) if isinstance(data["resource"], str) else data["resource"],
+            name=data["name"],
+            description=data.get("description"),
             created=today,
             changed=today,
             active=True,
@@ -116,11 +114,12 @@ class ResourceTypeController(ResourceTypePort):
         self,
         *,
         resource_type_id: UUID,
-        name: str | None = None,
-        description: str | None = None,
-        active: bool | None = None,
+        updates: dict[str, str | Any] | None = None,
     ) -> None:
         """Update a resource type."""
+        if not updates:
+            return
+
         try:
             rt = await self._resource_type_dao.get_by_id(
                 str(resource_type_id)
@@ -130,13 +129,7 @@ class ResourceTypeController(ResourceTypePort):
                 resource_type_id=resource_type_id
             ) from err
 
-        updates: dict = {"changed": _now()}
-        if name is not None:
-            updates["name"] = name
-        if description is not None:
-            updates["description"] = description
-        if active is not None:
-            updates["active"] = active
+        updates["changed"] = _now()
 
         rt = rt.model_copy(update=updates)
         await self._resource_type_dao.update(rt)

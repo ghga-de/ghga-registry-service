@@ -16,6 +16,7 @@
 """Defines the Dataset inbound port for dataset operations."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 from uuid import UUID
 
 from srs.core.models import Dataset
@@ -49,12 +50,7 @@ class DatasetPort(ABC):
     async def create_dataset(
         self,
         *,
-        title: str,
-        description: str,
-        types: list[str],
-        study_id: str,
-        dap_id: str,
-        files: list[str],
+        data: dict[str, Any],
     ) -> Dataset:
         """Create or update a dataset for a study.
 

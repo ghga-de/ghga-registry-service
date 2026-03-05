@@ -68,11 +68,7 @@ async def create_study(
     """Create a new study with status PENDING."""
     try:
         return await registry.studies.create_study(
-            title=body.title,
-            description=body.description,
-            types=body.types,
-            affiliations=body.affiliations,
-            created_by=get_user_id(auth),
+            data={**body.model_dump(), "created_by": get_user_id(auth)},
         )
     except StudyPort.StudyError as err:
         raise HttpDuplicateError(detail=str(err)) from err

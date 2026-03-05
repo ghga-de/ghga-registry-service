@@ -56,10 +56,7 @@ async def create_resource_type(
     """Create a new resource type."""
     try:
         return await registry.resource_types.create_resource_type(
-            code=body.code,
-            resource=TypedResource(body.resource),
-            name=body.name,
-            description=body.description,
+            data=body.model_dump(),
         )
     except Exception as err:
         log.exception("Unexpected error in create_resource_type")
@@ -126,11 +123,10 @@ async def update_resource_type(
 ):
     """Update a resource type."""
     try:
+        updates = body.model_dump(exclude_unset=True, exclude_none=True)
         await registry.resource_types.update_resource_type(
             resource_type_id=resource_type_id,
-            name=body.name,
-            description=body.description,
-            active=body.active,
+            updates=updates,
         )
     except ResourceTypePort.ResourceTypeNotFoundError as err:
         raise HttpResourceTypeNotFoundError() from err

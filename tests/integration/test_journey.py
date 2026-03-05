@@ -53,7 +53,7 @@ async def test_new_study_journey(joint_fixture: JointFixture):
 
     # 1 ── Create study ───────────────────────────────────────────
     study = await controller.studies.create_study(
-        **E["studies"]["journey"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["journey"], "created_by": USER_SUBMITTER},
     )
     assert study.status == StudyStatus.PENDING
     assert study.id.startswith("GHGAS")
@@ -68,24 +68,24 @@ async def test_new_study_journey(joint_fixture: JointFixture):
 
     # 3 ── Create publication ────────────────────────────────────
     pub = await controller.publications.create_publication(
-        **E["publications"]["journey"], study_id=study_id,
+        data={**E["publications"]["journey"], "study_id": study_id},
     )
     assert pub.id.startswith("GHGAU")
     assert pub.study_id == study_id
 
     # 4 ── Create DAC ────────────────────────────────────────────
-    await controller.data_access.create_dac(**E["dacs"]["journey"])
+    await controller.data_access.create_dac(data=E["dacs"]["journey"])
     dac = await controller.data_access.get_dac(dac_id="DAC-DIABETES")
     assert dac.active is True
 
     # 5 ── Create DAP ────────────────────────────────────────────
-    await controller.data_access.create_dap(**E["daps"]["journey"])
+    await controller.data_access.create_dap(data=E["daps"]["journey"])
     dap = await controller.data_access.get_dap(dap_id="DAP-DIABETES")
     assert dap.dac_id == "DAC-DIABETES"
 
     # 6 ── Create dataset ────────────────────────────────────────
     ds = await controller.datasets.create_dataset(
-        **E["datasets"]["journey"], study_id=study_id, dap_id="DAP-DIABETES",
+        data={**E["datasets"]["journey"], "study_id": study_id, "dap_id": "DAP-DIABETES"},
     )
     assert ds.id.startswith("GHGAD")
     assert ds.study_id == study_id
@@ -159,7 +159,7 @@ async def test_journey_delete_pending_study_cleans_everything(
     controller = joint_fixture.controller
 
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     sid = study.id
 
@@ -167,12 +167,12 @@ async def test_journey_delete_pending_study_cleans_everything(
         study_id=sid, metadata=E["metadata"]["with_named_file"],
     )
     pub = await controller.publications.create_publication(
-        **E["publications"]["minimal"], study_id=sid,
+        data={**E["publications"]["minimal"], "study_id": sid},
     )
-    await controller.data_access.create_dac(**E["dacs"]["tmp"])
-    await controller.data_access.create_dap(**E["daps"]["tmp"])
+    await controller.data_access.create_dac(data=E["dacs"]["tmp"])
+    await controller.data_access.create_dap(data=E["daps"]["tmp"])
     ds = await controller.datasets.create_dataset(
-        **E["datasets"]["with_files"], study_id=sid, dap_id="DAP-TMP",
+        data={**E["datasets"]["with_files"], "study_id": sid, "dap_id": "DAP-TMP"},
     )
 
     # Delete the study
@@ -227,7 +227,7 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
 
     # ── 2. Create a study successfully ───────────────────────────
     study = await controller.studies.create_study(
-        **E["studies"]["unhappy"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["unhappy"], "created_by": USER_SUBMITTER},
     )
     sid = study.id
 
@@ -259,51 +259,49 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
     # ── 7. Publication on non-existent study ─────────────────────
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
         await controller.publications.create_publication(
-            **E["publications"]["minimal"], study_id="GHGAS_FAKE",
+            data={**E["publications"]["minimal"], "study_id": "GHGAS_FAKE"},
         )
 
     # ── 8. Add publication → now publish succeeds ────────────────
     pub = await controller.publications.create_publication(
-        **E["publications"]["paper"], study_id=sid,
+        data={**E["publications"]["paper"], "study_id": sid},
     )
 
     # ── 9. DAP with non-existent DAC ────────────────────────────
     with pytest.raises(DataAccessPort.DacNotFoundError):
         await controller.data_access.create_dap(
-            **{**E["daps"]["default"], "id": "DAP-BAD", "dac_id": "DAC-NONEXIST"},
+            data={**E["daps"]["default"], "id": "DAP-BAD", "dac_id": "DAC-NONEXIST"},
         )
 
     # ── 10. Create DAC, then duplicate → error ──────────────────
-    await controller.data_access.create_dac(**E["dacs"]["default"])
+    await controller.data_access.create_dac(data=E["dacs"]["default"])
     with pytest.raises(DataAccessPort.DuplicateError):
         await controller.data_access.create_dac(
-            **{**E["dacs"]["default"], "name": "Dup", "email": "x@example.org", "institute": "Y"},
+            data={**E["dacs"]["default"], "name": "Dup", "email": "x@example.org", "institute": "Y"},
         )
 
     # ── 11. Create DAP, then duplicate → error ──────────────────
-    await controller.data_access.create_dap(**E["daps"]["default"])
+    await controller.data_access.create_dap(data=E["daps"]["default"])
     with pytest.raises(DataAccessPort.DuplicateError):
         await controller.data_access.create_dap(
-            **{**E["daps"]["default"], "name": "Dup"},
+            data={**E["daps"]["default"], "name": "Dup"},
         )
 
     # ── 12. Dataset with non-existent DAP ────────────────────────
     with pytest.raises(StudyRegistryPort.DapNotFoundError):
         await controller.datasets.create_dataset(
-            **E["datasets"]["minimal"], study_id=sid, dap_id="DAP-NONEXIST",
+            data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": "DAP-NONEXIST"},
         )
 
     # ── 13. Dataset with duplicate file aliases ──────────────────
     with pytest.raises(StudyRegistryPort.ValidationError):
         await controller.datasets.create_dataset(
-            **{**E["datasets"]["minimal"], "files": ["f1", "f1"]},
-            study_id=sid, dap_id="DAP-1",
+            data={**E["datasets"]["minimal"], "files": ["f1", "f1"], "study_id": sid, "dap_id": "DAP-1"},
         )
 
     # ── 14. Create dataset successfully ──────────────────────────
     ds = await controller.datasets.create_dataset(
-        **{**E["datasets"]["with_files"], "types": ["WGS"]},
-        study_id=sid, dap_id="DAP-1",
+        data={**E["datasets"]["with_files"], "types": ["WGS"], "study_id": sid, "dap_id": "DAP-1"},
     )
 
     # ── 15. Delete DAC blocked by DAP reference ──────────────────
@@ -360,7 +358,7 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.publications.create_publication(
-            **E["publications"]["minimal"], study_id=sid,
+            data={**E["publications"]["minimal"], "study_id": sid},
         )
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
@@ -368,7 +366,7 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.datasets.create_dataset(
-            **E["datasets"]["minimal"], study_id=sid, dap_id="DAP-1",
+            data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": "DAP-1"},
         )
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):

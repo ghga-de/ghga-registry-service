@@ -65,12 +65,7 @@ async def create_dataset(
     """Create a dataset for a study."""
     try:
         return await registry.datasets.create_dataset(
-            title=body.title,
-            description=body.description,
-            types=body.types,
-            study_id=study_id,
-            dap_id=body.dap_id,
-            files=body.files,
+            data={**body.model_dump(), "study_id": study_id},
         )
     except DatasetPort.StudyNotFoundError as err:
         raise HttpStudyNotFoundError(study_id=study_id) from err

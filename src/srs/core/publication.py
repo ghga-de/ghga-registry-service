@@ -16,6 +16,7 @@
 """Core implementation of Publication operations."""
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from ghga_service_commons.utils.utc_dates import now_as_utc
@@ -86,15 +87,10 @@ class PublicationController(PublicationPort):
     async def create_publication(
         self,
         *,
-        title: str,
-        abstract: str | None,
-        authors: list[str],
-        year: int,
-        journal: str | None,
-        doi: str | None,
-        study_id: str,
+        data: dict[str, Any],
     ) -> Publication:
         """Create a publication for a study."""
+        study_id = data["study_id"]
         study = await self._get_study_or_raise(study_id)
         await self._require_pending(study)
 
@@ -111,12 +107,12 @@ class PublicationController(PublicationPort):
 
         publication = Publication(
             id=pub_accession,
-            title=title,
-            abstract=abstract,
-            authors=authors,
-            year=year,
-            journal=journal,
-            doi=doi,
+            title=data["title"],
+            abstract=data.get("abstract"),
+            authors=data.get("authors", []),
+            year=data["year"],
+            journal=data.get("journal"),
+            doi=data.get("doi"),
             study_id=study_id,
             created=today,
         )

@@ -34,13 +34,13 @@ E = EXAMPLES
 async def _setup_published_study(controller, accession_dao):
     """Create a study, metadata with files, publish → return study_id."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     await controller.metadata.upsert_metadata(
         study_id=study.id, metadata=E["metadata"]["filenames"],
     )
     await controller.publications.create_publication(
-        **E["publications"]["minimal"], study_id=study.id,
+        data={**E["publications"]["minimal"], "study_id": study.id},
     )
     # Publish to generate EM accessions (for files)
     await controller.studies.publish_study(study_id=study.id)
@@ -75,7 +75,7 @@ async def test_get_filenames_study_not_found(controller):
 async def test_get_filenames_no_metadata(controller):
     """Getting filenames for a study without published EM must raise MetadataNotFoundError."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     with pytest.raises(StudyRegistryPort.MetadataNotFoundError):
         await controller.filenames.get_filenames(study_id=study.id)

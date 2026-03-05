@@ -32,12 +32,12 @@ E = EXAMPLES
 
 async def _create_dac(data_access, dac_id="DAC-1"):
     dac_data = {**E["dacs"]["default"], "id": dac_id}
-    await data_access.create_dac(**dac_data)
+    await data_access.create_dac(data=dac_data)
 
 
 async def _create_dap(data_access, dap_id="DAP-1", dac_id="DAC-1"):
     dap_data = {**E["daps"]["with_modifiers"], "id": dap_id, "dac_id": dac_id}
-    await data_access.create_dap(**dap_data)
+    await data_access.create_dap(data=dap_data)
 
 
 # ── POST /daps ───────────────────────────────────────────────────
@@ -128,7 +128,7 @@ async def test_update_dap_name(data_access):
     """Updating a DAP name must persist the change."""
     await _create_dac(data_access)
     await _create_dap(data_access)
-    await data_access.update_dap(dap_id="DAP-1", name="New Name")
+    await data_access.update_dap(dap_id="DAP-1", updates={"name": "New Name"})
     dap = await data_access.get_dap(dap_id="DAP-1")
     assert dap.name == "New Name"
 
@@ -139,7 +139,7 @@ async def test_update_dap_change_dac(data_access):
     await _create_dac(data_access, dac_id="DAC-1")
     await _create_dac(data_access, dac_id="DAC-2")
     await _create_dap(data_access)
-    await data_access.update_dap(dap_id="DAP-1", dac_id="DAC-2")
+    await data_access.update_dap(dap_id="DAP-1", updates={"dac_id": "DAC-2"})
     dap = await data_access.get_dap(dap_id="DAP-1")
     assert dap.dac_id == "DAC-2"
 
@@ -150,14 +150,14 @@ async def test_update_dap_change_dac_not_found(data_access):
     await _create_dac(data_access)
     await _create_dap(data_access)
     with pytest.raises(DataAccessPort.DacNotFoundError):
-        await data_access.update_dap(dap_id="DAP-1", dac_id="NONEXIST")
+        await data_access.update_dap(dap_id="DAP-1", updates={"dac_id": "NONEXIST"})
 
 
 @pytest.mark.asyncio
 async def test_update_dap_not_found(data_access):
     """Updating a non-existent DAP must raise DapNotFoundError."""
     with pytest.raises(DataAccessPort.DapNotFoundError):
-        await data_access.update_dap(dap_id="NONEXIST", name="X")
+        await data_access.update_dap(dap_id="NONEXIST", updates={"name": "X"})
 
 
 # ── DELETE /daps/{id} ───────────────────────────────────────────
@@ -185,12 +185,10 @@ async def test_delete_dap_with_referencing_dataset(data_access, controller):
     await _create_dac(data_access)
     await _create_dap(data_access)
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     await controller.datasets.create_dataset(
-        **E["datasets"]["minimal"],
-        study_id=study.id,
-        dap_id="DAP-1",
+        data={**E["datasets"]["minimal"], "study_id": study.id, "dap_id": "DAP-1"},
     )
     with pytest.raises(DataAccessPort.ReferenceConflictError):
         await data_access.delete_dap(dap_id="DAP-1")

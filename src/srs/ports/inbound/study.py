@@ -16,6 +16,7 @@
 """Defines the Study inbound port for study CRUD and publish operations."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 from uuid import UUID
 
 from srs.core.models import Study, StudyStatus
@@ -45,11 +46,7 @@ class StudyPort(ABC):
     async def create_study(
         self,
         *,
-        title: str,
-        description: str,
-        types: list[str],
-        affiliations: list[str],
-        created_by: UUID,
+        data: dict[str, Any],
     ) -> Study:
         """Create a new study with status PENDING.
 

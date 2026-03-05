@@ -16,6 +16,7 @@
 """Core implementation of Dataset operations."""
 
 import logging
+from typing import Any
 
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
@@ -93,14 +94,13 @@ class DatasetController(DatasetPort):
     async def create_dataset(
         self,
         *,
-        title: str,
-        description: str,
-        types: list[str],
-        study_id: str,
-        dap_id: str,
-        files: list[str],
+        data: dict[str, Any],
     ) -> Dataset:
         """Create or update a dataset for a study."""
+        study_id = data["study_id"]
+        dap_id = data["dap_id"]
+        files = data.get("files", [])
+
         study = await self._get_study_or_raise(study_id)
         await self._require_pending(study)
 
@@ -132,9 +132,9 @@ class DatasetController(DatasetPort):
 
         dataset = Dataset(
             id=dataset_accession,
-            title=title,
-            description=description,
-            types=types,
+            title=data["title"],
+            description=data["description"],
+            types=data.get("types", []),
             study_id=study_id,
             dap_id=dap_id,
             files=files,

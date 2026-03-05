@@ -33,7 +33,7 @@ E = EXAMPLES
 async def _build_complete_study(controller):
     """Create a study with metadata, publication, DAC, DAP, and dataset."""
     study = await controller.studies.create_study(
-        **E["studies"]["default"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["default"], "created_by": USER_SUBMITTER},
     )
     sid = study.id
 
@@ -42,13 +42,13 @@ async def _build_complete_study(controller):
     )
 
     await controller.publications.create_publication(
-        **E["publications"]["full"], study_id=sid,
+        data={**E["publications"]["full"], "study_id": sid},
     )
 
-    await controller.data_access.create_dac(**E["dacs"]["default"])
-    await controller.data_access.create_dap(**E["daps"]["default"])
+    await controller.data_access.create_dac(data=E["dacs"]["default"])
+    await controller.data_access.create_dap(data=E["daps"]["default"])
     await controller.datasets.create_dataset(
-        **E["datasets"]["full"], study_id=sid, dap_id="DAP-1",
+        data={**E["datasets"]["full"], "study_id": sid, "dap_id": "DAP-1"},
     )
 
     return sid
@@ -121,11 +121,11 @@ async def test_publish_study_not_found(controller):
 async def test_publish_study_missing_metadata(controller):
     """Publishing a study without EM must raise ValidationError."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     # No metadata added
     await controller.publications.create_publication(
-        **E["publications"]["minimal"], study_id=study.id,
+        data={**E["publications"]["minimal"], "study_id": study.id},
     )
     with pytest.raises(StudyRegistryPort.ValidationError):
         await controller.studies.publish_study(study_id=study.id)
@@ -135,7 +135,7 @@ async def test_publish_study_missing_metadata(controller):
 async def test_publish_study_missing_publication(controller):
     """Publishing a study without a publication must raise ValidationError."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     await controller.metadata.upsert_metadata(
         study_id=study.id, metadata=E["metadata"]["empty"]

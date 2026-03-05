@@ -58,10 +58,7 @@ async def create_dac(
     """Create a new data access committee."""
     try:
         await registry.data_access.create_dac(
-            id=body.id,
-            name=body.name,
-            email=body.email,
-            institute=body.institute,
+            data=body.model_dump(),
         )
     except DataAccessPort.DuplicateError as err:
         raise HttpDuplicateError(detail=str(err)) from err
@@ -121,12 +118,10 @@ async def update_dac(
 ):
     """Update a data access committee."""
     try:
+        updates = body.model_dump(exclude_unset=True, exclude_none=True)
         await registry.data_access.update_dac(
             dac_id=dac_id,
-            name=body.name,
-            email=body.email,
-            institute=body.institute,
-            active=body.active,
+            updates=updates,
         )
     except DataAccessPort.DacNotFoundError as err:
         raise HttpDacNotFoundError(dac_id=dac_id) from err
@@ -175,14 +170,7 @@ async def create_dap(
     """Create a new data access policy."""
     try:
         await registry.data_access.create_dap(
-            id=body.id,
-            name=body.name,
-            description=body.description,
-            text=body.text,
-            url=body.url,
-            duo_permission_id=body.duo_permission_id,
-            duo_modifier_ids=body.duo_modifier_ids,
-            dac_id=body.dac_id,
+            data=body.model_dump(),
         )
     except DataAccessPort.DacNotFoundError as err:
         raise HttpDacNotFoundError(dac_id=body.dac_id) from err
@@ -244,16 +232,10 @@ async def update_dap(
 ):
     """Update a data access policy."""
     try:
+        updates = body.model_dump(exclude_unset=True, exclude_none=True)
         await registry.data_access.update_dap(
             dap_id=dap_id,
-            name=body.name,
-            description=body.description,
-            text=body.text,
-            url=body.url,
-            duo_permission_id=body.duo_permission_id,
-            duo_modifier_ids=body.duo_modifier_ids,
-            dac_id=body.dac_id,
-            active=body.active,
+            updates=updates,
         )
     except DataAccessPort.DapNotFoundError as err:
         raise HttpDapNotFoundError(dap_id=dap_id) from err

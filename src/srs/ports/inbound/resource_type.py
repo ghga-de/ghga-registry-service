@@ -16,6 +16,7 @@
 """Defines the ResourceType inbound port."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 from uuid import UUID
 
 from srs.core.models import ResourceType, TypedResource
@@ -41,10 +42,7 @@ class ResourceTypePort(ABC):
     async def create_resource_type(
         self,
         *,
-        code: str,
-        resource: TypedResource,
-        name: str,
-        description: str | None,
+        data: dict[str, Any],
     ) -> ResourceType:
         """Create a new resource type.
 
@@ -80,9 +78,7 @@ class ResourceTypePort(ABC):
         self,
         *,
         resource_type_id: UUID,
-        name: str | None = None,
-        description: str | None = None,
-        active: bool | None = None,
+        updates: dict[str, str | Any] | None = None,
     ) -> None:
         """Update a resource type.
 

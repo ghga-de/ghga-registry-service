@@ -33,14 +33,14 @@ E = EXAMPLES
 
 async def _create_study(controller) -> str:
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     return study.id
 
 
 async def _create_pub(controller, study_id: str, title: str = "P"):
     return await controller.publications.create_publication(
-        **{**E["publications"]["minimal"], "title": title}, study_id=study_id,
+        data={**E["publications"]["minimal"], "title": title, "study_id": study_id},
     )
 
 
@@ -128,10 +128,10 @@ async def test_get_publications_filters_by_year(controller):
     """Filtering by year must only return matching publications."""
     sid = await _create_study(controller)
     await controller.publications.create_publication(
-        **E["publications"]["year_2024"], study_id=sid,
+        data={**E["publications"]["year_2024"], "study_id": sid},
     )
     await controller.publications.create_publication(
-        **E["publications"]["year_2025"], study_id=sid,
+        data={**E["publications"]["year_2025"], "study_id": sid},
     )
     result = await controller.publications.get_publications(
         year=2024, user_id=USER_SUBMITTER
@@ -145,10 +145,10 @@ async def test_get_publications_text_filter(controller):
     """Text filter must match partial text in title, authors, etc."""
     sid = await _create_study(controller)
     await controller.publications.create_publication(
-        **E["publications"]["cancer"], study_id=sid,
+        data={**E["publications"]["cancer"], "study_id": sid},
     )
     await controller.publications.create_publication(
-        **E["publications"]["heart"], study_id=sid,
+        data={**E["publications"]["heart"], "study_id": sid},
     )
 
     result = await controller.publications.get_publications(

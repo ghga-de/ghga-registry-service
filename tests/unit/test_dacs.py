@@ -32,7 +32,7 @@ E = EXAMPLES
 @pytest.mark.asyncio
 async def test_create_dac(data_access, dac_dao):
     """Creating a DAC must store it with active=True."""
-    await data_access.create_dac(**E["dacs"]["ethics"])
+    await data_access.create_dac(data=E["dacs"]["ethics"])
     dac = await dac_dao.get_by_id("DAC-001")
     assert dac.name == "Ethics Board"
     assert dac.active is True
@@ -41,10 +41,10 @@ async def test_create_dac(data_access, dac_dao):
 @pytest.mark.asyncio
 async def test_create_dac_duplicate(data_access):
     """Creating a DAC with a duplicate ID must raise DuplicateError."""
-    await data_access.create_dac(**E["dacs"]["ethics"])
+    await data_access.create_dac(data=E["dacs"]["ethics"])
     with pytest.raises(DataAccessPort.DuplicateError):
         await data_access.create_dac(
-            id="DAC-001", name="Other", email="x@example.org", institute="Y",
+            data={"id": "DAC-001", "name": "Other", "email": "x@example.org", "institute": "Y"},
         )
 
 
@@ -61,8 +61,8 @@ async def test_get_dacs_empty(data_access):
 @pytest.mark.asyncio
 async def test_get_dacs_returns_all(data_access):
     """Getting DACs must return all created DACs."""
-    await data_access.create_dac(**E["dacs"]["a"])
-    await data_access.create_dac(**E["dacs"]["b"])
+    await data_access.create_dac(data=E["dacs"]["a"])
+    await data_access.create_dac(data=E["dacs"]["b"])
     dacs = await data_access.get_dacs()
     assert len(dacs) == 2
 
@@ -73,7 +73,7 @@ async def test_get_dacs_returns_all(data_access):
 @pytest.mark.asyncio
 async def test_get_dac_by_id(data_access):
     """Getting a DAC by ID must return the correct DAC."""
-    await data_access.create_dac(**E["dacs"]["default"])
+    await data_access.create_dac(data=E["dacs"]["default"])
     dac = await data_access.get_dac(dac_id="DAC-1")
     assert dac.name == "Board"
 
@@ -91,8 +91,8 @@ async def test_get_dac_not_found(data_access):
 @pytest.mark.asyncio
 async def test_update_dac(data_access):
     """Updating a DAC must persist the changes."""
-    await data_access.create_dac(**E["dacs"]["default"])
-    await data_access.update_dac(dac_id="DAC-1", name="New Name")
+    await data_access.create_dac(data=E["dacs"]["default"])
+    await data_access.update_dac(dac_id="DAC-1", updates={"name": "New Name"})
     dac = await data_access.get_dac(dac_id="DAC-1")
     assert dac.name == "New Name"
 
@@ -100,8 +100,8 @@ async def test_update_dac(data_access):
 @pytest.mark.asyncio
 async def test_update_dac_deactivate(data_access):
     """Deactivating a DAC must set active=False."""
-    await data_access.create_dac(**E["dacs"]["a"])
-    await data_access.update_dac(dac_id="DAC-1", active=False)
+    await data_access.create_dac(data=E["dacs"]["a"])
+    await data_access.update_dac(dac_id="DAC-1", updates={"active": False})
     dac = await data_access.get_dac(dac_id="DAC-1")
     assert dac.active is False
 
@@ -110,7 +110,7 @@ async def test_update_dac_deactivate(data_access):
 async def test_update_dac_not_found(data_access):
     """Updating a non-existent DAC must raise DacNotFoundError."""
     with pytest.raises(DataAccessPort.DacNotFoundError):
-        await data_access.update_dac(dac_id="NONEXIST", name="X")
+        await data_access.update_dac(dac_id="NONEXIST", updates={"name": "X"})
 
 
 # ── DELETE /dacs/{id} ───────────────────────────────────────────
@@ -119,7 +119,7 @@ async def test_update_dac_not_found(data_access):
 @pytest.mark.asyncio
 async def test_delete_dac(data_access, dac_dao):
     """Deleting a DAC with no references must succeed."""
-    await data_access.create_dac(**E["dacs"]["a"])
+    await data_access.create_dac(data=E["dacs"]["a"])
     await data_access.delete_dac(dac_id="DAC-1")
     assert "DAC-1" not in dac_dao.resources
 
@@ -134,7 +134,7 @@ async def test_delete_dac_not_found(data_access):
 @pytest.mark.asyncio
 async def test_delete_dac_with_referencing_dap(data_access):
     """Deleting a DAC referenced by a DAP must raise ReferenceConflictError."""
-    await data_access.create_dac(**E["dacs"]["a"])
-    await data_access.create_dap(**E["daps"]["default"])
+    await data_access.create_dac(data=E["dacs"]["a"])
+    await data_access.create_dap(data=E["daps"]["default"])
     with pytest.raises(DataAccessPort.ReferenceConflictError):
         await data_access.delete_dac(dac_id="DAC-1")

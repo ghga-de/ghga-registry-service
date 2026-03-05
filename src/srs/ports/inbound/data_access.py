@@ -16,6 +16,7 @@
 """Defines the Data Access inbound port for DAC and DAP operations."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 
 from srs.core.models import DataAccessCommittee, DataAccessPolicy
 from srs.ports.inbound.errors import (
@@ -44,10 +45,7 @@ class DataAccessPort(ABC):
     async def create_dac(
         self,
         *,
-        id: str,
-        name: str,
-        email: str,
-        institute: str,
+        data: dict[str, Any],
     ) -> None:
         """Create a new DAC.
 
@@ -75,10 +73,7 @@ class DataAccessPort(ABC):
         self,
         *,
         dac_id: str,
-        name: str | None = None,
-        email: str | None = None,
-        institute: str | None = None,
-        active: bool | None = None,
+        updates: dict[str, str | Any] | None = None,
     ) -> None:
         """Update a DAC.
 
@@ -103,14 +98,7 @@ class DataAccessPort(ABC):
     async def create_dap(
         self,
         *,
-        id: str,
-        name: str,
-        description: str,
-        text: str,
-        url: str | None,
-        duo_permission_id: str,
-        duo_modifier_ids: list[str],
-        dac_id: str,
+        data: dict[str, Any],
     ) -> None:
         """Create a new DAP.
 
@@ -139,14 +127,7 @@ class DataAccessPort(ABC):
         self,
         *,
         dap_id: str,
-        name: str | None = None,
-        description: str | None = None,
-        text: str | None = None,
-        url: str | None = None,
-        duo_permission_id: str | None = None,
-        duo_modifier_ids: list[str] | None = None,
-        dac_id: str | None = None,
-        active: bool | None = None,
+        updates: dict[str, str | Any] | None = None,
     ) -> None:
         """Update a DAP.
 

@@ -36,7 +36,7 @@ E = EXAMPLES
 async def test_create_study_returns_study_with_pending_status(controller):
     """A newly created study must have status PENDING."""
     study = await controller.studies.create_study(
-        **E["studies"]["default"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["default"], "created_by": USER_SUBMITTER},
     )
     assert study.status == StudyStatus.PENDING
 
@@ -45,8 +45,7 @@ async def test_create_study_returns_study_with_pending_status(controller):
 async def test_create_study_generates_pid(controller):
     """The study must receive an auto-generated PID starting with GHGAS."""
     study = await controller.studies.create_study(
-        **{**E["studies"]["default"], "types": [], "affiliations": []},
-        created_by=USER_SUBMITTER,
+        data={**E["studies"]["default"], "types": [], "affiliations": [], "created_by": USER_SUBMITTER},
     )
     assert study.id.startswith("GHGAS")
     assert len(study.id) == 19
@@ -56,7 +55,7 @@ async def test_create_study_generates_pid(controller):
 async def test_create_study_sets_users_to_creator(controller):
     """After creation, the users list must contain only the creator."""
     study = await controller.studies.create_study(
-        **E["studies"]["with_desc"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["with_desc"], "created_by": USER_SUBMITTER},
     )
     assert study.users == [USER_SUBMITTER]
 
@@ -65,7 +64,7 @@ async def test_create_study_sets_users_to_creator(controller):
 async def test_create_study_registers_accession(controller, accession_dao):
     """Creating a study must also register an Accession entry."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     acc = await accession_dao.get_by_id(study.id)
     assert acc.type == "STUDY"
@@ -87,8 +86,7 @@ async def test_get_studies_returns_empty_list_initially(controller):
 async def test_get_studies_filter_by_status(controller):
     """Filtering by status must only return matching studies."""
     await controller.studies.create_study(
-        title="A", description="", types=[], affiliations=[],
-        created_by=USER_SUBMITTER,
+        data={"title": "A", "description": "", "types": [], "affiliations": [], "created_by": USER_SUBMITTER},
     )
     result = await controller.studies.get_studies(
         status=StudyStatus.PENDING,
@@ -107,10 +105,10 @@ async def test_get_studies_filter_by_status(controller):
 async def test_get_studies_text_filter(controller):
     """Text filter must match partial text in title, description, or affiliations."""
     await controller.studies.create_study(
-        **E["studies"]["cancer_genomics"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["cancer_genomics"], "created_by": USER_SUBMITTER},
     )
     await controller.studies.create_study(
-        **E["studies"]["heart"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["heart"], "created_by": USER_SUBMITTER},
     )
 
     result = await controller.studies.get_studies(
@@ -129,10 +127,10 @@ async def test_get_studies_text_filter(controller):
 async def test_get_studies_type_filter(controller):
     """Type filter must only return studies having the requested type."""
     await controller.studies.create_study(
-        **E["studies"]["wgs_only"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["wgs_only"], "created_by": USER_SUBMITTER},
     )
     await controller.studies.create_study(
-        **E["studies"]["rna_seq_only"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["rna_seq_only"], "created_by": USER_SUBMITTER},
     )
 
     result = await controller.studies.get_studies(
@@ -147,11 +145,7 @@ async def test_get_studies_pagination(controller):
     """Skip and limit must paginate results."""
     for i in range(5):
         await controller.studies.create_study(
-            title=f"Study-{i}",
-            description="",
-            types=[],
-            affiliations=[],
-            created_by=USER_SUBMITTER,
+            data={"title": f"Study-{i}", "description": "", "types": [], "affiliations": [], "created_by": USER_SUBMITTER},
         )
     result = await controller.studies.get_studies(
         skip=2, limit=2, user_id=USER_SUBMITTER
@@ -163,7 +157,7 @@ async def test_get_studies_pagination(controller):
 async def test_get_studies_only_returns_accessible_studies(controller):
     """Non-steward users must only see studies they are listed in."""
     study = await controller.studies.create_study(
-        **E["studies"]["private"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["private"], "created_by": USER_SUBMITTER},
     )
 
     # Submitter can see it
@@ -185,7 +179,7 @@ async def test_get_studies_only_returns_accessible_studies(controller):
 async def test_get_studies_strips_user_fields_for_non_steward(controller):
     """Non-steward callers must not see user-related fields."""
     await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     result = await controller.studies.get_studies(user_id=USER_SUBMITTER)
     assert result[0].users is None  # stripped
@@ -198,7 +192,7 @@ async def test_get_studies_strips_user_fields_for_non_steward(controller):
 async def test_get_study_by_id(controller):
     """Getting a study by ID must return the study."""
     study = await controller.studies.create_study(
-        **E["studies"]["with_desc"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["with_desc"], "created_by": USER_SUBMITTER},
     )
     fetched = await controller.studies.get_study(
         study_id=study.id,
@@ -221,8 +215,7 @@ async def test_get_study_not_found(controller):
 async def test_get_study_access_denied_for_unauthorized_user(controller):
     """A user not in the users list must be denied access (403)."""
     study = await controller.studies.create_study(
-        **E["studies"]["private"],
-        created_by=USER_SUBMITTER,
+        data={**E["studies"]["private"], "created_by": USER_SUBMITTER},
     )
     with pytest.raises(StudyRegistryPort.AccessDeniedError):
         await controller.studies.get_study(
@@ -234,7 +227,7 @@ async def test_get_study_access_denied_for_unauthorized_user(controller):
 async def test_get_study_steward_sees_user_fields(controller):
     """Data stewards must see the users field."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     fetched = await controller.studies.get_study(
         study_id=study.id,
@@ -249,7 +242,7 @@ async def test_get_study_steward_sees_user_fields(controller):
 async def test_get_study_non_steward_gets_stripped(controller):
     """Non-steward users must not see user-related fields."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     fetched = await controller.studies.get_study(
         study_id=study.id, user_id=USER_SUBMITTER
@@ -267,7 +260,7 @@ async def test_update_study_status_pending_to_persisted(
 ):
     """Status must change from PENDING to PERSISTED after validation."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     # Satisfy completeness: add EM and publication
     from ghga_service_commons.utils.utc_dates import now_as_utc
@@ -301,7 +294,7 @@ async def test_update_study_status_pending_to_persisted(
 async def test_update_study_rejects_invalid_status_transition(controller):
     """Only PENDING -> PERSISTED is allowed; other transitions raise 409."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.studies.update_study(
@@ -313,7 +306,7 @@ async def test_update_study_rejects_invalid_status_transition(controller):
 async def test_update_study_validates_completeness_on_status_change(controller):
     """Changing status to PERSISTED must validate completeness first."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     # No EM or publication → should fail
     with pytest.raises(StudyRegistryPort.ValidationError):
@@ -340,7 +333,7 @@ async def test_delete_study_cascade(
 ):
     """Deleting a PENDING study must cascade-delete EM, publications, accessions."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     from ghga_service_commons.utils.utc_dates import now_as_utc
 
@@ -352,7 +345,7 @@ async def test_delete_study_cascade(
         )
     )
     pub = await controller.publications.create_publication(
-        **E["publications"]["minimal"], study_id=study.id,
+        data={**E["publications"]["minimal"], "study_id": study.id},
     )
 
     await controller.studies.delete_study(study_id=study.id)
@@ -370,7 +363,7 @@ async def test_delete_study_rejects_non_pending(
 ):
     """Deleting a non-PENDING study must raise StatusConflictError (409)."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     # Force status change for the test
     from ghga_service_commons.utils.utc_dates import now_as_utc

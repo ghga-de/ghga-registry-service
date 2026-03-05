@@ -39,7 +39,7 @@ async def test_get_accession(controller, accession_dao):
     """Getting a primary accession by ID must return it."""
     # Creating a study automatically registers an accession
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     acc = await controller.get_accession(accession_id=study.id)
     assert acc.id == study.id

@@ -16,6 +16,7 @@
 """Core implementation of Data Access Committee and Data Access Policy operations."""
 
 import logging
+from typing import Any
 
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
@@ -55,18 +56,12 @@ class DataAccessController(DataAccessPort):
     async def create_dac(
         self,
         *,
-        id: str,
-        name: str,
-        email: str,
-        institute: str,
+        data: dict[str, Any],
     ) -> None:
         """Create a new DAC."""
         today = now_as_utc()
         dac = DataAccessCommittee(
-            id=id,
-            name=name,
-            email=email,
-            institute=institute,
+            **data,
             created=today,
             changed=today,
             active=True,
@@ -75,9 +70,9 @@ class DataAccessController(DataAccessPort):
             await self._dac_dao.insert(dac)
         except Exception as err:
             raise self.DuplicateError(
-                detail=f"DAC with ID {id} already exists."
+                detail=f"DAC with ID {data['id']} already exists."
             ) from err
-        log.info("Created DAC %s", id)
+        log.info("Created DAC %s", data["id"])
 
     async def get_dacs(self) -> list[DataAccessCommittee]:
         """Get all DACs."""
@@ -94,27 +89,17 @@ class DataAccessController(DataAccessPort):
         self,
         *,
         dac_id: str,
-        name: str | None = None,
-        email: str | None = None,
-        institute: str | None = None,
-        active: bool | None = None,
+        updates: dict[str, str | Any] | None = None,
     ) -> None:
         """Update a DAC."""
+        if not updates:
+            return
+
         try:
             dac = await self._dac_dao.get_by_id(dac_id)
         except ResourceNotFoundError as err:
             raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        updates = {
-            k: v
-            for k, v in {
-                "name": name,
-                "email": email,
-                "institute": institute,
-                "active": active,
-            }.items()
-            if v is not None
-        }
         updates["changed"] = now_as_utc()
 
         dac = dac.model_copy(update=updates)
@@ -143,16 +128,10 @@ class DataAccessController(DataAccessPort):
     async def create_dap(
         self,
         *,
-        id: str,
-        name: str,
-        description: str,
-        text: str,
-        url: str | None,
-        duo_permission_id: str,
-        duo_modifier_ids: list[str],
-        dac_id: str,
+        data: dict[str, Any],
     ) -> None:
         """Create a new DAP."""
+        dac_id = data["dac_id"]
         # Verify DAC exists
         try:
             await self._dac_dao.get_by_id(dac_id)
@@ -161,13 +140,13 @@ class DataAccessController(DataAccessPort):
 
         today = now_as_utc()
         dap = DataAccessPolicy(
-            id=id,
-            name=name,
-            description=description,
-            text=text,
-            url=url,
-            duo_permission_id=DuoPermission(duo_permission_id),
-            duo_modifier_ids=[DuoModifier(m) for m in duo_modifier_ids],
+            id=data["id"],
+            name=data["name"],
+            description=data["description"],
+            text=data["text"],
+            url=data.get("url"),
+            duo_permission_id=DuoPermission(data["duo_permission_id"]),
+            duo_modifier_ids=[DuoModifier(m) for m in data.get("duo_modifier_ids", [])],
             dac_id=dac_id,
             created=today,
             changed=today,
@@ -177,9 +156,9 @@ class DataAccessController(DataAccessPort):
             await self._dap_dao.insert(dap)
         except Exception as err:
             raise self.DuplicateError(
-                detail=f"DAP with ID {id} already exists."
+                detail=f"DAP with ID {data['id']} already exists."
             ) from err
-        log.info("Created DAP %s", id)
+        log.info("Created DAP %s", data["id"])
 
     async def get_daps(self) -> list[DataAccessPolicy]:
         """Get all DAPs."""
@@ -196,49 +175,30 @@ class DataAccessController(DataAccessPort):
         self,
         *,
         dap_id: str,
-        name: str | None = None,
-        description: str | None = None,
-        text: str | None = None,
-        url: str | None = None,
-        duo_permission_id: str | None = None,
-        duo_modifier_ids: list[str] | None = None,
-        dac_id: str | None = None,
-        active: bool | None = None,
+        updates: dict[str, str | Any] | None = None,
     ) -> None:
         """Update a DAP."""
+        if not updates:
+            return
+
         try:
             dap = await self._dap_dao.get_by_id(dap_id)
         except ResourceNotFoundError as err:
             raise self.DapNotFoundError(dap_id=dap_id) from err
 
-        if dac_id is not None:
+        if "dac_id" in updates and updates["dac_id"] is not None:
             try:
-                await self._dac_dao.get_by_id(dac_id)
+                await self._dac_dao.get_by_id(updates["dac_id"])
             except ResourceNotFoundError as err:
-                raise self.DacNotFoundError(dac_id=dac_id) from err
+                raise self.DacNotFoundError(dac_id=updates["dac_id"]) from err
 
-        updates = {
-            k: v
-            for k, v in {
-                "name": name,
-                "description": description,
-                "text": text,
-                "url": url,
-                "duo_permission_id": (
-                    DuoPermission(duo_permission_id)
-                    if duo_permission_id is not None
-                    else None
-                ),
-                "duo_modifier_ids": (
-                    [DuoModifier(m) for m in duo_modifier_ids]
-                    if duo_modifier_ids is not None
-                    else None
-                ),
-                "dac_id": dac_id,
-                "active": active,
-            }.items()
-            if v is not None
-        }
+        if "duo_permission_id" in updates and updates["duo_permission_id"] is not None:
+            updates["duo_permission_id"] = DuoPermission(updates["duo_permission_id"])
+        if "duo_modifier_ids" in updates and updates["duo_modifier_ids"] is not None:
+            updates["duo_modifier_ids"] = [
+                DuoModifier(m) for m in updates["duo_modifier_ids"]
+            ]
+
         updates["changed"] = now_as_utc()
 
         dap = dap.model_copy(update=updates)

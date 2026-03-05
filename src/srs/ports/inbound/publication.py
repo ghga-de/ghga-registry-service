@@ -16,6 +16,7 @@
 """Defines the Publication inbound port for publication operations."""
 
 from abc import ABC, abstractmethod
+from typing import Any
 from uuid import UUID
 
 from srs.core.models import Publication
@@ -45,13 +46,7 @@ class PublicationPort(ABC):
     async def create_publication(
         self,
         *,
-        title: str,
-        abstract: str | None,
-        authors: list[str],
-        year: int,
-        journal: str | None,
-        doi: str | None,
-        study_id: str,
+        data: dict[str, Any],
     ) -> Publication:
         """Create a publication for a study.
 

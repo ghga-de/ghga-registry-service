@@ -37,7 +37,7 @@ E = EXAMPLES
 async def _create_pending_study(controller) -> str:
     """Create a PENDING study and return its ID."""
     study = await controller.studies.create_study(
-        **E["studies"]["minimal"], created_by=USER_SUBMITTER,
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
     return study.id
 

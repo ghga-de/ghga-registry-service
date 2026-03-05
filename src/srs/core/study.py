@@ -16,6 +16,7 @@
 """Core implementation of Study CRUD and Publish operations."""
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from ghga_service_commons.utils.utc_dates import UTCDatetime, now_as_utc
@@ -268,15 +269,12 @@ class StudyController(StudyPort):
     async def create_study(
         self,
         *,
-        title: str,
-        description: str,
-        types: list[str],
-        affiliations: list[str],
-        created_by: UUID,
+        data: dict[str, Any],
     ) -> Study:
         """Create a new study with status PENDING."""
         study_accession = generate_accession(AccessionType.STUDY)
         today = _now()
+        created_by = data["created_by"]
 
         # Register the accession
         accession = Accession(
@@ -288,10 +286,10 @@ class StudyController(StudyPort):
 
         study = Study(
             id=study_accession,
-            title=title,
-            description=description,
-            types=types,
-            affiliations=affiliations,
+            title=data["title"],
+            description=data["description"],
+            types=data.get("types", []),
+            affiliations=data.get("affiliations", []),
             status=StudyStatus.PENDING,
             users=[created_by],
             created=today,

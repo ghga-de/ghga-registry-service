@@ -60,13 +60,7 @@ async def create_publication(
     """Add a publication to a study."""
     try:
         return await registry.publications.create_publication(
-            title=body.title,
-            abstract=body.abstract,
-            authors=body.authors,
-            year=body.year,
-            journal=body.journal,
-            doi=body.doi,
-            study_id=study_id,
+            data={**body.model_dump(), "study_id": study_id},
         )
     except PublicationPort.StudyNotFoundError as err:
         raise HttpStudyNotFoundError(study_id=study_id) from err
