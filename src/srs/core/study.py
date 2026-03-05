@@ -285,15 +285,10 @@ class StudyController(StudyPort):
         await self._accession_dao.insert(accession)
 
         study = Study(
+            **data,
             id=study_accession,
-            title=data["title"],
-            description=data["description"],
-            types=data.get("types", []),
-            affiliations=data.get("affiliations", []),
-            status=StudyStatus.PENDING,
             users=[created_by],
             created=today,
-            created_by=created_by,
         )
         await self._study_dao.insert(study)
         log.info("Created study %s", study.id)

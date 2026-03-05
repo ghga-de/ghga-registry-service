@@ -131,13 +131,8 @@ class DatasetController(DatasetPort):
         await self._accession_dao.insert(accession)
 
         dataset = Dataset(
+            **data,
             id=dataset_accession,
-            title=data["title"],
-            description=data["description"],
-            types=data.get("types", []),
-            study_id=study_id,
-            dap_id=dap_id,
-            files=files,
             created=today,
             changed=today,
         )

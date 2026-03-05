@@ -57,12 +57,10 @@ class ResourceTypeController(ResourceTypePort):
     ) -> ResourceType:
         """Create a new resource type."""
         today = _now()
+        data["code"] = data["code"].upper()
         rt = ResourceType(
+            **data,
             id=uuid4(),
-            code=data["code"].upper(),
-            resource=TypedResource(data["resource"]) if isinstance(data["resource"], str) else data["resource"],
-            name=data["name"],
-            description=data.get("description"),
             created=today,
             changed=today,
             active=True,

@@ -140,14 +140,7 @@ class DataAccessController(DataAccessPort):
 
         today = now_as_utc()
         dap = DataAccessPolicy(
-            id=data["id"],
-            name=data["name"],
-            description=data["description"],
-            text=data["text"],
-            url=data.get("url"),
-            duo_permission_id=DuoPermission(data["duo_permission_id"]),
-            duo_modifier_ids=[DuoModifier(m) for m in data.get("duo_modifier_ids", [])],
-            dac_id=dac_id,
+            **data,
             created=today,
             changed=today,
             active=True,

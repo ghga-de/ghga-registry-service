@@ -116,8 +116,8 @@ class Study(BaseModel):
     id: str
     title: str
     description: str
-    types: list[str]
-    affiliations: list[str]
+    types: list[str] = []
+    affiliations: list[str] = []
     status: StudyStatus = StudyStatus.PENDING
     users: list[UUID] | None = None
     created: UTCDatetime
@@ -139,7 +139,7 @@ class Publication(BaseModel):
     id: str
     title: str
     abstract: str | None = None
-    authors: list[str]
+    authors: list[str] = []
     year: int
     journal: str | None = None
     doi: str | None = None
@@ -181,10 +181,10 @@ class Dataset(BaseModel):
     id: str
     title: str
     description: str
-    types: list[str]
+    types: list[str] = []
     study_id: str
     dap_id: str
-    files: list[str]
+    files: list[str] = []
     created: UTCDatetime
     changed: UTCDatetime
 

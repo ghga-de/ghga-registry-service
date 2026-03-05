@@ -106,14 +106,8 @@ class PublicationController(PublicationPort):
         await self._accession_dao.insert(accession)
 
         publication = Publication(
+            **data,
             id=pub_accession,
-            title=data["title"],
-            abstract=data.get("abstract"),
-            authors=data.get("authors", []),
-            year=data["year"],
-            journal=data.get("journal"),
-            doi=data.get("doi"),
-            study_id=study_id,
             created=today,
         )
         await self._publication_dao.insert(publication)
