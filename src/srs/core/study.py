@@ -54,11 +54,6 @@ from srs.ports.outbound.event_pub import EventPublisherPort
 log = logging.getLogger(__name__)
 
 
-def _now() -> UTCDatetime:
-    """Return the current UTC datetime."""
-    return now_as_utc()
-
-
 class StudyController(StudyPort):
     """Core implementation of Study CRUD and Publish operations."""
 
@@ -122,7 +117,7 @@ class StudyController(StudyPort):
         """Generate accession numbers for all EM resources and store them."""
         em = await self._metadata_dao.get_by_id(study_id)
         metadata = em.metadata
-        today = _now()
+        now = now_as_utc()
         accession_maps: dict[str, dict[str, str]] = {}
 
         for resource_name, accession_type in EM_RESOURCE_TO_ACCESSION_TYPE.items():
@@ -137,7 +132,7 @@ class StudyController(StudyPort):
                 accession = Accession(
                     id=accession_id,
                     type=accession_type,
-                    created=today,
+                    created=now,
                     superseded_by=None,
                 )
                 await self._accession_dao.insert(accession)
@@ -244,14 +239,14 @@ class StudyController(StudyPort):
     ) -> Study:
         """Create a new study with status PENDING."""
         study_accession = generate_accession(AccessionType.STUDY)
-        today = _now()
+        now = now_as_utc()
         created_by = data["created_by"]
 
         # Register the accession
         accession = Accession(
             id=study_accession,
             type=AccessionType.STUDY,
-            created=today,
+            created=now,
         )
         await self._accession_dao.insert(accession)
 
@@ -259,7 +254,7 @@ class StudyController(StudyPort):
             **data,
             id=study_accession,
             users=[created_by],
-            created=today,
+            created=now,
         )
         await self._study_dao.insert(study)
         log.info("Created study %s", study.id)

@@ -88,20 +88,20 @@ class DatasetController(DatasetPort):
                 seen.add(f)
 
         dataset_accession = generate_accession(AccessionType.DATASET)
-        today = now_as_utc()
+        now = now_as_utc()
 
         accession = Accession(
             id=dataset_accession,
             type=AccessionType.DATASET,
-            created=today,
+            created=now,
         )
         await self._accession_dao.insert(accession)
 
         dataset = Dataset(
             **data,
             id=dataset_accession,
-            created=today,
-            changed=today,
+            created=now,
+            changed=now,
         )
         await self._dataset_dao.insert(dataset)
         log.info(

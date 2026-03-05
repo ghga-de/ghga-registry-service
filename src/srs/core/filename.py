@@ -94,7 +94,7 @@ class FilenameController(FilenamePort):
         """Store file accession to internal file ID mappings."""
         await get_study_or_raise(self._study_dao, study_id)
 
-        today = now_as_utc()
+        now = now_as_utc()
         for pid, file_id in file_id_map.items():
             # Verify the file accession exists
             try:
@@ -109,7 +109,7 @@ class FilenameController(FilenamePort):
                 id=file_id,
                 pid=pid,
                 type=AltAccessionType.FILE_ID,
-                created=today,
+                created=now,
             )
             try:
                 await self._alt_accession_dao.update(alt)

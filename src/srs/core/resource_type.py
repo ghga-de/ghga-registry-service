@@ -28,12 +28,6 @@ from srs.ports.outbound.dao import DatasetDao, ResourceTypeDao, StudyDao
 
 log = logging.getLogger(__name__)
 
-
-def _now() -> UTCDatetime:
-    """Return the current UTC datetime."""
-    return now_as_utc()
-
-
 class ResourceTypeController(ResourceTypePort):
     """Core implementation of ResourceType CRUD operations."""
 
@@ -56,13 +50,13 @@ class ResourceTypeController(ResourceTypePort):
         data: dict[str, Any],
     ) -> ResourceType:
         """Create a new resource type."""
-        today = _now()
+        now = now_as_utc()
         data["code"] = data["code"].upper()
         rt = ResourceType(
             **data,
             id=uuid4(),
-            created=today,
-            changed=today,
+            created=now,
+            changed=now,
             active=True,
         )
         await self._resource_type_dao.insert(rt)
@@ -127,8 +121,7 @@ class ResourceTypeController(ResourceTypePort):
                 resource_type_id=resource_type_id
             ) from err
 
-        updates["changed"] = _now()
-
+        updates["changed"] = now_as_utc()
         rt = rt.model_copy(update=updates)
         await self._resource_type_dao.update(rt)
         log.info("Updated resource type %s", resource_type_id)

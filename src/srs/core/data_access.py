@@ -59,11 +59,11 @@ class DataAccessController(DataAccessPort):
         data: dict[str, Any],
     ) -> None:
         """Create a new DAC."""
-        today = now_as_utc()
+        now = now_as_utc()
         dac = DataAccessCommittee(
             **data,
-            created=today,
-            changed=today,
+            created=now,
+            changed=now,
             active=True,
         )
         try:
@@ -138,11 +138,11 @@ class DataAccessController(DataAccessPort):
         except ResourceNotFoundError as err:
             raise self.DacNotFoundError(dac_id=dac_id) from err
 
-        today = now_as_utc()
+        now = now_as_utc()
         dap = DataAccessPolicy(
             **data,
-            created=today,
-            changed=today,
+            created=now,
+            changed=now,
             active=True,
         )
         try:

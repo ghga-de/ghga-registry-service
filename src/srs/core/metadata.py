@@ -49,11 +49,11 @@ class MetadataController(MetadataPort):
         study = await get_study_or_raise(self._study_dao, study_id)
         await require_pending(study)
 
-        today = now_as_utc()
+        now = now_as_utc()
         em = ExperimentalMetadata(
             id=study_id,
             metadata=metadata,
-            submitted=today,
+            submitted=now,
         )
         try:
             await self._metadata_dao.update(em)

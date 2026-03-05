@@ -62,20 +62,20 @@ class PublicationController(PublicationPort):
         await require_pending(study)
 
         pub_accession = generate_accession(AccessionType.PUBLICATION)
-        today = now_as_utc()
+        now = now_as_utc()
 
         # Register the accession
         accession = Accession(
             id=pub_accession,
             type=AccessionType.PUBLICATION,
-            created=today,
+            created=now,
         )
         await self._accession_dao.insert(accession)
 
         publication = Publication(
             **data,
             id=pub_accession,
-            created=today,
+            created=now,
         )
         await self._publication_dao.insert(publication)
         log.info("Created publication %s for study %s", pub_accession, study_id)
