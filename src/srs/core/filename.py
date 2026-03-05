@@ -20,7 +20,8 @@ import logging
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
 
-from srs.core.models import AltAccession, AltAccessionType, Study
+from srs.core.models import AltAccession, AltAccessionType
+from srs.core.utils import get_study_or_raise
 from srs.ports.inbound.filename import FilenamePort
 from srs.ports.outbound.dao import (
     AccessionDao,
@@ -54,22 +55,13 @@ class FilenameController(FilenamePort):
         self._em_accession_map_dao = em_accession_map_dao
         self._event_publisher = event_publisher
 
-    # --- Helpers ---
-
-    async def _get_study_or_raise(self, study_id: str) -> Study:
-        """Retrieve a study by ID or raise StudyNotFoundError."""
-        try:
-            return await self._study_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.StudyNotFoundError(study_id=study_id) from err
-
     # --- Filename operations ---
 
     async def get_filenames(
         self, *, study_id: str
     ) -> dict[str, dict[str, str]]:
         """Get file accession to filename/alias mapping for a study."""
-        await self._get_study_or_raise(study_id)
+        await get_study_or_raise(self._study_dao, study_id)
 
         # Get the EM accession map for files
         try:
@@ -100,7 +92,7 @@ class FilenameController(FilenamePort):
         self, *, study_id: str, file_id_map: dict[str, str]
     ) -> None:
         """Store file accession to internal file ID mappings."""
-        await self._get_study_or_raise(study_id)
+        await get_study_or_raise(self._study_dao, study_id)
 
         today = now_as_utc()
         for pid, file_id in file_id_map.items():

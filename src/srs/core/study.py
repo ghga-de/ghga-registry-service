@@ -26,6 +26,7 @@ from srs.core.accessions import (
     EM_RESOURCE_TO_ACCESSION_TYPE,
     generate_accession,
 )
+from srs.core.utils import check_user_access, get_study_or_raise, require_pending
 from srs.core.models import (
     Accession,
     AccessionType,
@@ -83,36 +84,6 @@ class StudyController(StudyPort):
         self._data_access = data_access
 
     # --- Helpers ---
-
-    async def _get_study_or_raise(self, study_id: str) -> Study:
-        """Retrieve a study by ID or raise StudyNotFoundError."""
-        try:
-            return await self._study_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.StudyNotFoundError(study_id=study_id) from err
-
-    async def _require_pending(self, study: Study) -> None:
-        """Raise StatusConflictError if the study is not PENDING."""
-        if study.status != StudyStatus.PENDING:
-            raise self.StatusConflictError(
-                detail=f"Study {study.id} has status {study.status}; "
-                "expected PENDING."
-            )
-
-    def _check_user_access(
-        self,
-        study: Study,
-        user_id: UUID | None,
-        is_data_steward: bool,
-    ) -> None:
-        """Check if a user has access to a study."""
-        if is_data_steward:
-            return
-        if study.users is None:
-            return  # publicly accessible
-        if user_id is not None and user_id in study.users:
-            return
-        raise self.AccessDeniedError()
 
     def _strip_user_fields(
         self, study: Study, is_data_steward: bool
@@ -187,7 +158,7 @@ class StudyController(StudyPort):
         self, study_id: str
     ) -> AnnotatedExperimentalMetadata:
         """Build an AnnotatedExperimentalMetadata payload for event publishing."""
-        study = await self._get_study_or_raise(study_id)
+        study = await get_study_or_raise(self._study_dao, study_id)
         em = await self._metadata_dao.get_by_id(study_id)
 
         # Get accession maps
@@ -345,8 +316,8 @@ class StudyController(StudyPort):
         is_data_steward: bool = False,
     ) -> Study:
         """Get a study by its PID."""
-        study = await self._get_study_or_raise(study_id)
-        self._check_user_access(study, user_id, is_data_steward)
+        study = await get_study_or_raise(self._study_dao, study_id)
+        check_user_access(study, user_id, is_data_steward)
         return self._strip_user_fields(study, is_data_steward)
 
     async def update_study(
@@ -358,7 +329,7 @@ class StudyController(StudyPort):
         approved_by: UUID | None = None,
     ) -> None:
         """Update study status and/or users."""
-        study = await self._get_study_or_raise(study_id)
+        study = await get_study_or_raise(self._study_dao, study_id)
 
         if status is not None:
             # Only PENDING -> PERSISTED is allowed
@@ -390,8 +361,8 @@ class StudyController(StudyPort):
 
     async def delete_study(self, *, study_id: str) -> None:
         """Delete a study and all related entities."""
-        study = await self._get_study_or_raise(study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, study_id)
+        await require_pending(study)
 
         # Delete related experimental metadata
         try:
@@ -446,7 +417,7 @@ class StudyController(StudyPort):
 
     async def publish_study(self, *, study_id: str) -> None:
         """Validate and publish a study."""
-        await self._get_study_or_raise(study_id)
+        await get_study_or_raise(self._study_dao, study_id)
         await self._validate_study_completeness(study_id)
 
         # Generate accessions for EM resources

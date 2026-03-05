@@ -23,12 +23,11 @@ from hexkit.protocols.dao import ResourceNotFoundError
 from uuid import UUID
 
 from srs.core.accessions import generate_accession
+from srs.core.utils import check_user_access, get_study_or_raise, require_pending
 from srs.core.models import (
     Accession,
     AccessionType,
     Dataset,
-    Study,
-    StudyStatus,
 )
 from srs.ports.inbound.data_access import DataAccessPort
 from srs.ports.inbound.dataset import DatasetPort
@@ -57,38 +56,6 @@ class DatasetController(DatasetPort):
         self._accession_dao = accession_dao
         self._data_access = data_access
 
-    # --- Helpers ---
-
-    async def _get_study_or_raise(self, study_id: str) -> Study:
-        """Retrieve a study by ID or raise StudyNotFoundError."""
-        try:
-            return await self._study_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.StudyNotFoundError(study_id=study_id) from err
-
-    async def _require_pending(self, study: Study) -> None:
-        """Raise StatusConflictError if the study is not PENDING."""
-        if study.status != StudyStatus.PENDING:
-            raise self.StatusConflictError(
-                detail=f"Study {study.id} has status {study.status}; "
-                "expected PENDING."
-            )
-
-    def _check_user_access(
-        self,
-        study: Study,
-        user_id: UUID | None,
-        is_data_steward: bool,
-    ) -> None:
-        """Check if a user has access to a study."""
-        if is_data_steward:
-            return
-        if study.users is None:
-            return  # publicly accessible
-        if user_id is not None and user_id in study.users:
-            return
-        raise self.AccessDeniedError()
-
     # --- Dataset operations ---
 
     async def create_dataset(
@@ -101,8 +68,8 @@ class DatasetController(DatasetPort):
         dap_id = data["dap_id"]
         files = data.get("files", [])
 
-        study = await self._get_study_or_raise(study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, study_id)
+        await require_pending(study)
 
         # Verify DAP exists
         try:
@@ -200,8 +167,8 @@ class DatasetController(DatasetPort):
         except ResourceNotFoundError as err:
             raise self.DatasetNotFoundError(dataset_id=dataset_id) from err
 
-        study = await self._get_study_or_raise(dataset.study_id)
-        self._check_user_access(study, user_id, is_data_steward)
+        study = await get_study_or_raise(self._study_dao, dataset.study_id)
+        check_user_access(study, user_id, is_data_steward)
         return dataset
 
     async def update_dataset(
@@ -232,8 +199,8 @@ class DatasetController(DatasetPort):
         except ResourceNotFoundError as err:
             raise self.DatasetNotFoundError(dataset_id=dataset_id) from err
 
-        study = await self._get_study_or_raise(dataset.study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, dataset.study_id)
+        await require_pending(study)
 
         try:
             await self._accession_dao.delete(dataset_id)

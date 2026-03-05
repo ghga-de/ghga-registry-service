@@ -20,7 +20,8 @@ import logging
 from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
 
-from srs.core.models import ExperimentalMetadata, Study, StudyStatus
+from srs.core.models import ExperimentalMetadata
+from srs.core.utils import get_study_or_raise, require_pending
 from srs.ports.inbound.metadata import MetadataPort
 from srs.ports.outbound.dao import ExperimentalMetadataDao, StudyDao
 
@@ -39,31 +40,14 @@ class MetadataController(MetadataPort):
         self._study_dao = study_dao
         self._metadata_dao = metadata_dao
 
-    # --- Helpers ---
-
-    async def _get_study_or_raise(self, study_id: str) -> Study:
-        """Retrieve a study by ID or raise StudyNotFoundError."""
-        try:
-            return await self._study_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.StudyNotFoundError(study_id=study_id) from err
-
-    async def _require_pending(self, study: Study) -> None:
-        """Raise StatusConflictError if the study is not PENDING."""
-        if study.status != StudyStatus.PENDING:
-            raise self.StatusConflictError(
-                detail=f"Study {study.id} has status {study.status}; "
-                "expected PENDING."
-            )
-
     # --- Metadata operations ---
 
     async def upsert_metadata(
         self, *, study_id: str, metadata: dict
     ) -> None:
         """Create or update experimental metadata for a study."""
-        study = await self._get_study_or_raise(study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, study_id)
+        await require_pending(study)
 
         today = now_as_utc()
         em = ExperimentalMetadata(
@@ -86,8 +70,8 @@ class MetadataController(MetadataPort):
 
     async def delete_metadata(self, *, study_id: str) -> None:
         """Delete experimental metadata for a study."""
-        study = await self._get_study_or_raise(study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, study_id)
+        await require_pending(study)
         try:
             await self._metadata_dao.delete(study_id)
         except ResourceNotFoundError as err:

@@ -23,12 +23,11 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
 
 from srs.core.accessions import generate_accession
+from srs.core.utils import check_user_access, get_study_or_raise, require_pending
 from srs.core.models import (
     Accession,
     AccessionType,
     Publication,
-    Study,
-    StudyStatus,
 )
 from srs.ports.inbound.publication import PublicationPort
 from srs.ports.outbound.dao import AccessionDao, PublicationDao, StudyDao
@@ -50,38 +49,6 @@ class PublicationController(PublicationPort):
         self._publication_dao = publication_dao
         self._accession_dao = accession_dao
 
-    # --- Helpers ---
-
-    async def _get_study_or_raise(self, study_id: str) -> Study:
-        """Retrieve a study by ID or raise StudyNotFoundError."""
-        try:
-            return await self._study_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.StudyNotFoundError(study_id=study_id) from err
-
-    async def _require_pending(self, study: Study) -> None:
-        """Raise StatusConflictError if the study is not PENDING."""
-        if study.status != StudyStatus.PENDING:
-            raise self.StatusConflictError(
-                detail=f"Study {study.id} has status {study.status}; "
-                "expected PENDING."
-            )
-
-    def _check_user_access(
-        self,
-        study: Study,
-        user_id: UUID | None,
-        is_data_steward: bool,
-    ) -> None:
-        """Check if a user has access to a study."""
-        if is_data_steward:
-            return
-        if study.users is None:
-            return
-        if user_id is not None and user_id in study.users:
-            return
-        raise self.AccessDeniedError()
-
     # --- Publication operations ---
 
     async def create_publication(
@@ -91,8 +58,8 @@ class PublicationController(PublicationPort):
     ) -> Publication:
         """Create a publication for a study."""
         study_id = data["study_id"]
-        study = await self._get_study_or_raise(study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, study_id)
+        await require_pending(study)
 
         pub_accession = generate_accession(AccessionType.PUBLICATION)
         today = now_as_utc()
@@ -171,8 +138,8 @@ class PublicationController(PublicationPort):
                 publication_id=publication_id
             ) from err
 
-        study = await self._get_study_or_raise(pub.study_id)
-        self._check_user_access(study, user_id, is_data_steward)
+        study = await get_study_or_raise(self._study_dao, pub.study_id)
+        check_user_access(study, user_id, is_data_steward)
         return pub
 
     async def delete_publication(self, *, publication_id: str) -> None:
@@ -184,8 +151,8 @@ class PublicationController(PublicationPort):
                 publication_id=publication_id
             ) from err
 
-        study = await self._get_study_or_raise(pub.study_id)
-        await self._require_pending(study)
+        study = await get_study_or_raise(self._study_dao, pub.study_id)
+        await require_pending(study)
 
         try:
             await self._accession_dao.delete(publication_id)
