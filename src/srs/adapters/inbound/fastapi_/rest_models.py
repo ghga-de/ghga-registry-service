@@ -17,7 +17,7 @@
 
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 # --- Study models ---
@@ -66,10 +66,29 @@ class PublicationCreateRequest(BaseModel):
 class DacCreateRequest(BaseModel):
     """Request body for creating a DAC."""
 
-    id: str = Field(..., description="Unique DAC identifier.")
+    id: str = Field(
+        ...,
+        description="Short uppercase code derived from the name "
+        "(e.g. 'GHGA_DAC'). Only uppercase letters, digits, and "
+        "underscores are allowed.",
+    )
     name: str = Field(..., description="Name of the DAC.")
     email: EmailStr = Field(..., description="Contact email.")
     institute: str = Field(..., description="Institute name.")
+
+    @field_validator("id")
+    @classmethod
+    def validate_dac_id(cls, v: str) -> str:
+        """Ensure the DAC id is a short uppercase code."""
+        import re
+
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]{1,30}", v):
+            raise ValueError(
+                "DAC id must be 2-31 characters, start with an uppercase "
+                "letter, and contain only uppercase letters, digits, and "
+                "underscores."
+            )
+        return v
 
 
 class DacUpdateRequest(BaseModel):
