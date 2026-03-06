@@ -249,12 +249,11 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
             study_id=sid, status=StudyStatus.PERSISTED
         )
 
-    # ── 6. Add metadata, still no publication → publish fails ────
+    # ── 6. Add metadata → publish succeeds (no publication needed) ─
     await controller.metadata.upsert_metadata(
         study_id=sid, metadata=E["metadata"]["with_named_file"],
     )
-    with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.studies.publish_study(study_id=sid)
+    await controller.studies.publish_study(study_id=sid)
 
     # ── 7. Publication on non-existent study ─────────────────────
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
@@ -262,7 +261,7 @@ async def test_unhappy_journey(joint_fixture: JointFixture):
             data={**E["publications"]["minimal"], "study_id": "GHGAS_FAKE"},
         )
 
-    # ── 8. Add publication → now publish succeeds ────────────────
+    # ── 8. Add publication (optional, but still supported) ─────────
     pub = await controller.publications.create_publication(
         data={**E["publications"]["paper"], "study_id": sid},
     )

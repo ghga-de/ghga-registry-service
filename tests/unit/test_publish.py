@@ -132,20 +132,6 @@ async def test_publish_study_missing_metadata(controller):
 
 
 @pytest.mark.asyncio
-async def test_publish_study_missing_publication(controller):
-    """Publishing a study without a publication must raise ValidationError."""
-    study = await controller.studies.create_study(
-        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
-    )
-    await controller.metadata.upsert_metadata(
-        study_id=study.id, metadata=E["metadata"]["empty"]
-    )
-    # No publication added
-    with pytest.raises(StudyRegistryPort.ValidationError):
-        await controller.studies.publish_study(study_id=study.id)
-
-
-@pytest.mark.asyncio
 async def test_publish_study_republish_generates_new_accessions(
     controller, em_accession_map_dao
 ):

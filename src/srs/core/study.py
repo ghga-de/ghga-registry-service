@@ -100,17 +100,6 @@ class StudyController(StudyPort):
                 detail=f"Study {study_id} has no experimental metadata."
             ) from err
 
-        # Must have at least one publication
-        publications = []
-        async for pub in self._publication_dao.find_all(
-            mapping={"study_id": study_id}
-        ):
-            publications.append(pub)
-        if not publications:
-            raise self.ValidationError(
-                detail=f"Study {study_id} has no publication."
-            )
-
     async def _generate_em_accessions(
         self, study_id: str
     ) -> dict[str, dict[str, str]]:
