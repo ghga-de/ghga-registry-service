@@ -15,13 +15,9 @@
 
 """Defines the main Study Registry Service inbound port."""
 
-from abc import ABC, abstractmethod
+from abc import ABC
 
-from srs.core.models import (
-    Accession,
-    AltAccession,
-    AltAccessionType,
-)
+from srs.ports.inbound.accession import AccessionPort
 from srs.ports.inbound.data_access import DataAccessPort
 from srs.ports.inbound.dataset import DatasetPort
 from srs.ports.inbound.errors import (
@@ -69,6 +65,7 @@ class StudyRegistryPort(ABC):
 
     # --- Composite sub-ports ---
 
+    accessions: AccessionPort
     data_access: DataAccessPort
     studies: StudyPort
     datasets: DatasetPort
@@ -76,25 +73,3 @@ class StudyRegistryPort(ABC):
     publications: PublicationPort
     filenames: FilenamePort
     resource_types: ResourceTypePort
-
-    # --- Accession operations ---
-
-    @abstractmethod
-    async def get_accession(self, *, accession_id: str) -> Accession:
-        """Get a primary accession by ID.
-
-        Raises:
-        - AccessionNotFoundError if the accession does not exist.
-        """
-        ...
-
-    @abstractmethod
-    async def get_alt_accession(
-        self, *, accession_id: str, alt_type: AltAccessionType
-    ) -> AltAccession:
-        """Get an alternative accession by ID and type.
-
-        Raises:
-        - AccessionNotFoundError if the alt accession does not exist.
-        """
-        ...

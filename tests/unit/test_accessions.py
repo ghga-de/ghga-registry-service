@@ -24,7 +24,7 @@ import pytest
 from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from srs.core.models import AltAccession, AltAccessionType
-from srs.ports.inbound.study_registry import StudyRegistryPort
+from srs.ports.inbound.accession import AccessionPort
 from tests.conftest import USER_SUBMITTER
 from tests.fixtures.examples import EXAMPLES
 
@@ -41,7 +41,7 @@ async def test_get_accession(controller, accession_dao):
     study = await controller.studies.create_study(
         data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )
-    acc = await controller.get_accession(accession_id=study.id)
+    acc = await controller.accessions.get_accession(accession_id=study.id)
     assert acc.id == study.id
     assert acc.type == "STUDY"
     assert isinstance(acc.created, datetime)
@@ -50,8 +50,8 @@ async def test_get_accession(controller, accession_dao):
 @pytest.mark.asyncio
 async def test_get_accession_not_found(controller):
     """Getting a non-existent accession must raise AccessionNotFoundError."""
-    with pytest.raises(StudyRegistryPort.AccessionNotFoundError):
-        await controller.get_accession(accession_id="NONEXIST")
+    with pytest.raises(AccessionPort.AccessionNotFoundError):
+        await controller.accessions.get_accession(accession_id="NONEXIST")
 
 
 # ── GET /accession/{id}?type={type} (alternative) ───────────────
@@ -67,7 +67,7 @@ async def test_get_alt_accession(controller, alt_accession_dao):
     )
     await alt_accession_dao.insert(alt)
 
-    result = await controller.get_alt_accession(
+    result = await controller.accessions.get_alt_accession(
         accession_id="FILE-001", alt_type=AltAccessionType.FILE_ID
     )
     assert result.pid == "GHGAF00000000000001"
@@ -76,8 +76,8 @@ async def test_get_alt_accession(controller, alt_accession_dao):
 @pytest.mark.asyncio
 async def test_get_alt_accession_not_found(controller):
     """Getting a non-existent alt accession must raise AccessionNotFoundError."""
-    with pytest.raises(StudyRegistryPort.AccessionNotFoundError):
-        await controller.get_alt_accession(
+    with pytest.raises(AccessionPort.AccessionNotFoundError):
+        await controller.accessions.get_alt_accession(
             accession_id="NONEXIST", alt_type=AltAccessionType.FILE_ID
         )
 
@@ -91,7 +91,7 @@ async def test_get_alt_accession_wrong_type(controller, alt_accession_dao):
     )
     await alt_accession_dao.insert(alt)
 
-    with pytest.raises(StudyRegistryPort.AccessionNotFoundError):
-        await controller.get_alt_accession(
+    with pytest.raises(AccessionPort.AccessionNotFoundError):
+        await controller.accessions.get_alt_accession(
             accession_id="FILE-001", alt_type=AltAccessionType.EGA
         )

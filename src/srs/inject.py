@@ -40,6 +40,7 @@ from srs.adapters.outbound.dao import (
 )
 from srs.adapters.outbound.event_pub import EventPubTranslator
 from srs.config import Config
+from srs.core.accession import AccessionController
 from srs.core.data_access import DataAccessController
 from srs.core.dataset import DatasetController
 from srs.core.filename import FilenameController
@@ -129,7 +130,13 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             dataset_dao=dataset_dao,
         )
 
+        accession_controller = AccessionController(
+            accession_dao=accession_dao,
+            alt_accession_dao=alt_accession_dao,
+        )
+
         yield StudyRegistryController(
+            accession_controller=accession_controller,
             study_controller=study_controller,
             dataset_controller=dataset_controller,
             metadata_controller=metadata_controller,
@@ -137,8 +144,6 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             filename_controller=filename_controller,
             resource_type_controller=resource_type_controller,
             data_access=data_access,
-            accession_dao=accession_dao,
-            alt_accession_dao=alt_accession_dao,
         )
 
 

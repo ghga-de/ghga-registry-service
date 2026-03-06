@@ -29,7 +29,7 @@ from srs.core.models import (
     AltAccession,
     AltAccessionType,
 )
-from srs.ports.inbound.study_registry import StudyRegistryPort
+from srs.ports.inbound.accession import AccessionPort
 
 log = logging.getLogger(__name__)
 
@@ -50,8 +50,8 @@ async def get_accession(
 ):
     """Look up a primary accession."""
     try:
-        return await registry.get_accession(accession_id=accession_id)
-    except StudyRegistryPort.AccessionNotFoundError as err:
+        return await registry.accessions.get_accession(accession_id=accession_id)
+    except AccessionPort.AccessionNotFoundError as err:
         raise HttpAccessionNotFoundError(accession_id=accession_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_accession")
@@ -71,10 +71,10 @@ async def get_alt_accession(
 ):
     """Look up an alternative accession (e.g. EGA, FILE_ID)."""
     try:
-        return await registry.get_alt_accession(
+        return await registry.accessions.get_alt_accession(
             accession_id=accession_id, alt_type=alt_type
         )
-    except StudyRegistryPort.AccessionNotFoundError as err:
+    except AccessionPort.AccessionNotFoundError as err:
         raise HttpAccessionNotFoundError(accession_id=accession_id) from err
     except Exception as err:
         log.exception("Unexpected error in get_alt_accession")

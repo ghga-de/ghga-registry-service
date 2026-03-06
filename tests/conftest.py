@@ -45,6 +45,7 @@ from srs.core.metadata import MetadataController
 from srs.core.publication import PublicationController
 from srs.core.resource_type import ResourceTypeController
 from srs.core.study import StudyController
+from srs.core.accession import AccessionController
 from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
@@ -297,7 +298,12 @@ def controller(
     alt_accession_dao,
 ):
     """Create a StudyRegistryController wired to in-memory DAOs."""
+    accession_controller = AccessionController(
+        accession_dao=accession_dao,
+        alt_accession_dao=alt_accession_dao,
+    )
     return StudyRegistryController(
+        accession_controller=accession_controller,
         study_controller=study_controller,
         dataset_controller=dataset_controller,
         metadata_controller=metadata_controller,
@@ -305,6 +311,4 @@ def controller(
         filename_controller=filename_controller,
         resource_type_controller=resource_type_controller,
         data_access=data_access,
-        accession_dao=accession_dao,
-        alt_accession_dao=alt_accession_dao,
     )

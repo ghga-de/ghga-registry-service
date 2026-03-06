@@ -17,13 +17,7 @@
 
 import logging
 
-from hexkit.protocols.dao import ResourceNotFoundError
-
-from srs.core.models import (
-    Accession,
-    AltAccession,
-    AltAccessionType,
-)
+from srs.ports.inbound.accession import AccessionPort
 from srs.ports.inbound.data_access import DataAccessPort
 from srs.ports.inbound.dataset import DatasetPort
 from srs.ports.inbound.filename import FilenamePort
@@ -32,10 +26,6 @@ from srs.ports.inbound.publication import PublicationPort
 from srs.ports.inbound.resource_type import ResourceTypePort
 from srs.ports.inbound.study import StudyPort
 from srs.ports.inbound.study_registry import StudyRegistryPort
-from srs.ports.outbound.dao import (
-    AccessionDao,
-    AltAccessionDao,
-)
 
 log = logging.getLogger(__name__)
 
@@ -53,6 +43,7 @@ class StudyRegistryController(StudyRegistryPort):
     def __init__(
         self,
         *,
+        accession_controller: AccessionPort,
         study_controller: StudyPort,
         dataset_controller: DatasetPort,
         metadata_controller: MetadataPort,
@@ -60,12 +51,8 @@ class StudyRegistryController(StudyRegistryPort):
         filename_controller: FilenamePort,
         resource_type_controller: ResourceTypePort,
         data_access: DataAccessPort,
-        accession_dao: AccessionDao,
-        alt_accession_dao: AltAccessionDao,
     ):
-        self._accession_dao = accession_dao
-        self._alt_accession_dao = alt_accession_dao
-
+        self.accessions = accession_controller
         self.data_access = data_access
         self.studies = study_controller
         self.datasets = dataset_controller
@@ -73,27 +60,3 @@ class StudyRegistryController(StudyRegistryPort):
         self.publications = publication_controller
         self.filenames = filename_controller
         self.resource_types = resource_type_controller
-
-    # --- Accession operations ---
-
-    async def get_accession(self, *, accession_id: str) -> Accession:
-        """Get a primary accession by ID."""
-        try:
-            return await self._accession_dao.get_by_id(accession_id)
-        except ResourceNotFoundError as err:
-            raise self.AccessionNotFoundError(
-                accession_id=accession_id
-            ) from err
-
-    async def get_alt_accession(
-        self,
-        *,
-        accession_id: str,
-        alt_type: AltAccessionType,
-    ) -> AltAccession:
-        """Get an alternative accession by ID and type."""
-        async for alt in self._alt_accession_dao.find_all(
-            mapping={"id": accession_id, "type": alt_type.value}
-        ):
-            return alt
-        raise self.AccessionNotFoundError(accession_id=accession_id)
