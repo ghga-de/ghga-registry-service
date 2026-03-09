@@ -20,6 +20,7 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+import pytest_asyncio
 from ghga_service_commons.utils.jwt_helpers import generate_jwk
 from hexkit.providers.testing.dao import BaseInMemDao, new_mock_dao_class
 from hexkit.providers.testing.eventpub import InMemEventPublisher, InMemEventStore
@@ -49,6 +50,7 @@ from srs.core.accession import AccessionController
 from srs.core.study_registry import StudyRegistryController
 from tests.fixtures import ConfigFixture
 from tests.fixtures.config import get_config
+from tests.fixtures.examples import EXAMPLES
 from tests.fixtures.joint import JointFixture, joint_fixture  # noqa: F401
 
 # Re-export hexkit container/fixture definitions so pytest can discover them
@@ -119,6 +121,33 @@ EmAccessionMapDao = _safe_mock_dao_class(dto_model=EmAccessionMap, id_field="id"
 USER_STEWARD = UUID("00000000-0000-0000-0000-000000000001")
 USER_SUBMITTER = UUID("00000000-0000-0000-0000-000000000002")
 USER_OTHER = UUID("00000000-0000-0000-0000-000000000099")
+
+E = EXAMPLES
+
+
+@pytest_asyncio.fixture()
+async def complete_study_id(controller):
+    """Create a study with metadata, publication, DAC, DAP, and dataset."""
+    study = await controller.studies.create_study(
+        data={**E["studies"]["default"], "created_by": USER_SUBMITTER},
+    )
+    sid = study.id
+
+    await controller.metadata.upsert_metadata(
+        study_id=sid, metadata=E["metadata"]["rich"],
+    )
+
+    await controller.publications.create_publication(
+        data={**E["publications"]["full"], "study_id": sid},
+    )
+
+    await controller.data_access.create_dac(data=E["dacs"]["default"])
+    await controller.data_access.create_dap(data=E["daps"]["default"])
+    await controller.datasets.create_dataset(
+        data={**E["datasets"]["full"], "study_id": sid, "dap_id": "DAP-1"},
+    )
+
+    return sid
 
 
 @pytest.fixture(name="config")

@@ -27,42 +27,15 @@ from tests.fixtures.examples import EXAMPLES
 E = EXAMPLES
 
 
-# ── helpers ──────────────────────────────────────────────────────
-
-
-async def _build_complete_study(controller):
-    """Create a study with metadata, publication, DAC, DAP, and dataset."""
-    study = await controller.studies.create_study(
-        data={**E["studies"]["default"], "created_by": USER_SUBMITTER},
-    )
-    sid = study.id
-
-    await controller.metadata.upsert_metadata(
-        study_id=sid, metadata=E["metadata"]["rich"],
-    )
-
-    await controller.publications.create_publication(
-        data={**E["publications"]["full"], "study_id": sid},
-    )
-
-    await controller.data_access.create_dac(data=E["dacs"]["default"])
-    await controller.data_access.create_dap(data=E["daps"]["default"])
-    await controller.datasets.create_dataset(
-        data={**E["datasets"]["full"], "study_id": sid, "dap_id": "DAP-1"},
-    )
-
-    return sid
-
-
 # ── POST /rpc/publish/{study_id} ────────────────────────────────
 
 
 @pytest.mark.asyncio
 async def test_publish_study_generates_em_accessions(
-    controller, em_accession_map_dao
+    controller, em_accession_map_dao, complete_study_id
 ):
     """Publishing must generate accessions for each EM resource."""
-    sid = await _build_complete_study(controller)
+    sid = complete_study_id
     await controller.studies.publish_study(study_id=sid)
 
     em_map = await em_accession_map_dao.get_by_id(sid)
@@ -78,10 +51,10 @@ async def test_publish_study_generates_em_accessions(
 
 @pytest.mark.asyncio
 async def test_publish_study_publishes_aem_event(
-    controller, event_store
+    controller, event_store, complete_study_id
 ):
     """Publishing must emit an AnnotatedExperimentalMetadata event."""
-    sid = await _build_complete_study(controller)
+    sid = complete_study_id
     await controller.studies.publish_study(study_id=sid)
 
     topic = event_store.topics["annotated_metadata"]
@@ -98,10 +71,10 @@ async def test_publish_study_publishes_aem_event(
 
 @pytest.mark.asyncio
 async def test_publish_study_aem_has_accessions(
-    controller, event_store
+    controller, event_store, complete_study_id
 ):
     """The AEM event must contain the generated accession maps."""
-    sid = await _build_complete_study(controller)
+    sid = complete_study_id
     await controller.studies.publish_study(study_id=sid)
 
     aem = event_store.topics["annotated_metadata"][0].payload
@@ -133,10 +106,10 @@ async def test_publish_study_missing_metadata(controller):
 
 @pytest.mark.asyncio
 async def test_publish_study_republish_generates_new_accessions(
-    controller, em_accession_map_dao
+    controller, em_accession_map_dao, complete_study_id
 ):
     """Republishing must regenerate EM accessions (new accession IDs)."""
-    sid = await _build_complete_study(controller)
+    sid = complete_study_id
     await controller.studies.publish_study(study_id=sid)
     first_map = await em_accession_map_dao.get_by_id(sid)
     first_file_accessions = set(first_map.maps["files"].values())
