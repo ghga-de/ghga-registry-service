@@ -21,7 +21,7 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
 
 from srs.core.models import ExperimentalMetadata
-from srs.core.utils import get_study_or_raise, require_pending
+from srs.core.utils import get_or_raise, get_study_or_raise, require_pending
 from srs.ports.inbound.metadata import MetadataPort
 from srs.ports.outbound.dao import ExperimentalMetadataDao, StudyDao
 
@@ -63,10 +63,7 @@ class MetadataController(MetadataPort):
 
     async def get_metadata(self, *, study_id: str) -> ExperimentalMetadata:
         """Get experimental metadata for a study."""
-        try:
-            return await self._metadata_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.MetadataNotFoundError(study_id=study_id) from err
+        return await get_or_raise(self._metadata_dao, study_id, self.MetadataNotFoundError(study_id=study_id))
 
     async def delete_metadata(self, *, study_id: str) -> None:
         """Delete experimental metadata for a study."""

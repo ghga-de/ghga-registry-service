@@ -20,7 +20,7 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from ghga_service_commons.utils.utc_dates import UTCDatetime, now_as_utc
-from hexkit.protocols.dao import ResourceNotFoundError
+from srs.core.utils import get_or_raise
 
 from srs.core.models import ResourceType, TypedResource
 from srs.ports.inbound.resource_type import ResourceTypePort
@@ -93,14 +93,7 @@ class ResourceTypeController(ResourceTypePort):
         self, *, resource_type_id: UUID
     ) -> ResourceType:
         """Get a resource type by internal ID."""
-        try:
-            return await self._resource_type_dao.get_by_id(
-                str(resource_type_id)
-            )
-        except ResourceNotFoundError as err:
-            raise self.ResourceTypeNotFoundError(
-                resource_type_id=resource_type_id
-            ) from err
+        return await get_or_raise(self._resource_type_dao, str(resource_type_id), self.ResourceTypeNotFoundError(resource_type_id=resource_type_id))
 
     async def update_resource_type(
         self,
@@ -112,14 +105,7 @@ class ResourceTypeController(ResourceTypePort):
         if not updates:
             return
 
-        try:
-            rt = await self._resource_type_dao.get_by_id(
-                str(resource_type_id)
-            )
-        except ResourceNotFoundError as err:
-            raise self.ResourceTypeNotFoundError(
-                resource_type_id=resource_type_id
-            ) from err
+        rt = await get_or_raise(self._resource_type_dao, str(resource_type_id), self.ResourceTypeNotFoundError(resource_type_id=resource_type_id))
 
         updates["changed"] = now_as_utc()
         rt = rt.model_copy(update=updates)
@@ -130,14 +116,7 @@ class ResourceTypeController(ResourceTypePort):
         self, *, resource_type_id: UUID
     ) -> None:
         """Delete a resource type."""
-        try:
-            rt = await self._resource_type_dao.get_by_id(
-                str(resource_type_id)
-            )
-        except ResourceNotFoundError as err:
-            raise self.ResourceTypeNotFoundError(
-                resource_type_id=resource_type_id
-            ) from err
+        rt = await get_or_raise(self._resource_type_dao, str(resource_type_id), self.ResourceTypeNotFoundError(resource_type_id=resource_type_id))
 
         # Check if still referenced by any study or dataset
         mapping_field = (

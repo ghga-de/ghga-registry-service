@@ -21,7 +21,7 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
 
 from srs.core.models import AltAccession, AltAccessionType
-from srs.core.utils import get_study_or_raise
+from srs.core.utils import get_or_raise, get_study_or_raise
 from srs.ports.inbound.filename import FilenamePort
 from srs.ports.outbound.dao import (
     AccessionDao,
@@ -64,10 +64,7 @@ class FilenameController(FilenamePort):
         await get_study_or_raise(self._study_dao, study_id)
 
         # Get the EM accession map for files
-        try:
-            em_map = await self._em_accession_map_dao.get_by_id(study_id)
-        except ResourceNotFoundError as err:
-            raise self.MetadataNotFoundError(study_id=study_id) from err
+        em_map = await get_or_raise(self._em_accession_map_dao, study_id, self.MetadataNotFoundError(study_id=study_id))
 
         # Get the experimental metadata to extract file names/aliases
         em = await self._metadata_dao.get_by_id(study_id)

@@ -17,7 +17,7 @@
 
 import logging
 
-from hexkit.protocols.dao import ResourceNotFoundError
+from srs.core.utils import get_or_raise
 
 from srs.core.models import Accession, AltAccession, AltAccessionType
 from srs.ports.inbound.accession import AccessionPort
@@ -40,12 +40,7 @@ class AccessionController(AccessionPort):
 
     async def get_accession(self, *, accession_id: str) -> Accession:
         """Get a primary accession by ID."""
-        try:
-            return await self._accession_dao.get_by_id(accession_id)
-        except ResourceNotFoundError as err:
-            raise self.AccessionNotFoundError(
-                accession_id=accession_id
-            ) from err
+        return await get_or_raise(self._accession_dao, accession_id, self.AccessionNotFoundError(accession_id=accession_id))
 
     async def get_alt_accession(
         self,

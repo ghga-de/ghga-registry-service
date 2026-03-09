@@ -15,25 +15,33 @@
 
 """Shared helper functions for core controllers."""
 
+from typing import Any
 from uuid import UUID
 
-from hexkit.protocols.dao import ResourceNotFoundError
+from hexkit.protocols.dao import ResourceNotFoundError, Dao
+from hexkit.custom_types import ID
 
 from srs.core.models import Study, StudyStatus
 from srs.ports.inbound.errors import (
     AccessDeniedError,
+    RegistryError,
     StatusConflictError,
     StudyNotFoundError,
 )
 from srs.ports.outbound.dao import StudyDao
 
 
+async def get_or_raise(dao: Dao, id_: ID, error: RegistryError) -> Any:
+    """Retrieve an entity by ID, or raise the given domain error."""
+    try:
+        return await dao.get_by_id(id_)
+    except ResourceNotFoundError as cause:
+        raise error from cause
+
+
 async def get_study_or_raise(study_dao: StudyDao, study_id: str) -> Study:
     """Retrieve a study by ID or raise StudyNotFoundError."""
-    try:
-        return await study_dao.get_by_id(study_id)
-    except ResourceNotFoundError as err:
-        raise StudyNotFoundError(study_id=study_id) from err
+    return await get_or_raise(study_dao, study_id, StudyNotFoundError(study_id=study_id))
 
 
 async def require_pending(study: Study) -> None:
@@ -50,7 +58,7 @@ def check_user_access(
     user_id: UUID | None,
     is_data_steward: bool,
 ) -> None:
-    """Check if a user has access to a study."""
+    """Check if a user has access to a study. Raise AccessDeniedError if not."""
     if is_data_steward:
         return
     if study.users is None:

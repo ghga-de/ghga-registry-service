@@ -19,7 +19,7 @@ import logging
 from typing import Any
 
 from ghga_service_commons.utils.utc_dates import now_as_utc
-from hexkit.protocols.dao import ResourceNotFoundError
+from srs.core.utils import get_or_raise
 
 from srs.core.models import (
     DataAccessCommittee,
@@ -80,10 +80,7 @@ class DataAccessController(DataAccessPort):
 
     async def get_dac(self, *, dac_id: str) -> DataAccessCommittee:
         """Get a DAC by ID."""
-        try:
-            return await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
+        return await get_or_raise(self._dac_dao, dac_id, self.DacNotFoundError(dac_id=dac_id))
 
     async def update_dac(
         self,
@@ -95,10 +92,7 @@ class DataAccessController(DataAccessPort):
         if not updates:
             return
 
-        try:
-            dac = await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
+        dac = await get_or_raise(self._dac_dao, dac_id, self.DacNotFoundError(dac_id=dac_id))
 
         updates["changed"] = now_as_utc()
 
@@ -108,10 +102,7 @@ class DataAccessController(DataAccessPort):
 
     async def delete_dac(self, *, dac_id: str) -> None:
         """Delete a DAC."""
-        try:
-            await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
+        await get_or_raise(self._dac_dao, dac_id, self.DacNotFoundError(dac_id=dac_id))
 
         # Check for referencing DAPs
         async for dap in self._dap_dao.find_all(mapping={"dac_id": dac_id}):
@@ -133,10 +124,7 @@ class DataAccessController(DataAccessPort):
         """Create a new DAP."""
         dac_id = data["dac_id"]
         # Verify DAC exists
-        try:
-            await self._dac_dao.get_by_id(dac_id)
-        except ResourceNotFoundError as err:
-            raise self.DacNotFoundError(dac_id=dac_id) from err
+        await get_or_raise(self._dac_dao, dac_id, self.DacNotFoundError(dac_id=dac_id))
 
         now = now_as_utc()
         dap = DataAccessPolicy(
@@ -159,10 +147,7 @@ class DataAccessController(DataAccessPort):
 
     async def get_dap(self, *, dap_id: str) -> DataAccessPolicy:
         """Get a DAP by ID."""
-        try:
-            return await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
-            raise self.DapNotFoundError(dap_id=dap_id) from err
+        return await get_or_raise(self._dap_dao, dap_id, self.DapNotFoundError(dap_id=dap_id))
 
     async def update_dap(
         self,
@@ -174,16 +159,10 @@ class DataAccessController(DataAccessPort):
         if not updates:
             return
 
-        try:
-            dap = await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
-            raise self.DapNotFoundError(dap_id=dap_id) from err
+        dap = await get_or_raise(self._dap_dao, dap_id, self.DapNotFoundError(dap_id=dap_id))
 
         if "dac_id" in updates and updates["dac_id"] is not None:
-            try:
-                await self._dac_dao.get_by_id(updates["dac_id"])
-            except ResourceNotFoundError as err:
-                raise self.DacNotFoundError(dac_id=updates["dac_id"]) from err
+            await get_or_raise(self._dac_dao, updates["dac_id"], self.DacNotFoundError(dac_id=updates["dac_id"]))
 
         if "duo_permission_id" in updates and updates["duo_permission_id"] is not None:
             updates["duo_permission_id"] = DuoPermission(updates["duo_permission_id"])
@@ -200,10 +179,7 @@ class DataAccessController(DataAccessPort):
 
     async def delete_dap(self, *, dap_id: str) -> None:
         """Delete a DAP."""
-        try:
-            await self._dap_dao.get_by_id(dap_id)
-        except ResourceNotFoundError as err:
-            raise self.DapNotFoundError(dap_id=dap_id) from err
+        await get_or_raise(self._dap_dao, dap_id, self.DapNotFoundError(dap_id=dap_id))
 
         # Check for referencing datasets
         async for ds in self._dataset_dao.find_all(mapping={"dap_id": dap_id}):

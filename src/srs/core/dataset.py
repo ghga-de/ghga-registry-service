@@ -23,7 +23,7 @@ from hexkit.protocols.dao import ResourceNotFoundError
 from uuid import UUID
 
 from srs.core.accessions import generate_accession
-from srs.core.utils import check_user_access, get_study_or_raise, require_pending
+from srs.core.utils import check_user_access, get_or_raise, get_study_or_raise, require_pending
 from srs.core.models import (
     Accession,
     AccessionType,
@@ -162,10 +162,7 @@ class DatasetController(DatasetPort):
         is_data_steward: bool = False,
     ) -> Dataset:
         """Get a dataset by its PID."""
-        try:
-            dataset = await self._dataset_dao.get_by_id(dataset_id)
-        except ResourceNotFoundError as err:
-            raise self.DatasetNotFoundError(dataset_id=dataset_id) from err
+        dataset = await get_or_raise(self._dataset_dao, dataset_id, self.DatasetNotFoundError(dataset_id=dataset_id))
 
         study = await get_study_or_raise(self._study_dao, dataset.study_id)
         check_user_access(study, user_id, is_data_steward)
@@ -175,10 +172,7 @@ class DatasetController(DatasetPort):
         self, *, dataset_id: str, dap_id: str
     ) -> None:
         """Update the DAP assignment for a dataset."""
-        try:
-            dataset = await self._dataset_dao.get_by_id(dataset_id)
-        except ResourceNotFoundError as err:
-            raise self.DatasetNotFoundError(dataset_id=dataset_id) from err
+        dataset = await get_or_raise(self._dataset_dao, dataset_id, self.DatasetNotFoundError(dataset_id=dataset_id))
 
         # Verify DAP exists
         try:
@@ -194,10 +188,7 @@ class DatasetController(DatasetPort):
 
     async def delete_dataset(self, *, dataset_id: str) -> None:
         """Delete a dataset and its accession."""
-        try:
-            dataset = await self._dataset_dao.get_by_id(dataset_id)
-        except ResourceNotFoundError as err:
-            raise self.DatasetNotFoundError(dataset_id=dataset_id) from err
+        dataset = await get_or_raise(self._dataset_dao, dataset_id, self.DatasetNotFoundError(dataset_id=dataset_id))
 
         study = await get_study_or_raise(self._study_dao, dataset.study_id)
         await require_pending(study)

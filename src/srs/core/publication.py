@@ -23,7 +23,7 @@ from ghga_service_commons.utils.utc_dates import now_as_utc
 from hexkit.protocols.dao import ResourceNotFoundError
 
 from srs.core.accessions import generate_accession
-from srs.core.utils import check_user_access, get_study_or_raise, require_pending
+from srs.core.utils import check_user_access, get_or_raise, get_study_or_raise, require_pending
 from srs.core.models import (
     Accession,
     AccessionType,
@@ -131,12 +131,7 @@ class PublicationController(PublicationPort):
         is_data_steward: bool = False,
     ) -> Publication:
         """Get a publication by its PID."""
-        try:
-            pub = await self._publication_dao.get_by_id(publication_id)
-        except ResourceNotFoundError as err:
-            raise self.PublicationNotFoundError(
-                publication_id=publication_id
-            ) from err
+        pub = await get_or_raise(self._publication_dao, publication_id, self.PublicationNotFoundError(publication_id=publication_id))
 
         study = await get_study_or_raise(self._study_dao, pub.study_id)
         check_user_access(study, user_id, is_data_steward)
@@ -144,12 +139,7 @@ class PublicationController(PublicationPort):
 
     async def delete_publication(self, *, publication_id: str) -> None:
         """Delete a publication and its accession."""
-        try:
-            pub = await self._publication_dao.get_by_id(publication_id)
-        except ResourceNotFoundError as err:
-            raise self.PublicationNotFoundError(
-                publication_id=publication_id
-            ) from err
+        pub = await get_or_raise(self._publication_dao, publication_id, self.PublicationNotFoundError(publication_id=publication_id))
 
         study = await get_study_or_raise(self._study_dao, pub.study_id)
         await require_pending(study)
