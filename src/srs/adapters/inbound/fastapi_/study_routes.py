@@ -28,7 +28,6 @@ from srs.adapters.inbound.fastapi_.http_authorization import (
     is_optional_data_steward,
 )
 from srs.adapters.inbound.fastapi_.http_exceptions import (
-    HttpDuplicateError,
     HttpInternalError,
     HttpNotAuthorizedError,
     HttpStatusConflictError,
@@ -70,8 +69,6 @@ async def create_study(
         return await registry.studies.create_study(
             data={**body.model_dump(), "created_by": get_user_id(auth)},
         )
-    except StudyPort.StudyError as err:
-        raise HttpDuplicateError(detail=str(err)) from err
     except Exception as err:
         log.exception("Unexpected error in create_study")
         raise HttpInternalError() from err
