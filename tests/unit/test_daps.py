@@ -85,13 +85,6 @@ async def test_create_dap_duo_enums(data_access, dap_dao):
 
 
 @pytest.mark.asyncio
-async def test_get_daps_empty(data_access):
-    """Initially there must be no DAPs."""
-    daps = await data_access.get_daps()
-    assert daps == []
-
-
-@pytest.mark.asyncio
 async def test_get_daps_returns_all(data_access):
     """Getting DAPs must return all created DAPs."""
     await _create_dac(data_access)

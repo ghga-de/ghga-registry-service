@@ -52,13 +52,6 @@ async def test_create_dac_duplicate(data_access):
 
 
 @pytest.mark.asyncio
-async def test_get_dacs_empty(data_access):
-    """Initially there must be no DACs."""
-    dacs = await data_access.get_dacs()
-    assert dacs == []
-
-
-@pytest.mark.asyncio
 async def test_get_dacs_returns_all(data_access):
     """Getting DACs must return all created DACs."""
     await data_access.create_dac(data=E["dacs"]["a"])

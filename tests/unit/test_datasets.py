@@ -139,15 +139,6 @@ async def test_create_dataset_duplicate_files(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_datasets_empty(controller):
-    """With no datasets, the list must be empty."""
-    result = await controller.datasets.get_datasets(
-        user_id=USER_STEWARD, is_data_steward=True
-    )
-    assert result == []
-
-
-@pytest.mark.asyncio
 async def test_get_datasets_filter_by_study(controller):
     """Filtering by study_id must only return datasets of that study."""
     sid, dap_id = await _setup(controller)

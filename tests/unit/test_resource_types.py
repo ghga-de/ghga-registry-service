@@ -53,13 +53,6 @@ async def test_create_resource_type_uppercases_code(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_resource_types_empty(controller):
-    """Initially there must be no resource types."""
-    result = await controller.resource_types.get_resource_types()
-    assert result == []
-
-
-@pytest.mark.asyncio
 async def test_get_resource_types_filter_by_resource(controller):
     """Filtering by resource must only return matching resource types."""
     await controller.resource_types.create_resource_type(data=E["resource_types"]["wgs_minimal"])

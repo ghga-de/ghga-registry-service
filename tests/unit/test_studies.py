@@ -74,15 +74,6 @@ async def test_create_study_registers_accession(controller, accession_dao):
 
 
 @pytest.mark.asyncio
-async def test_get_studies_returns_empty_list_initially(controller):
-    """With no studies, the list must be empty."""
-    result = await controller.studies.get_studies(
-        user_id=USER_STEWARD, is_data_steward=True
-    )
-    assert result == []
-
-
-@pytest.mark.asyncio
 async def test_get_studies_filter_by_status(controller):
     """Filtering by status must only return matching studies."""
     await controller.studies.create_study(

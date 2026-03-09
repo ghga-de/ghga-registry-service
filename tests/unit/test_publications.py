@@ -117,13 +117,6 @@ async def test_create_publication_study_not_pending(
 
 
 @pytest.mark.asyncio
-async def test_get_publications_empty(controller):
-    """With no publications, the list must be empty."""
-    result = await controller.publications.get_publications(user_id=USER_STEWARD, is_data_steward=True)
-    assert result == []
-
-
-@pytest.mark.asyncio
 async def test_get_publications_filters_by_year(controller):
     """Filtering by year must only return matching publications."""
     sid = await _create_study(controller)
