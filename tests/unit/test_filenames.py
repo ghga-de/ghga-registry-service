@@ -28,32 +28,13 @@ from tests.fixtures.examples import EXAMPLES
 E = EXAMPLES
 
 
-# ── helpers ──────────────────────────────────────────────────────
-
-
-async def _setup_published_study(controller, accession_dao):
-    """Create a study, metadata with files, publish → return study_id."""
-    study = await controller.studies.create_study(
-        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
-    )
-    await controller.metadata.upsert_metadata(
-        study_id=study.id, metadata=E["metadata"]["filenames"],
-    )
-    await controller.publications.create_publication(
-        data={**E["publications"]["minimal"], "study_id": study.id},
-    )
-    # Publish to generate EM accessions (for files)
-    await controller.studies.publish_study(study_id=study.id)
-    return study.id
-
-
 # ── GET /filenames/{study_id} ───────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_get_filenames(controller, accession_dao):
+async def test_get_filenames(controller, published_study_id):
     """Getting filenames must return accession→{name, alias} mappings."""
-    sid = await _setup_published_study(controller, accession_dao)
+    sid = published_study_id
     result = await controller.filenames.get_filenames(study_id=sid)
     # Should have 2 file accession entries
     assert len(result) == 2
@@ -86,10 +67,10 @@ async def test_get_filenames_no_metadata(controller):
 
 @pytest.mark.asyncio
 async def test_post_filenames_stores_alt_accessions(
-    controller, accession_dao, alt_accession_dao
+    controller, alt_accession_dao, published_study_id
 ):
     """Posting file IDs must create AltAccession entries with type FILE_ID."""
-    sid = await _setup_published_study(controller, accession_dao)
+    sid = published_study_id
     filenames = await controller.filenames.get_filenames(study_id=sid)
     file_acc_ids = list(filenames.keys())
 
@@ -105,10 +86,10 @@ async def test_post_filenames_stores_alt_accessions(
 
 @pytest.mark.asyncio
 async def test_post_filenames_publishes_event(
-    controller, accession_dao, event_store
+    controller, event_store, published_study_id
 ):
     """Posting file IDs must publish a file-ID mapping event."""
-    sid = await _setup_published_study(controller, accession_dao)
+    sid = published_study_id
     filenames = await controller.filenames.get_filenames(study_id=sid)
     file_acc_ids = list(filenames.keys())
 
@@ -132,9 +113,9 @@ async def test_post_filenames_study_not_found(controller):
 
 
 @pytest.mark.asyncio
-async def test_post_filenames_invalid_accession(controller, accession_dao):
+async def test_post_filenames_invalid_accession(controller, published_study_id):
     """Posting with a non-existent file accession must raise ValidationError."""
-    sid = await _setup_published_study(controller, accession_dao)
+    sid = published_study_id
     with pytest.raises(StudyRegistryPort.ValidationError):
         await controller.filenames.post_filenames(
             study_id=sid,

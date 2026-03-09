@@ -150,6 +150,13 @@ async def complete_study_id(controller):
     return sid
 
 
+@pytest_asyncio.fixture()
+async def published_study_id(controller, complete_study_id):
+    """Publish and return the study created by ``complete_study_id``."""
+    await controller.studies.publish_study(study_id=complete_study_id)
+    return complete_study_id
+
+
 @pytest.fixture(name="config")
 def config_fixture() -> ConfigFixture:
     """Generate a fresh JWK and return a ConfigFixture with matching auth_key."""
