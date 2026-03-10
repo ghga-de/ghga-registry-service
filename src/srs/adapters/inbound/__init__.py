@@ -13,27 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
-
-from jwcrypto.jwk import JWK
-
-from srs.config import Config
-
-__all__ = ["ConfigFixture"]
-
-
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
-
-    config: Config
-    jwk: JWK
-
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+"""Inbound FastAPI adapter for the Study Registry Service."""

@@ -1,0 +1,191 @@
+# Copyright 2021 - 2026 Universität Tübingen, DKFZ, EMBL, and Universität zu Köln
+# for the German Human Genome-Phenome Archive (GHGA)
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Module hosting the dependency injection container."""
+
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from ghga_service_commons.auth.ghga import AuthContext, GHGAAuthContextProvider
+from ghga_service_commons.utils.context import asyncnullcontext
+from hexkit.providers.akafka import KafkaEventPublisher
+from hexkit.providers.mongodb import MongoDbDaoFactory
+
+from srs.adapters.inbound.fastapi_ import dummies
+from srs.adapters.inbound.fastapi_.configure import get_configured_app
+from srs.adapters.outbound.dao import (
+    get_accession_dao,
+    get_alt_accession_dao,
+    get_dac_dao,
+    get_dap_dao,
+    get_dataset_dao,
+    get_em_accession_map_dao,
+    get_metadata_dao,
+    get_publication_dao,
+    get_resource_type_dao,
+    get_study_dao,
+)
+from srs.adapters.outbound.event_pub import EventPubTranslator
+from srs.config import Config
+from srs.core.accession import AccessionController
+from srs.core.data_access import DataAccessController
+from srs.core.dataset import DatasetController
+from srs.core.filename import FilenameController
+from srs.core.metadata import MetadataController
+from srs.core.publication import PublicationController
+from srs.core.resource_type import ResourceTypeController
+from srs.core.study import StudyController
+from srs.core.study_registry import StudyRegistryController
+from srs.ports.inbound.study_registry import StudyRegistryPort
+
+
+@asynccontextmanager
+async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
+    """Construct and initialize all core components and their outbound dependencies."""
+    async with (
+        MongoDbDaoFactory.construct(config=config) as dao_factory,
+        KafkaEventPublisher.construct(config=config) as kafka_publisher,
+    ):
+        study_dao = await get_study_dao(dao_factory=dao_factory)
+        metadata_dao = await get_metadata_dao(dao_factory=dao_factory)
+        publication_dao = await get_publication_dao(dao_factory=dao_factory)
+        dac_dao = await get_dac_dao(dao_factory=dao_factory)
+        dap_dao = await get_dap_dao(dao_factory=dao_factory)
+        dataset_dao = await get_dataset_dao(dao_factory=dao_factory)
+        resource_type_dao = await get_resource_type_dao(
+            dao_factory=dao_factory
+        )
+        accession_dao = await get_accession_dao(dao_factory=dao_factory)
+        alt_accession_dao = await get_alt_accession_dao(
+            dao_factory=dao_factory
+        )
+        em_accession_map_dao = await get_em_accession_map_dao(
+            dao_factory=dao_factory
+        )
+
+        event_publisher = EventPubTranslator(
+            config=config, provider=kafka_publisher
+        )
+
+        data_access = DataAccessController(
+            dac_dao=dac_dao,
+            dap_dao=dap_dao,
+            dataset_dao=dataset_dao,
+        )
+
+        study_controller = StudyController(
+            study_dao=study_dao,
+            metadata_dao=metadata_dao,
+            publication_dao=publication_dao,
+            dataset_dao=dataset_dao,
+            accession_dao=accession_dao,
+            em_accession_map_dao=em_accession_map_dao,
+            event_publisher=event_publisher,
+            data_access=data_access,
+        )
+
+        dataset_controller = DatasetController(
+            dataset_dao=dataset_dao,
+            study_dao=study_dao,
+            accession_dao=accession_dao,
+            data_access=data_access,
+        )
+
+        metadata_controller = MetadataController(
+            study_dao=study_dao,
+            metadata_dao=metadata_dao,
+        )
+
+        publication_controller = PublicationController(
+            study_dao=study_dao,
+            publication_dao=publication_dao,
+            accession_dao=accession_dao,
+        )
+
+        filename_controller = FilenameController(
+            study_dao=study_dao,
+            metadata_dao=metadata_dao,
+            accession_dao=accession_dao,
+            alt_accession_dao=alt_accession_dao,
+            em_accession_map_dao=em_accession_map_dao,
+            event_publisher=event_publisher,
+        )
+
+        resource_type_controller = ResourceTypeController(
+            resource_type_dao=resource_type_dao,
+            study_dao=study_dao,
+            dataset_dao=dataset_dao,
+        )
+
+        accession_controller = AccessionController(
+            accession_dao=accession_dao,
+            alt_accession_dao=alt_accession_dao,
+        )
+
+        yield StudyRegistryController(
+            accession_controller=accession_controller,
+            study_controller=study_controller,
+            dataset_controller=dataset_controller,
+            metadata_controller=metadata_controller,
+            publication_controller=publication_controller,
+            filename_controller=filename_controller,
+            resource_type_controller=resource_type_controller,
+            data_access=data_access,
+        )
+
+
+def prepare_core_with_override(
+    *,
+    config: Config,
+    controller_override: StudyRegistryPort | None = None,
+):
+    """Resolve the controller context manager based on config and override (if any)."""
+    return (
+        asyncnullcontext(controller_override)
+        if controller_override
+        else prepare_core(config=config)
+    )
+
+
+@asynccontextmanager
+async def prepare_rest_app(
+    *,
+    config: Config,
+    controller_override: StudyRegistryPort | None = None,
+) -> AsyncGenerator[FastAPI]:
+    """Construct and initialize a REST API app along with all its dependencies.
+
+    By default, the core dependencies are automatically prepared but you can also
+    provide them using the controller_override parameter.
+    """
+    app = get_configured_app(config=config)
+
+    async with (
+        prepare_core_with_override(
+            config=config, controller_override=controller_override
+        ) as controller,
+        GHGAAuthContextProvider.construct(
+            config=config, context_class=AuthContext
+        ) as auth_context,
+    ):
+        app.dependency_overrides[dummies.study_registry_port] = (
+            lambda: controller
+        )
+        app.dependency_overrides[dummies.auth_provider] = (
+            lambda: auth_context
+        )
+
+        yield app

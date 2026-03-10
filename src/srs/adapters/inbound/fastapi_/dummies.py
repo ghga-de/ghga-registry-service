@@ -13,27 +13,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
+"""FastAPI dependency dummies for DI placeholder injection."""
 
-from jwcrypto.jwk import JWK
+from typing import Annotated
 
-from srs.config import Config
+from fastapi import Depends
+from ghga_service_commons.api.di import DependencyDummy
+from ghga_service_commons.auth.context import AuthContextProtocol
+from ghga_service_commons.auth.ghga import AuthContext
 
-__all__ = ["ConfigFixture"]
+from srs.ports.inbound.study_registry import StudyRegistryPort
 
+auth_provider = DependencyDummy("auth_provider")
+study_registry_port = DependencyDummy("study_registry_port")
 
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
-
-    config: Config
-    jwk: JWK
-
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+AuthProviderDummy = Annotated[
+    AuthContextProtocol[AuthContext], Depends(auth_provider)
+]
+StudyRegistryDummy = Annotated[
+    StudyRegistryPort, Depends(study_registry_port)
+]

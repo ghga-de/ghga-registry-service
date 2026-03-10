@@ -13,27 +13,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
+"""Loader for example test data from YAML fixtures."""
 
-from jwcrypto.jwk import JWK
+import yaml
 
-from srs.config import Config
+from tests.fixtures.utils import BASE_DIR
 
-__all__ = ["ConfigFixture"]
+_EXAMPLE_DATA_YAML = BASE_DIR / "example_data.yaml"
 
-
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
-
-    config: Config
-    jwk: JWK
-
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+EXAMPLES: dict = yaml.safe_load(_EXAMPLE_DATA_YAML.read_text())

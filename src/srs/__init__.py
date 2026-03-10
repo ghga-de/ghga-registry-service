@@ -13,27 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
+"""Study Registry Service - the core GHGA registry service for ingesting
+and archiving metadata from data submitters.
+"""
 
-from jwcrypto.jwk import JWK
+from importlib.metadata import version
 
-from srs.config import Config
-
-__all__ = ["ConfigFixture"]
-
-
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
-
-    config: Config
-    jwk: JWK
-
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+__version__ = version(__package__ or __name__)

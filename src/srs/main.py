@@ -13,27 +13,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
+"""Entry-point functions to run the Study Registry Service."""
 
-from jwcrypto.jwk import JWK
+from ghga_service_commons.api import run_server
 
 from srs.config import Config
+from srs.inject import prepare_rest_app
 
-__all__ = ["ConfigFixture"]
 
+async def run_rest_app() -> None:
+    """Run the REST API server."""
+    config = Config()  # type: ignore[call-arg]
 
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
-
-    config: Config
-    jwk: JWK
-
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+    async with prepare_rest_app(config=config) as app:
+        await run_server(app=app, config=config)

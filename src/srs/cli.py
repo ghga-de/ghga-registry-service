@@ -13,27 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
+"""CLI for the Study Registry Service."""
 
-from jwcrypto.jwk import JWK
+import asyncio
 
-from srs.config import Config
+import typer
 
-__all__ = ["ConfigFixture"]
+cli = typer.Typer()
 
 
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
+@cli.command(name="run-rest")
+def run_rest() -> None:
+    """Run the REST API server."""
+    from srs.main import run_rest_app
 
-    config: Config
-    jwk: JWK
-
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+    asyncio.run(run_rest_app())

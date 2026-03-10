@@ -1,0 +1,423 @@
+# Example data objects for unit and integration tests.
+#
+# Each top-level key groups examples by entity type.
+# Nested keys are named examples whose values can be unpacked as keyword
+# arguments to the corresponding controller methods.
+
+studies:
+  minimal:
+    title: "S"
+    description: ""
+    types: []
+    affiliations: []
+  default:
+    title: "Full Study"
+    description: "A complete study"
+    types: ["WGS"]
+    affiliations: ["GHGA"]
+  with_desc:
+    title: "Study"
+    description: "Desc"
+    types: []
+    affiliations: []
+  cancer_genomics:
+    title: "Cancer Genomics"
+    description: "A large cancer study."
+    types: []
+    affiliations: ["Heidelberg"]
+  heart:
+    title: "Heart Study"
+    description: "Cardiac research."
+    types: []
+    affiliations: ["Berlin"]
+  wgs_only:
+    title: "A"
+    description: ""
+    types: ["WGS"]
+    affiliations: []
+  rna_seq_only:
+    title: "B"
+    description: ""
+    types: ["RNA-Seq"]
+    affiliations: []
+  private:
+    title: "Private"
+    description: ""
+    types: []
+    affiliations: []
+  journey:
+    title: "Genome-wide Association Study on Diabetes"
+    description: "A GWAS on type 2 diabetes in the European population."
+    types: ["WGS", "GWAS"]
+    affiliations: ["GHGA", "Heidelberg University"]
+  unhappy:
+    title: "Unhappy Study"
+    description: "Things will go wrong."
+    types: ["WGS"]
+    affiliations: ["GHGA"]
+
+dacs:
+  default:
+    id: "DAC-1"
+    name: "Board"
+    email: "board@example.org"
+    institute: "Inst"
+  ethics:
+    id: "DAC-001"
+    name: "Ethics Board"
+    email: "ethics@example.org"
+    institute: "Uni"
+  a:
+    id: "DAC-1"
+    name: "A"
+    email: "a@example.org"
+    institute: "X"
+  b:
+    id: "DAC-2"
+    name: "B"
+    email: "b@example.org"
+    institute: "Y"
+  deletable:
+    id: "DAC-DEL"
+    name: "D"
+    email: "d@x.org"
+    institute: "I"
+  journey:
+    id: "DAC-DIABETES"
+    name: "Diabetes Ethics Committee"
+    email: "dac-diabetes@example.org"
+    institute: "Heidelberg University Hospital"
+  tmp:
+    id: "DAC-TMP"
+    name: "Board"
+    email: "b@example.org"
+    institute: "I"
+
+
+daps:
+  default:
+    id: "DAP-1"
+    name: "Policy"
+    description: "d"
+    text: "t"
+    url: null
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: []
+    dac_id: "DAC-1"
+  with_modifiers:
+    id: "DAP-1"
+    name: "Policy"
+    description: "A policy"
+    text: "Policy text"
+    url: null
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: ["DUO:0000011"]
+    dac_id: "DAC-1"
+  second:
+    id: "DAP-2"
+    name: "P2"
+    description: "d"
+    text: "t"
+    url: null
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: []
+    dac_id: "DAC-1"
+  deletable:
+    id: "DAP-DEL"
+    name: "D"
+    description: "d"
+    text: "t"
+    url: null
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: []
+    dac_id: "DAC-DEL"
+  journey:
+    id: "DAP-DIABETES"
+    name: "Diabetes Data Access Policy"
+    description: "Access for registered researchers."
+    text: "Applicants must provide IRB approval."
+    url: "https://policies.example.org/diabetes"
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: ["DUO:0000021"]
+    dac_id: "DAC-DIABETES"
+  tmp:
+    id: "DAP-TMP"
+    name: "P"
+    description: "d"
+    text: "t"
+    url: null
+    duo_permission_id: "DUO:0000042"
+    duo_modifier_ids: []
+    dac_id: "DAC-TMP"
+
+datasets:
+  minimal:
+    title: "DS"
+    description: "d"
+    types: []
+    files: []
+  with_files:
+    title: "DS"
+    description: "d"
+    types: []
+    files: ["f1"]
+  full:
+    title: "Dataset 1"
+    description: "WGS data"
+    types: ["WGS"]
+    files: ["f1", "f2"]
+  journey:
+    title: "Diabetes WGS Dataset"
+    description: "BAM files from WGS runs"
+    types: ["WGS"]
+    files: ["file_a", "file_b"]
+
+publications:
+  minimal:
+    title: "P"
+    abstract: null
+    authors: ["A"]
+    year: 2025
+    journal: null
+    doi: null
+  full:
+    title: "Research Paper"
+    abstract: "Abstract"
+    authors: ["Alice", "Bob"]
+    year: 2025
+    journal: "Nature"
+    doi: "10.1234/test"
+  journey:
+    title: "Type 2 Diabetes GWAS in Europe"
+    abstract: "We identified 42 novel loci associated with T2D."
+    authors: ["Alice Researcher", "Bob Analyst"]
+    year: 2025
+    journal: "Nature Genetics"
+    doi: "10.1038/s41588-025-00001-x"
+  paper:
+    title: "Paper"
+    abstract: null
+    authors: ["Alice"]
+    year: 2025
+    journal: null
+    doi: null
+  cancer:
+    title: "Cancer Genomics Paper"
+    abstract: "Abstract about cancer"
+    authors: ["Alice"]
+    year: 2025
+    journal: "Nature"
+    doi: null
+  heart:
+    title: "Heart Study Paper"
+    abstract: null
+    authors: ["Bob"]
+    year: 2025
+    journal: null
+    doi: null
+  year_2024:
+    title: "P1"
+    abstract: null
+    authors: ["A"]
+    year: 2024
+    journal: null
+    doi: null
+  year_2025:
+    title: "P2"
+    abstract: null
+    authors: ["B"]
+    year: 2025
+    journal: null
+    doi: null
+  persisted:
+    id: "GHGAU00000000000001"
+    title: "Pub"
+    abstract: null
+    authors: ["Author"]
+    year: 2025
+    journal: null
+    doi: null
+  pub1:
+    id: "PUB1"
+    title: "P"
+    abstract: null
+    authors: ["A"]
+    year: 2025
+    journal: null
+    doi: null
+
+metadata:
+  empty:
+    files: {}
+  with_file:
+    files:
+      f1: {}
+  rich:
+    files:
+      f1:
+        name: "reads.bam"
+      f2:
+        name: "reads.bai"
+    samples:
+      s1:
+        name: "sample-1"
+    individuals:
+      ind1:
+        name: "donor-1"
+  filenames:
+    files:
+      file_a:
+        name: "reads.bam"
+      file_b:
+        name: "index.bai"
+  journey:
+    files:
+      file_a:
+        name: "reads_sample1.bam"
+        format: "BAM"
+      file_b:
+        name: "reads_sample2.bam"
+        format: "BAM"
+    samples:
+      sample_1:
+        name: "Patient 001"
+      sample_2:
+        name: "Patient 002"
+    individuals:
+      ind_1:
+        name: "Donor 001"
+        sex: "male"
+    experiments:
+      exp_1:
+        name: "WGS run 1"
+  with_named_file:
+    files:
+      f1:
+        name: "reads.bam"
+
+resource_types:
+  wgs_study:
+    code: "wgs"
+    resource: "STUDY"
+    name: "Whole Genome Sequencing"
+    description: "WGS study type"
+  rna_seq_dataset:
+    code: "rna-seq"
+    resource: "DATASET"
+    name: "RNA Sequencing"
+    description: null
+  wgs_minimal:
+    code: "WGS"
+    resource: "STUDY"
+    name: "WGS"
+    description: null
+  bam_dataset:
+    code: "BAM"
+    resource: "DATASET"
+    name: "BAM"
+    description: null
+  rna_study:
+    code: "RNA"
+    resource: "STUDY"
+    name: "RNA Sequencing"
+    description: null
+  wgs_full_desc:
+    code: "WGS"
+    resource: "STUDY"
+    name: "Whole Genome Sequencing"
+    description: "Full genome analysis"
+
+alt_accessions:
+  file_id:
+    id: "FILE-001"
+    pid: "GHGAF00000000000001"
+    type: "FILE_ID"
+
+authorization:
+  request_bodies:
+    "POST /studies":
+      title: "New"
+      description: "d"
+      types: []
+      affiliations: []
+    "PATCH /studies/{study_id}": {}
+    "PUT /studies/{study_id}/metadata":
+      metadata:
+        key: "val"
+    "POST /studies/{study_id}/publications":
+      title: "P"
+      abstract: null
+      authors: ["A"]
+      year: 2025
+      journal: null
+      doi: null
+    "POST /dacs":
+      id: "DAC-NEW"
+      name: "N"
+      email: "n@x.org"
+      institute: "I"
+    "PATCH /dacs/{dac_id}": {}
+    "POST /daps":
+      id: "DAP-NEW"
+      name: "N"
+      description: "d"
+      text: "t"
+      url: null
+      duo_permission_id: "DUO:0000042"
+      duo_modifier_ids: []
+      dac_id: "DAC-1"
+    "PATCH /daps/{dap_id}": {}
+    "POST /studies/{study_id}/datasets":
+      title: "D"
+      description: "d"
+      types: []
+      dap_id: "DAP-1"
+      files: []
+    "PATCH /datasets/{dataset_id}":
+      dap_id: "DAP-1"
+    "POST /resource-types":
+      code: "RT-NEW"
+      resource: "STUDY"
+      name: "N"
+      description: "d"
+    "PATCH /resource-types/{resource_type_id}": {}
+    "POST /filenames/{study_id}":
+      file_id_map: {}
+  claims:
+    steward:
+      name: "Steward"
+      email: "steward@test.org"
+      roles: ["data_steward"]
+    submitter:
+      name: "Submitter"
+      email: "submitter@test.org"
+      roles: []
+    other:
+      name: "Other"
+      email: "other@test.org"
+      roles: []
+  seed:
+    study:
+      title: "S"
+      description: "d"
+      types: []
+      affiliations: []
+    metadata:
+      key: "val"
+    publication:
+      title: "P"
+      abstract: null
+      authors: ["A"]
+      year: 2025
+      journal: null
+      doi: null
+    dataset:
+      title: "DS"
+      description: "d"
+      types: []
+      files: []
+    resource_type:
+      code: "RT1"
+      resource: "STUDY"
+      name: "Type"
+      description: "d"

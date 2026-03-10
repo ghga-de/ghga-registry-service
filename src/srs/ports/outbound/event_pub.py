@@ -13,27 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixture definitions to aid in testing."""
+"""Outbound event publisher port definition."""
 
-from jwcrypto.jwk import JWK
+from abc import ABC, abstractmethod
 
-from srs.config import Config
-
-__all__ = ["ConfigFixture"]
+from srs.core.models import AnnotatedExperimentalMetadata
 
 
-class ConfigFixture:
-    """Bundle of a Config instance and the JWK used to sign test tokens."""
+class EventPublisherPort(ABC):
+    """Port for publishing events to the message broker."""
 
-    config: Config
-    jwk: JWK
+    @abstractmethod
+    async def publish_annotated_metadata(
+        self, *, payload: AnnotatedExperimentalMetadata
+    ) -> None:
+        """Publish an AnnotatedExperimentalMetadata event."""
+        ...
 
-    def __init__(self, *, config: Config, jwk: JWK):
-        self.config = config
-        self.jwk = jwk
-
-    def update(self, **kwargs) -> Config:
-        """Override specified values and return a new Config."""
-        new_config = self.config.model_copy(update=kwargs)
-        self.config = new_config
-        return self.config
+    @abstractmethod
+    async def publish_file_id_mapping(
+        self, *, mapping: dict[str, str]
+    ) -> None:
+        """Republish a file accession to internal file ID mapping."""
+        ...
