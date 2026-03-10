@@ -157,6 +157,15 @@ async def published_study_id(controller, complete_study_id):
     return complete_study_id
 
 
+@pytest_asyncio.fixture()
+async def pending_study_id(controller) -> str:
+    """Create a minimal PENDING study and return its ID."""
+    study = await controller.studies.create_study(
+        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
+    )
+    return study.id
+
+
 @pytest.fixture(name="config")
 def config_fixture() -> ConfigFixture:
     """Generate a fresh JWK and return a ConfigFixture with matching auth_key."""

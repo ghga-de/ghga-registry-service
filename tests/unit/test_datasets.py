@@ -20,6 +20,7 @@ PATCH /datasets/{id}, DELETE /datasets/{id}
 """
 
 import pytest
+import pytest_asyncio
 from ghga_service_commons.utils.utc_dates import now_as_utc
 
 from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
@@ -30,10 +31,11 @@ from tests.fixtures.examples import EXAMPLES
 E = EXAMPLES
 
 
-# ── helpers ──────────────────────────────────────────────────────
+# ── fixtures ─────────────────────────────────────────────────────
 
 
-async def _setup(controller):
+@pytest_asyncio.fixture()
+async def dataset_setup(controller):
     """Create a study + DAC + DAP and return (study_id, dap_id)."""
     study = await controller.studies.create_study(
         data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
@@ -43,33 +45,37 @@ async def _setup(controller):
     return study.id, "DAP-1"
 
 
-async def _persist_study(controller, study_id, metadata_dao, publication_dao):
-    await metadata_dao.insert(
-        ExperimentalMetadata(
-            id=study_id, metadata={}, submitted=now_as_utc()
+@pytest.fixture()
+def persist_study(controller, metadata_dao, publication_dao):
+    """Return an async callable that transitions a study to PERSISTED state."""
+    async def _persist(study_id: str) -> None:
+        await metadata_dao.insert(
+            ExperimentalMetadata(
+                id=study_id, metadata={}, submitted=now_as_utc()
+            )
         )
-    )
-    await publication_dao.insert(
-        Publication(
-            **E["publications"]["pub1"],
+        await publication_dao.insert(
+            Publication(
+                **E["publications"]["pub1"],
+                study_id=study_id,
+                created=now_as_utc(),
+            )
+        )
+        await controller.studies.update_study(
             study_id=study_id,
-            created=now_as_utc(),
+            status=StudyStatus.PERSISTED,
+            approved_by=USER_STEWARD,
         )
-    )
-    await controller.studies.update_study(
-        study_id=study_id,
-        status=StudyStatus.PERSISTED,
-        approved_by=USER_STEWARD,
-    )
+    return _persist
 
 
 # ── POST /datasets ──────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_create_dataset_generates_pid(controller):
+async def test_create_dataset_generates_pid(controller, dataset_setup):
     """A dataset must receive an auto-generated PID starting with GHGAD."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -78,9 +84,9 @@ async def test_create_dataset_generates_pid(controller):
 
 
 @pytest.mark.asyncio
-async def test_create_dataset_registers_accession(controller, accession_dao):
+async def test_create_dataset_registers_accession(controller, dataset_setup, accession_dao):
     """Creating a dataset must register an Accession entry."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -101,11 +107,11 @@ async def test_create_dataset_study_not_found(controller):
 
 @pytest.mark.asyncio
 async def test_create_dataset_study_not_pending(
-    controller, metadata_dao, publication_dao
+    controller, dataset_setup, persist_study
 ):
     """Creating a dataset when the study is not PENDING must raise StatusConflictError."""
-    sid, dap_id = await _setup(controller)
-    await _persist_study(controller, sid, metadata_dao, publication_dao)
+    sid, dap_id = dataset_setup
+    await persist_study(sid)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.datasets.create_dataset(
@@ -126,9 +132,9 @@ async def test_create_dataset_dap_not_found(controller):
 
 
 @pytest.mark.asyncio
-async def test_create_dataset_duplicate_files(controller):
+async def test_create_dataset_duplicate_files(controller, dataset_setup):
     """Creating a dataset with duplicate file aliases must raise ValidationError."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     with pytest.raises(StudyRegistryPort.ValidationError):
         await controller.datasets.create_dataset(
             data={**E["datasets"]["minimal"], "files": ["f1", "f1"], "study_id": sid, "dap_id": dap_id},
@@ -139,9 +145,9 @@ async def test_create_dataset_duplicate_files(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_datasets_filter_by_study(controller):
+async def test_get_datasets_filter_by_study(controller, dataset_setup):
     """Filtering by study_id must only return datasets of that study."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -152,9 +158,9 @@ async def test_get_datasets_filter_by_study(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_datasets_access_control(controller):
+async def test_get_datasets_access_control(controller, dataset_setup):
     """Non-steward users must only see datasets of accessible studies."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -169,9 +175,9 @@ async def test_get_datasets_access_control(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_datasets_text_filter(controller):
+async def test_get_datasets_text_filter(controller, dataset_setup):
     """Text filter must match partial text in title or description."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "title": "Genomic Data", "description": "WGS files", "study_id": sid, "dap_id": dap_id},
     )
@@ -188,9 +194,9 @@ async def test_get_datasets_text_filter(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_dataset_by_id(controller):
+async def test_get_dataset_by_id(controller, dataset_setup):
     """Getting a dataset by ID must return it."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["with_files"], "study_id": sid, "dap_id": dap_id},
     )
@@ -210,9 +216,9 @@ async def test_get_dataset_not_found(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_dataset_access_denied(controller):
+async def test_get_dataset_access_denied(controller, dataset_setup):
     """Unauthorized users must get AccessDeniedError."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -226,9 +232,9 @@ async def test_get_dataset_access_denied(controller):
 
 
 @pytest.mark.asyncio
-async def test_update_dataset_dap(controller):
+async def test_update_dataset_dap(controller, dataset_setup):
     """Updating a dataset's DAP assignment must persist the change."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -242,14 +248,14 @@ async def test_update_dataset_dap(controller):
 
 @pytest.mark.asyncio
 async def test_update_dataset_dap_even_when_persisted(
-    controller, metadata_dao, publication_dao
+    controller, dataset_setup, persist_study
 ):
     """The DAP assignment can be updated even when the study is PERSISTED."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
-    await _persist_study(controller, sid, metadata_dao, publication_dao)
+    await persist_study(sid)
 
     await controller.data_access.create_dap(data=E["daps"]["second"])
     await controller.datasets.update_dataset(dataset_id=ds.id, dap_id="DAP-2")
@@ -260,9 +266,9 @@ async def test_update_dataset_dap_even_when_persisted(
 
 
 @pytest.mark.asyncio
-async def test_update_dataset_dap_not_found(controller):
+async def test_update_dataset_dap_not_found(controller, dataset_setup):
     """Updating to a non-existent DAP must raise DapNotFoundError."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -283,9 +289,9 @@ async def test_update_dataset_not_found(controller):
 
 
 @pytest.mark.asyncio
-async def test_delete_dataset(controller, dataset_dao, accession_dao):
+async def test_delete_dataset(controller, dataset_setup, dataset_dao, accession_dao):
     """Deleting a dataset must remove both the dataset and its accession."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
@@ -303,14 +309,14 @@ async def test_delete_dataset_not_found(controller):
 
 @pytest.mark.asyncio
 async def test_delete_dataset_study_not_pending(
-    controller, metadata_dao, publication_dao
+    controller, dataset_setup, persist_study
 ):
     """Deleting a dataset when the study is not PENDING must raise StatusConflictError."""
-    sid, dap_id = await _setup(controller)
+    sid, dap_id = dataset_setup
     ds = await controller.datasets.create_dataset(
         data={**E["datasets"]["minimal"], "study_id": sid, "dap_id": dap_id},
     )
-    await _persist_study(controller, sid, metadata_dao, publication_dao)
+    await persist_study(sid)
 
     with pytest.raises(StudyRegistryPort.StatusConflictError):
         await controller.datasets.delete_dataset(dataset_id=ds.id)

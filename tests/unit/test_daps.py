@@ -27,27 +27,35 @@ from tests.fixtures.examples import EXAMPLES
 E = EXAMPLES
 
 
-# ── helpers ──────────────────────────────────────────────────────
+# ── fixtures ─────────────────────────────────────────────────────
 
 
-async def _create_dac(data_access, dac_id="DAC-1"):
-    dac_data = {**E["dacs"]["default"], "id": dac_id}
-    await data_access.create_dac(data=dac_data)
+@pytest.fixture()
+def create_dac(data_access):
+    """Return an async callable that creates a DAC."""
+    async def _create(dac_id: str = "DAC-1") -> None:
+        await data_access.create_dac(data={**E["dacs"]["default"], "id": dac_id})
+    return _create
 
 
-async def _create_dap(data_access, dap_id="DAP-1", dac_id="DAC-1"):
-    dap_data = {**E["daps"]["with_modifiers"], "id": dap_id, "dac_id": dac_id}
-    await data_access.create_dap(data=dap_data)
+@pytest.fixture()
+def create_dap(data_access):
+    """Return an async callable that creates a DAP."""
+    async def _create(dap_id: str = "DAP-1", dac_id: str = "DAC-1") -> None:
+        await data_access.create_dap(
+            data={**E["daps"]["with_modifiers"], "id": dap_id, "dac_id": dac_id}
+        )
+    return _create
 
 
 # ── POST /daps ───────────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_create_dap(data_access, dap_dao):
+async def test_create_dap(data_access, dap_dao, create_dac, create_dap):
     """Creating a DAP must store it with active=True."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     dap = await dap_dao.get_by_id("DAP-1")
     assert dap.name == "Policy"
     assert dap.active is True
@@ -55,26 +63,26 @@ async def test_create_dap(data_access, dap_dao):
 
 
 @pytest.mark.asyncio
-async def test_create_dap_dac_not_found(data_access):
+async def test_create_dap_dac_not_found(create_dap):
     """Creating a DAP with a non-existent DAC must raise DacNotFoundError."""
     with pytest.raises(DataAccessPort.DacNotFoundError):
-        await _create_dap(data_access, dac_id="NONEXIST")
+        await create_dap(dac_id="NONEXIST")
 
 
 @pytest.mark.asyncio
-async def test_create_dap_duplicate(data_access):
+async def test_create_dap_duplicate(create_dac, create_dap):
     """Creating a DAP with a duplicate ID must raise DuplicateError."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     with pytest.raises(DataAccessPort.DuplicateError):
-        await _create_dap(data_access, dap_id="DAP-1")
+        await create_dap(dap_id="DAP-1")
 
 
 @pytest.mark.asyncio
-async def test_create_dap_duo_enums(data_access, dap_dao):
+async def test_create_dap_duo_enums(data_access, dap_dao, create_dac, create_dap):
     """DAP DUO permission and modifier IDs must be stored as enums."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     dap = await dap_dao.get_by_id("DAP-1")
     assert dap.duo_permission_id.value == "DUO:0000042"
     assert len(dap.duo_modifier_ids) == 1
@@ -85,11 +93,11 @@ async def test_create_dap_duo_enums(data_access, dap_dao):
 
 
 @pytest.mark.asyncio
-async def test_get_daps_returns_all(data_access):
+async def test_get_daps_returns_all(data_access, create_dac, create_dap):
     """Getting DAPs must return all created DAPs."""
-    await _create_dac(data_access)
-    await _create_dap(data_access, dap_id="DAP-1")
-    await _create_dap(data_access, dap_id="DAP-2")
+    await create_dac()
+    await create_dap(dap_id="DAP-1")
+    await create_dap(dap_id="DAP-2")
     daps = await data_access.get_daps()
     assert len(daps) == 2
 
@@ -98,10 +106,10 @@ async def test_get_daps_returns_all(data_access):
 
 
 @pytest.mark.asyncio
-async def test_get_dap_by_id(data_access):
+async def test_get_dap_by_id(data_access, create_dac, create_dap):
     """Getting a DAP by ID must return the correct DAP."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     dap = await data_access.get_dap(dap_id="DAP-1")
     assert dap.name == "Policy"
 
@@ -117,31 +125,31 @@ async def test_get_dap_not_found(data_access):
 
 
 @pytest.mark.asyncio
-async def test_update_dap_name(data_access):
+async def test_update_dap_name(data_access, create_dac, create_dap):
     """Updating a DAP name must persist the change."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     await data_access.update_dap(dap_id="DAP-1", updates={"name": "New Name"})
     dap = await data_access.get_dap(dap_id="DAP-1")
     assert dap.name == "New Name"
 
 
 @pytest.mark.asyncio
-async def test_update_dap_change_dac(data_access):
+async def test_update_dap_change_dac(data_access, create_dac, create_dap):
     """Changing the DAC for a DAP must verify the new DAC exists."""
-    await _create_dac(data_access, dac_id="DAC-1")
-    await _create_dac(data_access, dac_id="DAC-2")
-    await _create_dap(data_access)
+    await create_dac(dac_id="DAC-1")
+    await create_dac(dac_id="DAC-2")
+    await create_dap()
     await data_access.update_dap(dap_id="DAP-1", updates={"dac_id": "DAC-2"})
     dap = await data_access.get_dap(dap_id="DAP-1")
     assert dap.dac_id == "DAC-2"
 
 
 @pytest.mark.asyncio
-async def test_update_dap_change_dac_not_found(data_access):
+async def test_update_dap_change_dac_not_found(data_access, create_dac, create_dap):
     """Changing to a non-existent DAC must raise DacNotFoundError."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     with pytest.raises(DataAccessPort.DacNotFoundError):
         await data_access.update_dap(dap_id="DAP-1", updates={"dac_id": "NONEXIST"})
 
@@ -157,10 +165,10 @@ async def test_update_dap_not_found(data_access):
 
 
 @pytest.mark.asyncio
-async def test_delete_dap(data_access, dap_dao):
+async def test_delete_dap(data_access, dap_dao, create_dac, create_dap):
     """Deleting a DAP with no references must succeed."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     await data_access.delete_dap(dap_id="DAP-1")
     assert "DAP-1" not in dap_dao.resources
 
@@ -173,10 +181,10 @@ async def test_delete_dap_not_found(data_access):
 
 
 @pytest.mark.asyncio
-async def test_delete_dap_with_referencing_dataset(data_access, controller):
+async def test_delete_dap_with_referencing_dataset(data_access, controller, create_dac, create_dap):
     """Deleting a DAP referenced by a dataset must raise ReferenceConflictError."""
-    await _create_dac(data_access)
-    await _create_dap(data_access)
+    await create_dac()
+    await create_dap()
     study = await controller.studies.create_study(
         data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
     )

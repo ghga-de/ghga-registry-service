@@ -28,70 +28,64 @@ from tests.fixtures.examples import EXAMPLES
 E = EXAMPLES
 
 
-# ── helpers ──────────────────────────────────────────────────────
+# ── fixtures ─────────────────────────────────────────────────────
 
 
-async def _create_study(controller) -> str:
-    study = await controller.studies.create_study(
-        data={**E["studies"]["minimal"], "created_by": USER_SUBMITTER},
-    )
-    return study.id
-
-
-async def _create_pub(controller, study_id: str, title: str = "P"):
-    return await controller.publications.create_publication(
-        data={**E["publications"]["minimal"], "title": title, "study_id": study_id},
-    )
+@pytest.fixture()
+def create_pub(controller):
+    """Return an async callable that creates a publication for a study."""
+    async def _create(study_id: str, title: str = "P"):
+        return await controller.publications.create_publication(
+            data={**E["publications"]["minimal"], "title": title, "study_id": study_id},
+        )
+    return _create
 
 
 # ── POST /publications ──────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_create_publication_generates_pid(controller):
+async def test_create_publication_generates_pid(pending_study_id, create_pub):
     """A publication must receive an auto-generated PID starting with GHGAU."""
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid)
+    pub = await create_pub(pending_study_id)
     assert pub.id.startswith("GHGAU")
     assert len(pub.id) == 19
 
 
 @pytest.mark.asyncio
 async def test_create_publication_registers_accession(
-    controller, accession_dao
+    pending_study_id, create_pub, accession_dao
 ):
     """Creating a publication must also register an Accession entry."""
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid)
+    pub = await create_pub(pending_study_id)
     acc = await accession_dao.get_by_id(pub.id)
     assert acc.type == "PUBLICATION"
 
 
 @pytest.mark.asyncio
-async def test_create_publication_links_to_study(controller):
+async def test_create_publication_links_to_study(pending_study_id, create_pub):
     """The publication must reference the correct study."""
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid)
-    assert pub.study_id == sid
+    pub = await create_pub(pending_study_id)
+    assert pub.study_id == pending_study_id
 
 
 @pytest.mark.asyncio
-async def test_create_publication_study_not_found(controller):
+async def test_create_publication_study_not_found(create_pub):
     """Publishing under a non-existent study must raise StudyNotFoundError."""
     with pytest.raises(StudyRegistryPort.StudyNotFoundError):
-        await _create_pub(controller, "NONEXIST")
+        await create_pub("NONEXIST")
 
 
 @pytest.mark.asyncio
 async def test_create_publication_study_not_pending(
-    controller, metadata_dao, publication_dao
+    controller, pending_study_id, create_pub, metadata_dao, publication_dao
 ):
     """Publications cannot be added to a non-PENDING study."""
     from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 
-    sid = await _create_study(controller)
+    sid = pending_study_id
     await metadata_dao.insert(
         ExperimentalMetadata(
             id=sid, metadata={}, submitted=now_as_utc()
@@ -110,16 +104,16 @@ async def test_create_publication_study_not_pending(
         approved_by=USER_STEWARD,
     )
     with pytest.raises(StudyRegistryPort.StatusConflictError):
-        await _create_pub(controller, sid, title="New")
+        await create_pub(sid, title="New")
 
 
 # ── GET /publications ────────────────────────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_get_publications_filters_by_year(controller):
+async def test_get_publications_filters_by_year(controller, pending_study_id):
     """Filtering by year must only return matching publications."""
-    sid = await _create_study(controller)
+    sid = pending_study_id
     await controller.publications.create_publication(
         data={**E["publications"]["year_2024"], "study_id": sid},
     )
@@ -134,9 +128,9 @@ async def test_get_publications_filters_by_year(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_publications_text_filter(controller):
+async def test_get_publications_text_filter(controller, pending_study_id):
     """Text filter must match partial text in title, authors, etc."""
-    sid = await _create_study(controller)
+    sid = pending_study_id
     await controller.publications.create_publication(
         data={**E["publications"]["cancer"], "study_id": sid},
     )
@@ -152,10 +146,10 @@ async def test_get_publications_text_filter(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_publications_access_control(controller):
+async def test_get_publications_access_control(controller, pending_study_id, create_pub):
     """Non-steward users must only see publications of accessible studies."""
-    sid = await _create_study(controller)
-    await _create_pub(controller, sid)
+    sid = pending_study_id
+    await create_pub(sid)
 
     # Submitter can see it
     result = await controller.publications.get_publications(user_id=USER_SUBMITTER)
@@ -176,10 +170,10 @@ async def test_get_publications_access_control(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_publication_by_id(controller):
+async def test_get_publication_by_id(controller, pending_study_id, create_pub):
     """Getting a publication by ID must return it."""
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid)
+    sid = pending_study_id
+    pub = await create_pub(sid)
     fetched = await controller.publications.get_publication(
         publication_id=pub.id, user_id=USER_SUBMITTER
     )
@@ -196,10 +190,10 @@ async def test_get_publication_not_found(controller):
 
 
 @pytest.mark.asyncio
-async def test_get_publication_access_denied(controller):
+async def test_get_publication_access_denied(controller, pending_study_id, create_pub):
     """Unauthorized users must get AccessDeniedError."""
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid)
+    sid = pending_study_id
+    pub = await create_pub(sid)
     with pytest.raises(StudyRegistryPort.AccessDeniedError):
         await controller.publications.get_publication(
             publication_id=pub.id, user_id=USER_OTHER
@@ -210,10 +204,10 @@ async def test_get_publication_access_denied(controller):
 
 
 @pytest.mark.asyncio
-async def test_delete_publication(controller, publication_dao, accession_dao):
+async def test_delete_publication(controller, pending_study_id, create_pub, publication_dao, accession_dao):
     """Deleting a publication must remove both the publication and its accession."""
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid)
+    sid = pending_study_id
+    pub = await create_pub(sid)
     await controller.publications.delete_publication(publication_id=pub.id)
     assert pub.id not in publication_dao.resources
     assert pub.id not in accession_dao.resources
@@ -228,15 +222,15 @@ async def test_delete_publication_not_found(controller):
 
 @pytest.mark.asyncio
 async def test_delete_publication_study_not_pending(
-    controller, metadata_dao, publication_dao
+    controller, pending_study_id, create_pub, metadata_dao
 ):
     """Deleting a publication when the study is not PENDING must raise StatusConflictError."""
     from ghga_service_commons.utils.utc_dates import now_as_utc
 
     from srs.core.models import ExperimentalMetadata, Publication, StudyStatus
 
-    sid = await _create_study(controller)
-    pub = await _create_pub(controller, sid, title="First")
+    sid = pending_study_id
+    pub = await create_pub(sid, title="First")
     await metadata_dao.insert(
         ExperimentalMetadata(
             id=sid, metadata={}, submitted=now_as_utc()
