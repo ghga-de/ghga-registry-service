@@ -13,8 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Short description of package."""  # Please adapt to package
+"""Top-level FastAPI router setup"""
 
-from importlib.metadata import version
+from fastapi import APIRouter
 
-__version__ = version(__package__)
+from srs.adapters.inbound.fastapi_.routers.files import files_router
+
+router = APIRouter(tags=["StudyRepositoryService"])
+
+router.include_router(files_router)
+
+
+@router.get(
+    "/health",
+    operation_id="health",
+    summary="health",
+    tags=["health"],
+    status_code=200,
+)
+async def health():
+    """Used to test if this service is alive"""
+    return {"status": "OK"}

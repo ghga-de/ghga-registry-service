@@ -13,17 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures that are used in both integration and unit tests."""
+"""Entrypoint of the package"""
 
-from dataclasses import dataclass
-from unittest.mock import AsyncMock
+import asyncio
 
-from ghga_service_commons.api.testing import AsyncTestClient
+import typer
+
+from srs.main import run_rest_app
+
+cli = typer.Typer()
 
 
-@dataclass
-class AppFixture:
-    """A fixture class with a rest client and core override mock"""
-
-    rest_client: AsyncTestClient
-    core_mock: AsyncMock
+@cli.command(name="run-rest")
+def sync_run_api():
+    """Run the HTTP REST API."""
+    asyncio.run(run_rest_app())

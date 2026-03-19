@@ -13,17 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fixtures that are used in both integration and unit tests."""
+"""Service-wide constants"""
 
-from dataclasses import dataclass
-from unittest.mock import AsyncMock
+from opentelemetry import trace
 
-from ghga_service_commons.api.testing import AsyncTestClient
-
-
-@dataclass
-class AppFixture:
-    """A fixture class with a rest client and core override mock"""
-
-    rest_client: AsyncTestClient
-    core_mock: AsyncMock
+SERVICE_NAME: str = "srs"
+TRACER = trace.get_tracer_provider().get_tracer(SERVICE_NAME)
+AUTH_CHECK_CLAIMS = ["iat", "exp"]

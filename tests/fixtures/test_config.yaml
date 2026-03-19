@@ -6,5 +6,3 @@ mongo_timeout: 300
 uos_auth_config:
   auth_key: "{}"
   auth_check_claims: {}
-alt_accessions_collection: alt_accessions
-alt_accessions_topic: alt-accessions
