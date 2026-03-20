@@ -19,12 +19,14 @@ from abc import ABC, abstractmethod
 
 from pydantic import UUID4
 
+from srs.core.models import FileAccession
+
 
 class FileControllerPort(ABC):
     """Inbound port for filename and file ID operations."""
 
     @abstractmethod
     async def post_file_ids(
-        self, *, study_pid: str, file_id_map: dict[str, UUID4]
+        self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings."""

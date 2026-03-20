@@ -20,7 +20,7 @@ import logging
 from hexkit.utils import now_utc_ms_prec
 from pydantic import UUID4
 
-from srs.core.models import AltAccession, AltAccessionType
+from srs.core.models import AltAccession, AltAccessionType, FileAccession
 from srs.ports.inbound.files import FileControllerPort
 from srs.ports.outbound.dao import AltAccessionDao
 
@@ -34,7 +34,7 @@ class FileController(FileControllerPort):
         self._alt_accession_dao = alt_accession_dao
 
     async def post_file_ids(
-        self, *, study_pid: str, file_id_map: dict[str, UUID4]
+        self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings."""
         for accession, file_id in file_id_map.items():

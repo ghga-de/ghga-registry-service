@@ -36,7 +36,7 @@ async def test_create_box_endpoint_auth(
     """
     study_pid = "test-study-1"
     mapping_request = FileIdMappingRequest(
-        study_pid=study_pid, mapping={"GHGA001": uuid4(), "GHGA002": uuid4()}
+        study_pid=study_pid, mapping={"GHGAF001": uuid4(), "GHGAF002": uuid4()}
     )
     body = mapping_request.model_dump(mode="json")
     rest_client = app_fixture.rest_client
@@ -70,7 +70,7 @@ async def test_create_box_endpoint_internal_error(
     """Test that exceptions raised by the core are translated into a 500 response."""
     study_pid = "test-study-1"
     mapping_request = FileIdMappingRequest(
-        study_pid=study_pid, mapping={"GHGA001": uuid4(), "GHGA002": uuid4()}
+        study_pid=study_pid, mapping={"GHGAF001": uuid4(), "GHGAF002": uuid4()}
     )
     body = mapping_request.model_dump(mode="json")
     rest_client = app_fixture.rest_client

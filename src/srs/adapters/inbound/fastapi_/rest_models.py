@@ -26,6 +26,8 @@ from pydantic import (
     StringConstraints,
 )
 
+from srs.core.models import FileAccession
+
 
 def _ascii_only(v: str) -> str:
     if not v.isascii():
@@ -36,7 +38,6 @@ def _ascii_only(v: str) -> str:
 PID = Annotated[
     str, StringConstraints(min_length=1, max_length=256), AfterValidator(_ascii_only)
 ]
-Accession = Annotated[str, StringConstraints(pattern=r"^GHGA.+")]
 
 
 class FileIdMappingRequest(BaseModel):
@@ -46,7 +47,7 @@ class FileIdMappingRequest(BaseModel):
         default=...,
         description="Identifier of the study to which the file accessions belong.",
     )
-    mapping: dict[Accession, UUID4] = Field(
+    mapping: dict[FileAccession, UUID4] = Field(
         default=..., description="Map of file accession PIDs to internal file IDs."
     )
 

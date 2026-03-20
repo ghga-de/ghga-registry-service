@@ -28,12 +28,7 @@ from srs.ports.outbound.dao import AltAccessionDao
 
 def alt_accession_to_event(alt_accession: AltAccession) -> JsonObject:
     """Map an AltAccession DTO to its Kafka event payload."""
-    return {
-        "id": alt_accession.id,
-        "pid": alt_accession.pid,
-        "type": alt_accession.type,
-        "created": alt_accession.created.isoformat(),
-    }
+    return {"accession": alt_accession.pid, "file_id": alt_accession.id}
 
 
 @asynccontextmanager

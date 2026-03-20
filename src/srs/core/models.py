@@ -16,9 +16,12 @@
 """Defines dataclasses for holding business-logic data."""
 
 from enum import StrEnum
+from typing import Annotated
 
 from ghga_service_commons.utils.utc_dates import UTCDatetime
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
+
+FileAccession = Annotated[str, StringConstraints(pattern=r"^GHGAF.+")]
 
 
 class AltAccessionType(StrEnum):

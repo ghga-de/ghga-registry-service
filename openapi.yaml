@@ -6,7 +6,7 @@ components:
         mapping:
           description: Map of file accession PIDs to internal file IDs.
           patternProperties:
-            ^GHGA.+:
+            ^GHGAF.+:
               format: uuid4
               type: string
           title: Mapping
