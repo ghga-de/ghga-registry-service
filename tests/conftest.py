@@ -24,8 +24,8 @@ from ghga_service_commons.auth.ghga import AuthConfig
 from ghga_service_commons.utils import jwt_helpers
 from jwcrypto.jwk import JWK
 
-from srs.config import Config
-from srs.inject import prepare_rest_app
+from rs.config import Config
+from rs.inject import prepare_rest_app
 from tests.fixtures import AppFixture
 from tests.fixtures.config import get_config
 

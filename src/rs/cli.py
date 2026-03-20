@@ -13,26 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Module containing the main FastAPI router and (optionally) top-level API endpoints.
+"""Entrypoint of the package"""
 
-Additional endpoints might be structured in dedicated modules
-(each of them having a sub-router).
-"""
+import asyncio
 
-from ghga_service_commons.api import run_server
-from hexkit.log import configure_logging
-from hexkit.opentelemetry import configure_opentelemetry
+import typer
 
-from srs.config import Config
-from srs.inject import prepare_rest_app
+from rs.main import run_rest_app
+
+cli = typer.Typer()
 
 
-async def run_rest_app():
+@cli.command(name="run-rest")
+def sync_run_api():
     """Run the HTTP REST API."""
-    config = Config()  # type: ignore [call-arg]
-    configure_logging(config=config)
-    configure_opentelemetry(service_name=config.service_name, config=config)
-
-    async with prepare_rest_app(config=config) as app:
-        await run_server(app=app, config=config)
+    asyncio.run(run_rest_app())

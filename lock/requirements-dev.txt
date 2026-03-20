@@ -607,12 +607,12 @@ filelock==3.20.3 \
 ghga-event-schemas==12.0.0 \
     --hash=sha256:3eccaa70212eb3a91193d35564689aa6852b0086ff38ef85656e26c9e8b98397 \
     --hash=sha256:45471c0acceb04fed62fa439c8b02786cbe9a41f4ddde05b970feb8deb3c67d2
-    # via srs (pyproject.toml)
+    # via rs (pyproject.toml)
 ghga-service-commons==7.0.0 \
     --hash=sha256:7336920f472a202d2afc052ec357473119c7c2a5fac6b1dc9c93a6102e57e95a \
     --hash=sha256:d7decdb2635c79b2beb53405390ad065734406bb401a4a0d5678ef4163753fd3
     # via
-    #   srs (pyproject.toml)
+    #   rs (pyproject.toml)
     #   ghga-event-schemas
 googleapis-common-protos==1.73.0 \
     --hash=sha256:778d07cd4fbeff84c6f7c72102f0daf98fa2bfd3fa8bea426edc545588da0b5a \
@@ -693,7 +693,7 @@ hexkit==8.1.0 \
     --hash=sha256:c7d3476e606769a887a95004261043a3b4b852b2d6980b4655bb5b30cbfa5044 \
     --hash=sha256:ee54ed2a3892241bb4534c9a1fc2b86b37081f04391abdc27e170938841ab3c0
     # via
-    #   srs (pyproject.toml)
+    #   rs (pyproject.toml)
     #   ghga-service-commons
 httpcore==1.0.9 \
     --hash=sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55 \
@@ -1628,7 +1628,7 @@ typer==0.21.1 \
     --hash=sha256:ea835607cd752343b6b2b7ce676893e5a0324082268b48f27aa058bdb7d2145d
     # via
     #   -r lock/requirements-dev-template.in
-    #   srs (pyproject.toml)
+    #   rs (pyproject.toml)
 typing-extensions==4.15.0 \
     --hash=sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466 \
     --hash=sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548

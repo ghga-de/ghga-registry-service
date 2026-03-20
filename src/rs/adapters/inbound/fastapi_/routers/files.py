@@ -20,16 +20,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, status
 
-from srs.adapters.inbound.fastapi_ import dummies, http_exceptions
-from srs.adapters.inbound.fastapi_.http_authorization import (
+from rs.adapters.inbound.fastapi_ import dummies, http_exceptions
+from rs.adapters.inbound.fastapi_.http_authorization import (
     require_map_file_ids_work_order,
 )
-from srs.adapters.inbound.fastapi_.rest_models import (
+from rs.adapters.inbound.fastapi_.rest_models import (
     PID,
     FileIdMappingRequest,
     MapFileIdsWorkOrder,
 )
-from srs.constants import TRACER
+from rs.constants import TRACER
 
 files_router = APIRouter(tags=["files"])
 

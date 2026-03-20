@@ -57,7 +57,7 @@
   "description": "Modifies the original Settings class provided by the user",
   "properties": {
     "service_name": {
-      "default": "srs",
+      "default": "rs",
       "description": "Short name of this service",
       "title": "Service Name",
       "type": "string"

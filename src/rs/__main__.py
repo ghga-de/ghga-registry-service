@@ -13,20 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Defines an inbound port for filename and file ID operations."""
+"""Entrypoint of the package."""
 
-from abc import ABC, abstractmethod
+from rs.cli import cli
 
-from pydantic import UUID4
-
-from srs.core.models import FileAccession
-
-
-class FileControllerPort(ABC):
-    """Inbound port for filename and file ID operations."""
-
-    @abstractmethod
-    async def post_file_ids(
-        self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
-    ) -> None:
-        """Store file accession to internal file ID mappings."""
+if __name__ == "__main__":
+    cli()

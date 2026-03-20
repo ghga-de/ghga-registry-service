@@ -13,9 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Entrypoint of the package."""
+"""A collection of dependency dummies that are used in view definitions but need to be
+replaced at runtime by actual dependencies.
+"""
 
-from srs.cli import cli
+from typing import Annotated
 
-if __name__ == "__main__":
-    cli()
+from fastapi import Depends
+from ghga_service_commons.api.di import DependencyDummy
+
+from rs.ports.inbound.files import FileControllerPort
+
+file_controller_port = DependencyDummy("file_controller_port")
+auth_provider_dummy = DependencyDummy("auth_provider_dummy")
+
+FileControllerDummy = Annotated[FileControllerPort, Depends(file_controller_port)]

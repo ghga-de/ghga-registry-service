@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""REST request/response models for the Study Registry Service."""
+"""REST request/response models for the GHGA Registry Service."""
 
 from typing import Annotated, Literal
 
@@ -26,7 +26,7 @@ from pydantic import (
     StringConstraints,
 )
 
-from srs.core.models import FileAccession
+from rs.core.models import FileAccession
 
 
 def _ascii_only(v: str) -> str:

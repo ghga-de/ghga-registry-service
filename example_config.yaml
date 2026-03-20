@@ -7,7 +7,7 @@ cors_allowed_headers: null
 cors_allowed_methods: null
 cors_allowed_origins: null
 cors_exposed_headers: null
-db_name: srs
+db_name: rs
 docs_url: /docs
 enable_opentelemetry: false
 generate_correlation_id: true
@@ -34,7 +34,7 @@ openapi_url: /openapi.json
 otel_trace_sampling_rate: 1.0
 port: 8080
 service_instance_id: '1'
-service_name: srs
+service_name: rs
 timeout_keep_alive: 90
 uos_auth_config:
   auth_algs:

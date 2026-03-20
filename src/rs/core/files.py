@@ -20,9 +20,9 @@ import logging
 from hexkit.utils import now_utc_ms_prec
 from pydantic import UUID4
 
-from srs.core.models import AltAccession, AltAccessionType, FileAccession
-from srs.ports.inbound.files import FileControllerPort
-from srs.ports.outbound.dao import AltAccessionDao
+from rs.core.models import AltAccession, AltAccessionType, FileAccession
+from rs.ports.inbound.files import FileControllerPort
+from rs.ports.outbound.dao import AltAccessionDao
 
 log = logging.getLogger(__name__)
 

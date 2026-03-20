@@ -20,8 +20,8 @@ from uuid import uuid4
 import pytest
 from jwcrypto.jwk import JWK
 
-from srs.adapters.inbound.fastapi_.rest_models import FileIdMappingRequest
-from srs.config import Config
+from rs.adapters.inbound.fastapi_.rest_models import FileIdMappingRequest
+from rs.config import Config
 from tests.fixtures import AppFixture, utils
 
 pytestmark = pytest.mark.asyncio

@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Service-wide constants"""
+"""Outbound DAO port definitions."""
 
-from opentelemetry import trace
+from hexkit.protocols.daopub import DaoPublisher
 
-SERVICE_NAME: str = "srs"
-TRACER = trace.get_tracer_provider().get_tracer(SERVICE_NAME)
-AUTH_CHECK_CLAIMS = ["iat", "exp"]
+from rs.core.models import AltAccession
+
+AltAccessionDao = DaoPublisher[AltAccession]

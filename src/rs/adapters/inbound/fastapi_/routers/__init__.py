@@ -13,18 +13,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""A collection of dependency dummies that are used in view definitions but need to be
-replaced at runtime by actual dependencies.
-"""
-
-from typing import Annotated
-
-from fastapi import Depends
-from ghga_service_commons.api.di import DependencyDummy
-
-from srs.ports.inbound.files import FileControllerPort
-
-file_controller_port = DependencyDummy("file_controller_port")
-auth_provider_dummy = DependencyDummy("auth_provider_dummy")
-
-FileControllerDummy = Annotated[FileControllerPort, Depends(file_controller_port)]
+"""Contains compartmentalized endpoint definitions for the different facets of the rs."""

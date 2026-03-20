@@ -22,14 +22,14 @@ from fastapi import FastAPI
 from ghga_service_commons.auth.jwt_auth import JWTAuthConfig, JWTAuthContextProvider
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
-from srs.adapters.inbound.fastapi_ import dummies
-from srs.adapters.inbound.fastapi_.configure import get_configured_app
-from srs.adapters.inbound.fastapi_.rest_models import MapFileIdsWorkOrder
-from srs.adapters.outbound.dao import get_alt_accession_dao
-from srs.config import Config
-from srs.constants import AUTH_CHECK_CLAIMS
-from srs.core.files import FileController
-from srs.ports.inbound.files import FileControllerPort
+from rs.adapters.inbound.fastapi_ import dummies
+from rs.adapters.inbound.fastapi_.configure import get_configured_app
+from rs.adapters.inbound.fastapi_.rest_models import MapFileIdsWorkOrder
+from rs.adapters.outbound.dao import get_alt_accession_dao
+from rs.config import Config
+from rs.constants import AUTH_CHECK_CLAIMS
+from rs.core.files import FileController
+from rs.ports.inbound.files import FileControllerPort
 
 __all__ = [
     "prepare_core",

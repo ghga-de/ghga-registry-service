@@ -51,4 +51,4 @@ WORKDIR /home/appuser
 USER appuser
 ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT ["srs"]
+ENTRYPOINT ["rs"]

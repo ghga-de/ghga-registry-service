@@ -23,7 +23,7 @@ from hexkit.opentelemetry import OpenTelemetryConfig
 from hexkit.providers.mongokafka import MongoKafkaConfig
 from pydantic import Field
 
-from srs.constants import SERVICE_NAME
+from rs.constants import SERVICE_NAME
 
 
 @config_from_yaml(prefix=SERVICE_NAME)

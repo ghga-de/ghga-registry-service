@@ -3,7 +3,7 @@
 
 # Study Registry Service
 
-Study Registry Service - a service for ingesting and archiving metadata from data submitters.
+GHGA Registry Service - a service for ingesting and archiving metadata from data submitters.
 
 ## Description
 
@@ -41,7 +41,7 @@ If you prefer not to use containers, you may install the service from source:
 pip install .
 
 # To run the service:
-srs --help
+rs --help
 ```
 
 ## Configuration
@@ -49,7 +49,7 @@ srs --help
 ### Parameters
 
 The service requires the following configuration parameters:
-- <a id="properties/service_name"></a>**`service_name`** *(string)*: Short name of this service. Default: `"srs"`.
+- <a id="properties/service_name"></a>**`service_name`** *(string)*: Short name of this service. Default: `"rs"`.
 - <a id="properties/service_instance_id"></a>**`service_instance_id`** *(string, required)*: A string that uniquely identifies this instance across all instances of this service. This is included in log messages.
 
   Examples:
@@ -341,9 +341,9 @@ The service requires the following configuration parameters:
 
 A template YAML file for configuring the service can be found at
 [`./example_config.yaml`](./example_config.yaml).
-Please adapt it, rename it to `.srs.yaml`, and place it in one of the following locations:
-- in the current working directory where you execute the service (on Linux: `./.srs.yaml`)
-- in your home directory (on Linux: `~/.srs.yaml`)
+Please adapt it, rename it to `.rs.yaml`, and place it in one of the following locations:
+- in the current working directory where you execute the service (on Linux: `./.rs.yaml`)
+- in your home directory (on Linux: `~/.rs.yaml`)
 
 The config YAML file will be automatically parsed by the service.
 
@@ -352,8 +352,8 @@ The config YAML file will be automatically parsed by the service.
 All parameters mentioned in the [`./example_config.yaml`](./example_config.yaml)
 can also be set using environment variables or file secrets.
 
-For naming the environment variables, just prefix the parameter name with `srs_`,
-e.g. for the `host` set an environment variable named `srs_host`
+For naming the environment variables, just prefix the parameter name with `rs_`,
+e.g. for the `host` set an environment variable named `rs_host`
 (you may use both upper or lower cases, however, it is standard to define all env
 variables in upper cases).
 

@@ -21,9 +21,9 @@ from contextlib import asynccontextmanager
 from hexkit.custom_types import JsonObject
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
-from srs.config import Config
-from srs.core.models import AltAccession
-from srs.ports.outbound.dao import AltAccessionDao
+from rs.config import Config
+from rs.core.models import AltAccession
+from rs.ports.outbound.dao import AltAccessionDao
 
 
 def alt_accession_to_event(alt_accession: AltAccession) -> JsonObject:

@@ -19,7 +19,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
-from srs.config import Config
+from rs.config import Config
 from tests.fixtures.utils import BASE_DIR
 
 TEST_CONFIG_YAML = BASE_DIR / "test_config.yaml"

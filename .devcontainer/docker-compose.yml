@@ -7,7 +7,7 @@ services:
         # [Choice] Install Node.js
         INSTALL_NODE: "false"
         NODE_VERSION: "lts/*"
-        PACKAGE_NAME: "SRS"
+        PACKAGE_NAME: "rs"
         # On Linux, you may need to update USER_UID and USER_GID below if not your local UID is not 1000.
         USER_UID: 1000
         USER_GID: 1000
@@ -29,7 +29,7 @@ services:
 
     # define environment variables
     environment:
-      SRS_CONFIG_YAML: /workspace/.devcontainer/.dev_config.yaml
+      RS_CONFIG_YAML: /workspace/.devcontainer/.dev_config.yaml
 
   mongodb:
     image: mongo:latest

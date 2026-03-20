@@ -13,24 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Top-level FastAPI router setup"""
+"""Service-wide constants"""
 
-from fastapi import APIRouter
+from opentelemetry import trace
 
-from srs.adapters.inbound.fastapi_.routers.files import files_router
-
-router = APIRouter(tags=["StudyRepositoryService"])
-
-router.include_router(files_router)
-
-
-@router.get(
-    "/health",
-    operation_id="health",
-    summary="health",
-    tags=["health"],
-    status_code=200,
-)
-async def health():
-    """Used to test if this service is alive"""
-    return {"status": "OK"}
+SERVICE_NAME: str = "rs"
+TRACER = trace.get_tracer_provider().get_tracer(SERVICE_NAME)
+AUTH_CHECK_CLAIMS = ["iat", "exp"]

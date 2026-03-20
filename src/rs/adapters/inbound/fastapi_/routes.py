@@ -13,4 +13,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Contains compartmentalized endpoint definitions for the different facets of the SRS."""
+"""Top-level FastAPI router setup"""
+
+from fastapi import APIRouter
+
+from rs.adapters.inbound.fastapi_.routers.files import files_router
+
+router = APIRouter(tags=["GHGARegistryService"])
+
+router.include_router(files_router)
+
+
+@router.get(
+    "/health",
+    operation_id="health",
+    summary="health",
+    tags=["health"],
+    status_code=200,
+)
+async def health():
+    """Used to test if this service is alive"""
+    return {"status": "OK"}

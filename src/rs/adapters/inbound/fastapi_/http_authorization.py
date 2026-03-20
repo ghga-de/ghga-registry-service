@@ -21,8 +21,8 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from ghga_service_commons.auth.jwt_auth import JWTAuthContextProvider
 
-from srs.adapters.inbound.fastapi_ import dummies
-from srs.adapters.inbound.fastapi_ import rest_models as models
+from rs.adapters.inbound.fastapi_ import dummies
+from rs.adapters.inbound.fastapi_ import rest_models as models
 
 __all__ = ["require_map_file_ids_work_order"]
 

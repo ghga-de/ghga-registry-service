@@ -13,10 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Outbound DAO port definitions."""
+"""Defines an inbound port for filename and file ID operations."""
 
-from hexkit.protocols.daopub import DaoPublisher
+from abc import ABC, abstractmethod
 
-from srs.core.models import AltAccession
+from pydantic import UUID4
 
-AltAccessionDao = DaoPublisher[AltAccession]
+from rs.core.models import FileAccession
+
+
+class FileControllerPort(ABC):
+    """Inbound port for filename and file ID operations."""
+
+    @abstractmethod
+    async def post_file_ids(
+        self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
+    ) -> None:
+        """Store file accession to internal file ID mappings."""

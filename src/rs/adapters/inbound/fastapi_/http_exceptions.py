@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""HTTP exception classes for the Study Registry Service."""
+"""HTTP exception classes for the GHGA Registry Service."""
 
 from ghga_service_commons.httpyexpect.server.exceptions import HttpCustomExceptionBase
 

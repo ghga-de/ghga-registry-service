@@ -1,7 +1,7 @@
 [project]
-name = "srs"
+name = "rs"
 version = "0.1.0"
-description = "Study Registry Service - a service for ingesting and archiving metadata from data submitters."
+description = "GHGA Registry Service - a service for ingesting and archiving metadata from data submitters."
 dependencies = [
     "typer >= 0.21.1",
     "ghga-service-commons[api,auth] >= 7.0",
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/ghga-de/study-repository-service"
+Repository = "https://github.com/ghga-de/ghga-registry-service"
 
 [project.scripts]
-srs = "srs.__main__:cli"
+rs = "rs.__main__:cli"

@@ -16,8 +16,8 @@
 
 """Used to define the location of the main FastAPI app object."""
 
-from srs.adapters.inbound.fastapi_.configure import get_configured_app
-from srs.config import Config
+from rs.adapters.inbound.fastapi_.configure import get_configured_app
+from rs.config import Config
 
 config = Config()  # type: ignore
 app = get_configured_app(config=config)

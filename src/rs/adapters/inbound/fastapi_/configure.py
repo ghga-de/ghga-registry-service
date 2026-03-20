@@ -21,17 +21,17 @@ from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 from ghga_service_commons.api import ApiConfigBase, configure_app
 
-from srs import __version__
-from srs.adapters.inbound.fastapi_.routes import router
+from rs import __version__
+from rs.adapters.inbound.fastapi_.routes import router
 
 
 def get_openapi_schema(app: FastAPI) -> dict[str, Any]:
     """Generates a custom openapi schema for the service"""
     return get_openapi(
-        title="Study Repository Service",
+        title="GHGA Registry Service",
         version=__version__,
         description="A service for ingesting and archiving metadata from data submitters.",
-        tags=[{"name": "StudyRepositoryService"}],
+        tags=[{"name": "GHGARegistryService"}],
         routes=app.routes,
     )
 
