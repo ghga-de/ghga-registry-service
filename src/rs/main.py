@@ -20,12 +20,18 @@ Additional endpoints might be structured in dedicated modules
 (each of them having a sub-router).
 """
 
+import logging
+
 from ghga_service_commons.api import run_server
 from hexkit.log import configure_logging
 from hexkit.opentelemetry import configure_opentelemetry
+from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
+from rs.adapters.outbound.dao import get_alt_accession_dao
 from rs.config import Config
 from rs.inject import prepare_rest_app
+
+log = logging.getLogger(__name__)
 
 
 async def run_rest_app():
@@ -36,3 +42,23 @@ async def run_rest_app():
 
     async with prepare_rest_app(config=config) as app:
         await run_server(app=app, config=config)
+
+
+async def publish_events(*, all: bool = False):
+    """Publish pending events. Set `--all` to (re)publish all events regardless of status."""
+    config = Config()  # type: ignore[call-arg]
+    configure_logging(config=config)
+    configure_opentelemetry(service_name=config.service_name, config=config)
+
+    log.info("Beginning manual event publish process")
+    async with (
+        MongoKafkaDaoPublisherFactory.construct(config=config) as dao_publisher_factory,
+        get_alt_accession_dao(
+            config=config, dao_publisher_factory=dao_publisher_factory
+        ) as file_accession_publisher,
+    ):
+        if all:
+            await file_accession_publisher.republish()
+        else:
+            await file_accession_publisher.publish_pending()
+    log.info("Manual event publish finished.")

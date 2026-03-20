@@ -41,9 +41,9 @@ __all__ = [
 async def prepare_core(*, config: Config) -> AsyncGenerator[FileControllerPort]:
     """Constructs and initializes all core components and their outbound dependencies."""
     async with (
-        MongoKafkaDaoPublisherFactory.construct(config=config) as dao_factory,
+        MongoKafkaDaoPublisherFactory.construct(config=config) as dao_publisher_factory,
         get_alt_accession_dao(
-            config=config, dao_factory=dao_factory
+            config=config, dao_publisher_factory=dao_publisher_factory
         ) as alt_accession_dao,
     ):
         yield FileController(alt_accession_dao=alt_accession_dao)

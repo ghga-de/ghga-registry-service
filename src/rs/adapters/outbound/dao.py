@@ -35,10 +35,10 @@ def alt_accession_to_event(alt_accession: AltAccession) -> JsonObject:
 async def get_alt_accession_dao(
     *,
     config: Config,
-    dao_factory: MongoKafkaDaoPublisherFactory,
+    dao_publisher_factory: MongoKafkaDaoPublisherFactory,
 ) -> AsyncGenerator[AltAccessionDao]:
     """Construct an AltAccession DAO from the shared factory."""
-    alt_accession_dao = await dao_factory.get_dao(
+    alt_accession_dao = await dao_publisher_factory.get_dao(
         name=config.alt_accessions_collection,
         dto_model=AltAccession,
         id_field="id",
