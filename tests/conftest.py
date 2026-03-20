@@ -22,17 +22,28 @@ import pytest_asyncio
 from ghga_service_commons.api.testing import AsyncTestClient
 from ghga_service_commons.auth.ghga import AuthConfig
 from ghga_service_commons.utils import jwt_helpers
+from hexkit.providers.akafka.testutils import (  # noqa: F401
+    kafka_container_fixture,
+    kafka_fixture,
+)
+from hexkit.providers.mongodb.testutils import (  # noqa: F401
+    mongodb_container_fixture,
+    mongodb_fixture,
+)
 from jwcrypto.jwk import JWK
 
 from rs.config import Config
 from rs.inject import prepare_rest_app
 from tests.fixtures import AppFixture
 from tests.fixtures.config import get_config
+from tests.fixtures.joint import joint_fixture
+
+__all__ = ["joint_fixture"]
 
 
 @pytest.fixture(name="_hidden_fixture")
 def config_plus_jwk_setup() -> tuple[Config, JWK]:
-    """Background/setup fixture that produces a Config class alongside the pub/sec JWK"""
+    """Background/setup fixture that produces a Config class alongside the pub/sec JWK."""
     uos_jwk = jwt_helpers.generate_jwk()
     uos_auth_key = uos_jwk.export(private_key=False)
     uos_cfg = AuthConfig(auth_key=uos_auth_key, auth_check_claims={})
