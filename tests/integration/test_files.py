@@ -64,7 +64,7 @@ async def test_submission(joint_fixture: JointFixture):
 
     # Inspect the events. Check the type, key, and payload
     assert event1.type_ == event2.type_ == "upserted"
-    assert event1.key == str(file_id1)
-    assert event2.key == str(file_id2)
+    assert event1.key == accession1
+    assert event2.key == accession2
     assert event1.payload == {"accession": accession1, "file_id": str(file_id1)}
     assert event2.payload == {"accession": accession2, "file_id": str(file_id2)}

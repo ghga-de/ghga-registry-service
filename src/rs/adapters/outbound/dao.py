@@ -41,7 +41,7 @@ async def get_alt_accession_dao(
     alt_accession_dao = await dao_publisher_factory.get_dao(
         name=config.alt_accessions_collection,
         dto_model=AltAccession,
-        id_field="id",
+        id_field="pid",
         dto_to_event=alt_accession_to_event,
         event_topic=config.alt_accessions_topic,
         autopublish=True,
