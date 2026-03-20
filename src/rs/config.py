@@ -40,7 +40,7 @@ class Config(
     )
     uos_auth_config: AuthConfig
     alt_accessions_collection: str = Field(
-        default="alt_accessions",
+        default="altAccessions",
         description="MongoDB collection name for alternative accessions",
     )
     alt_accessions_topic: str = Field(

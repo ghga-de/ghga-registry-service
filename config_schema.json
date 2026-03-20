@@ -458,7 +458,7 @@
       "$ref": "#/$defs/AuthConfig"
     },
     "alt_accessions_collection": {
-      "default": "alt_accessions",
+      "default": "altAccessions",
       "description": "MongoDB collection name for alternative accessions",
       "title": "Alt Accessions Collection",
       "type": "string"

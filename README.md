@@ -319,7 +319,7 @@ The service requires the following configuration parameters:
   ```
 
 - <a id="properties/uos_auth_config"></a>**`uos_auth_config`** *(required)*: Refer to *[#/$defs/AuthConfig](#%24defs/AuthConfig)*.
-- <a id="properties/alt_accessions_collection"></a>**`alt_accessions_collection`** *(string)*: MongoDB collection name for alternative accessions. Default: `"alt_accessions"`.
+- <a id="properties/alt_accessions_collection"></a>**`alt_accessions_collection`** *(string)*: MongoDB collection name for alternative accessions. Default: `"altAccessions"`.
 - <a id="properties/alt_accessions_topic"></a>**`alt_accessions_topic`** *(string)*: Kafka topic for alternative accession events. Default: `"alt-accessions"`.
 ## Definitions
 
