@@ -1,7 +1,7 @@
-[![tests](https://github.com/ghga-de/study-registry-service/actions/workflows/tests.yaml/badge.svg)](https://github.com/ghga-de/study-registry-service/actions/workflows/tests.yaml)
-[![Coverage Status](https://coveralls.io/repos/github/ghga-de/study-registry-service/badge.svg?branch=main)](https://coveralls.io/github/ghga-de/study-registry-service?branch=main)
+[![tests](https://github.com/ghga-de/ghga-registry-service/actions/workflows/tests.yaml/badge.svg)](https://github.com/ghga-de/ghga-registry-service/actions/workflows/tests.yaml)
+[![Coverage Status](https://coveralls.io/repos/github/ghga-de/ghga-registry-service/badge.svg?branch=main)](https://coveralls.io/github/ghga-de/ghga-registry-service?branch=main)
 
-# Study Registry Service
+# Ghga Registry Service
 
 GHGA Registry Service - a service for ingesting and archiving metadata from data submitters.
 
@@ -16,15 +16,15 @@ Here you should provide a short summary of the purpose of this microservice.
 
 We recommend using the provided Docker container.
 
-A pre-built version is available on [Docker Hub](https://hub.docker.com/repository/docker/ghga/study-registry-service):
+A pre-built version is available on [Docker Hub](https://hub.docker.com/repository/docker/ghga/ghga-registry-service):
 ```bash
-docker pull ghga/study-registry-service:0.1.0
+docker pull ghga/ghga-registry-service:0.1.0
 ```
 
 Or you can build the container yourself from the [`./Dockerfile`](./Dockerfile):
 ```bash
 # Execute in the repo's root dir:
-docker build -t ghga/study-registry-service:0.1.0 .
+docker build -t ghga/ghga-registry-service:0.1.0 .
 ```
 
 For production-ready deployment, we recommend using Kubernetes.
@@ -32,7 +32,7 @@ However for simple use cases, you could execute the service using docker
 on a single server:
 ```bash
 # The entrypoint is pre-configured:
-docker run -p 8080:8080 ghga/study-registry-service:0.1.0 --help
+docker run -p 8080:8080 ghga/ghga-registry-service:0.1.0 --help
 ```
 
 If you prefer not to use containers, you may install the service from source:
