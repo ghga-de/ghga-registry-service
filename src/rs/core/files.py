@@ -53,7 +53,9 @@ class FileController(FileControllerPort):
                 study_pid,
             )
 
-    async def get_accessions_by_file_ids(self, *, file_ids: set[str]) -> dict[str, str]:
+    async def get_accessions_by_file_ids(
+        self, *, file_ids: set[UUID4]
+    ) -> dict[UUID4, str]:
         """Query AltAccession records for the given file IDs.
         Returns a dict mapping file_id (str) to accession (str).
         """

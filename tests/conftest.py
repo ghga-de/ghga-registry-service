@@ -22,6 +22,7 @@ import pytest
 import pytest_asyncio
 from ghga_service_commons.api.testing import AsyncTestClient
 from ghga_service_commons.utils import jwt_helpers
+from hexkit.correlation import set_new_correlation_id
 from hexkit.providers.akafka.testutils import (  # noqa: F401
     kafka_container_fixture,
     kafka_fixture,
@@ -95,3 +96,9 @@ async def httpx_client() -> AsyncGenerator[httpx.AsyncClient]:
     """Yields an AsyncClient"""
     async with httpx.AsyncClient() as client:
         yield client
+
+
+@pytest_asyncio.fixture(autouse=True)
+async def cid_fixture():
+    async with set_new_correlation_id() as cid:
+        yield cid
