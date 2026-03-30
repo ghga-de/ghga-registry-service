@@ -37,26 +37,6 @@ from pydantic import (
     field_validator,
 )
 
-FileAccession = Annotated[str, StringConstraints(pattern=r"^GHGAF.+")]
-
-
-class AltAccessionType(StrEnum):
-    """Kinds of alternative accessions."""
-
-    EGA = "EGA"
-    FILE_ID = "FILE_ID"
-    GHGA_LEGACY = "GHGA_LEGACY"
-
-
-class AltAccession(BaseModel):
-    """Stores alternative accessions referencing a primary accession."""
-
-    id: str
-    pid: str
-    type: AltAccessionType
-    created: UTCDatetime
-
-
 # Note: shared classes re-exported to avoid importing from ghga_event_schemas everywhere
 __all__ = [
     "AccessionMapRequest",
@@ -93,6 +73,25 @@ def _ascii_only(v: str) -> str:
 PID = Annotated[
     str, StringConstraints(min_length=1, max_length=256), AfterValidator(_ascii_only)
 ]
+
+FileAccession = Annotated[str, StringConstraints(pattern=r"^GHGAF.+")]
+
+
+class AltAccessionType(StrEnum):
+    """Kinds of alternative accessions."""
+
+    EGA = "EGA"
+    FILE_ID = "FILE_ID"
+    GHGA_LEGACY = "GHGA_LEGACY"
+
+
+class AltAccession(BaseModel):
+    """Stores alternative accessions referencing a primary accession."""
+
+    id: str
+    pid: PID
+    type: AltAccessionType
+    created: UTCDatetime
 
 
 class BaseWorkOrderToken(BaseModel):
