@@ -471,8 +471,8 @@ async def test_get_upload_access_grants_box_missing(
     rig: JointRig, caplog, populated_boxes: list[UUID]
 ):
     """Test the case where grants returned from the access API include a grant with
-    a box ID that doesn't exist in the UOS. This test also checks that we emit a
-    WARNING log (but don't raise an error).
+    a box ID that doesn't exist. This test also checks that we emit a WARNING
+    log (but don't raise an error).
     """
     # Create mock upload grants - one with a valid box ID, one with an invalid box ID
     valid_box_id = populated_boxes[0]
