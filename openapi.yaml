@@ -6,7 +6,7 @@ components:
         mapping:
           description: Map of accessions to file IDs
           patternProperties:
-            ^GHGA.+:
+            ^GHGAF.+:
               format: uuid4
               type: string
           title: Mapping
@@ -74,7 +74,7 @@ components:
       properties:
         accession:
           anyOf:
-          - pattern: ^GHGA.+
+          - pattern: ^GHGAF.+
             type: string
           - type: 'null'
           description: The accession number assigned to this file.
@@ -773,7 +773,7 @@ paths:
       - ResearchDataUploadBoxes
   /boxes/{box_id}/accessions:
     patch:
-      description: Update a ResearchDataUploadBox.
+      description: Submit a file ID to accession number mapping for an upload box.
       operationId: submit_accession_map_boxes__box_id__accessions_patch
       parameters:
       - in: path
