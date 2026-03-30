@@ -17,6 +17,7 @@
 
 from hexkit.protocols.daopub import DaoPublisher
 
-from rs.core.models import AltAccession
+from rs.core.models import AltAccession, ResearchDataUploadBox
 
 AltAccessionDao = DaoPublisher[AltAccession]
+BoxDao = DaoPublisher[ResearchDataUploadBox]

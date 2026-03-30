@@ -18,8 +18,8 @@
 from uuid import uuid4
 
 import pytest
-
 from rs.adapters.inbound.fastapi_.rest_models import FileIdMappingRequest
+
 from tests.fixtures import utils
 from tests.fixtures.joint import JointFixture
 

@@ -21,7 +21,6 @@ from uuid import UUID
 from ghga_service_commons.utils import jwt_helpers
 from jwcrypto.jwk import JWK
 from pydantic import UUID4
-
 from rs.adapters.inbound.fastapi_.rest_models import MapFileIdsWorkOrder
 
 BASE_DIR = Path(__file__).parent.resolve()

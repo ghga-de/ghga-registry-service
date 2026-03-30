@@ -19,8 +19,8 @@ from uuid import uuid4
 
 import pytest
 from jwcrypto.jwk import JWK
-
 from rs.adapters.inbound.fastapi_.rest_models import FileIdMappingRequest
+
 from rs.config import Config
 from tests.fixtures import AppFixture, utils
 

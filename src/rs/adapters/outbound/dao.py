@@ -18,12 +18,20 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
+from ghga_event_schemas.configs import ResearchDataUploadBoxEventsConfig
 from hexkit.custom_types import JsonObject
+from hexkit.providers.mongodb import MongoDbIndex
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
-from rs.config import Config
-from rs.core.models import AltAccession
-from rs.ports.outbound.dao import AltAccessionDao
+from rs.constants import BOX_COLLECTION
+from rs.core.models import AltAccession, ResearchDataUploadBox
+from rs.ports.outbound.dao import AltAccessionDao, BoxDao
+
+__all__ = ["OutboxPubConfig", "get_alt_accession_dao", "get_box_dao"]
+
+
+class OutboxPubConfig(ResearchDataUploadBoxEventsConfig):
+    """Config needed to publish outbox events"""
 
 
 def alt_accession_to_event(alt_accession: AltAccession) -> JsonObject:
@@ -34,7 +42,7 @@ def alt_accession_to_event(alt_accession: AltAccession) -> JsonObject:
 @asynccontextmanager
 async def get_alt_accession_dao(
     *,
-    config: Config,
+    config,
     dao_publisher_factory: MongoKafkaDaoPublisherFactory,
 ) -> AsyncGenerator[AltAccessionDao]:
     """Construct an AltAccession DAO from the shared factory."""
@@ -47,3 +55,21 @@ async def get_alt_accession_dao(
         autopublish=True,
     )
     yield alt_accession_dao
+
+
+async def get_box_dao(
+    *, config: OutboxPubConfig, dao_publisher_factory: MongoKafkaDaoPublisherFactory
+) -> BoxDao:
+    """Construct a ResearchDataUploadBox outbox DAO from the provided dao_publisher_factory"""
+    if not dao_publisher_factory:
+        raise RuntimeError("No DAO Factory and no override provided for BoxDao")
+
+    return await dao_publisher_factory.get_dao(
+        name=BOX_COLLECTION,
+        dto_model=ResearchDataUploadBox,
+        id_field="id",
+        autopublish=True,
+        dto_to_event=lambda dto: dto.model_dump(mode="json"),
+        event_topic=config.research_data_upload_box_topic,
+        indexes=[MongoDbIndex(fields="file_upload_box_id")],
+    )

@@ -30,3 +30,9 @@ class FileControllerPort(ABC):
         self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings."""
+
+    @abstractmethod
+    async def get_accessions_by_file_ids(self, *, file_ids: set[str]) -> dict[str, str]:
+        """Query AltAccession records for the given file IDs.
+        Returns a dict mapping file_id (str) to accession (str).
+        """
