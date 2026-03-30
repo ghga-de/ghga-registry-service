@@ -13,12 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Integration tests for the FileController and outbox events published by it"""
-
-from uuid import uuid4
+"""Integration tests for the REST API with real infrastructure components"""
 
 import pytest
-from rs.adapters.inbound.fastapi_.rest_models import FileIdMappingRequest
 
 from tests.fixtures import utils
 from tests.fixtures.joint import JointFixture
@@ -26,45 +23,47 @@ from tests.fixtures.joint import JointFixture
 pytestmark = pytest.mark.asyncio
 
 
-async def test_submission(joint_fixture: JointFixture):
-    """Test the process starting from the start to finish.
+async def test_health_endpoint(joint_fixture: JointFixture):
+    """Test that the health endpoint responds with 200 OK."""
+    response = await joint_fixture.rest_client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "OK"}
 
-    Submit a map to the HTTP API and inspect the outbox events.
-    """
-    study_pid = "test-study-1"
-    accession1 = "GHGAF001"
-    accession2 = "GHGAF002"
-    file_id1 = uuid4()
-    file_id2 = uuid4()
-    mapping_request = FileIdMappingRequest(
-        study_pid=study_pid, mapping={accession1: file_id1, accession2: file_id2}
+
+async def test_unauthenticated_requests_are_rejected(joint_fixture: JointFixture):
+    """Test that protected endpoints reject unauthenticated requests with 401."""
+    rest_client = joint_fixture.rest_client
+
+    # GET /boxes requires authentication
+    response = await rest_client.get("/boxes")
+    assert response.status_code == 401
+
+    # POST /boxes requires authentication
+    response = await rest_client.post(
+        "/boxes",
+        json={
+            "title": "Test Box",
+            "description": "description",
+            "storage_alias": "s3-default",
+        },
     )
+    assert response.status_code == 401
 
-    # Prepare the HTTP request attributes
-    body = mapping_request.model_dump(mode="json")
-    url = f"/file-ids/{study_pid}"
-    token_header = utils.map_file_ids_token_header(
-        uos_jwk=joint_fixture.uos_jwk, study_pid=study_pid
+    # GET /access-grants requires authentication
+    response = await rest_client.get("/access-grants")
+    assert response.status_code == 401
+
+
+async def test_regular_user_cannot_create_box(joint_fixture: JointFixture):
+    """Test that a user without the data steward role cannot create an upload box."""
+    regular_user_header = utils.regular_user_auth_header(jwk=joint_fixture.auth_jwk)
+    response = await joint_fixture.rest_client.post(
+        "/boxes",
+        json={
+            "title": "Test Box",
+            "description": "description",
+            "storage_alias": "s3-default",
+        },
+        headers=regular_user_header,
     )
-
-    # Submit the map to the endpoint and capture the events (Should be 2)
-    async with joint_fixture.kafka.record_events(
-        in_topic=joint_fixture.config.alt_accessions_topic
-    ) as recorder:
-        response = await joint_fixture.rest_client.post(
-            url, json=body, headers=token_header
-        )
-        assert response.status_code == 204
-
-    # Sort the events (should already be in order, but no reason not to make sure)
-    assert len(recorder.recorded_events or []) == 2
-    event1, event2 = sorted(
-        recorder.recorded_events, key=lambda x: str(x.payload["accession"])
-    )
-
-    # Inspect the events. Check the type, key, and payload
-    assert event1.type_ == event2.type_ == "upserted"
-    assert event1.key == accession1
-    assert event2.key == accession2
-    assert event1.payload == {"accession": accession1, "file_id": str(file_id1)}
-    assert event2.payload == {"accession": accession2, "file_id": str(file_id2)}
+    assert response.status_code == 403

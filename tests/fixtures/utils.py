@@ -19,30 +19,57 @@ from pathlib import Path
 from uuid import UUID
 
 from ghga_service_commons.utils import jwt_helpers
+from ghga_service_commons.utils.utc_dates import now_as_utc
 from jwcrypto.jwk import JWK
-from pydantic import UUID4
-from rs.adapters.inbound.fastapi_.rest_models import MapFileIdsWorkOrder
 
 BASE_DIR = Path(__file__).parent.resolve()
 
 TOKEN_LIFESPAN = 30  # seconds
 DATA_STEWARD_ID = UUID("6d1a41c3-de07-42f8-80ef-243aa69b6261")
+REGULAR_USER_ID = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 
-def _make_auth_header(work_order, jwk) -> dict[str, str]:
-    """Make an auth header from the supplied work order"""
-    claims = work_order.model_dump(mode="json")
+def _make_ghga_auth_header(
+    *,
+    user_id: UUID,
+    user_name: str,
+    user_email: str,
+    roles: list[str],
+    jwk: JWK,
+) -> dict[str, str]:
+    """Create a GHGA auth header with a signed JWT containing the given claims."""
+    now = now_as_utc()
+    claims = {
+        "id": str(user_id),
+        "name": user_name,
+        "email": user_email,
+        "iat": int(now.timestamp()),
+        "exp": int(now.timestamp()) + TOKEN_LIFESPAN,
+        "roles": roles,
+    }
     signed_token = jwt_helpers.sign_and_serialize_token(
         claims=claims, key=jwk, valid_seconds=TOKEN_LIFESPAN
     )
     return {"Authorization": f"Bearer {signed_token}"}
 
 
-def map_file_ids_token_header(
-    *, user_id: UUID4 = DATA_STEWARD_ID, uos_jwk: JWK, study_pid: str
-) -> dict[str, str]:
-    """Generate MapFileIdsWorkOrder token for testing."""
-    work_order = MapFileIdsWorkOrder(
-        work_type="map", user_id=user_id, study_pid=study_pid
+def data_steward_auth_header(*, jwk: JWK) -> dict[str, str]:
+    """Generate a GHGA auth header for a data steward user."""
+    return _make_ghga_auth_header(
+        user_id=DATA_STEWARD_ID,
+        user_name="Test Data Steward",
+        user_email="steward@example.org",
+        roles=["data_steward"],
+        jwk=jwk,
     )
-    return _make_auth_header(work_order, uos_jwk)
+
+
+def regular_user_auth_header(*, jwk: JWK) -> dict[str, str]:
+    """Generate a GHGA auth header for a regular (non-steward) user."""
+    return _make_ghga_auth_header(
+        user_id=REGULAR_USER_ID,
+        user_name="Test Regular User",
+        user_email="user@example.org",
+        roles=[],
+        jwk=jwk,
+    )

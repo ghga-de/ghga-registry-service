@@ -20,7 +20,6 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 from ghga_service_commons.api.testing import AsyncTestClient
-from ghga_service_commons.auth.ghga import AuthConfig
 from ghga_service_commons.utils import jwt_helpers
 from hexkit.providers.akafka.testutils import (  # noqa: F401
     kafka_container_fixture,
@@ -43,12 +42,11 @@ __all__ = ["joint_fixture"]
 
 @pytest.fixture(name="_hidden_fixture")
 def config_plus_jwk_setup() -> tuple[Config, JWK]:
-    """Background/setup fixture that produces a Config class alongside the pub/sec JWK."""
-    uos_jwk = jwt_helpers.generate_jwk()
-    uos_auth_key = uos_jwk.export(private_key=False)
-    uos_cfg = AuthConfig(auth_key=uos_auth_key, auth_check_claims={})
-    config = get_config(uos_auth_config=uos_cfg)
-    return (config, uos_jwk)
+    """Background/setup fixture that produces a Config class alongside the auth JWK."""
+    auth_jwk = jwt_helpers.generate_jwk()
+    auth_key = auth_jwk.export(private_key=False)
+    config = get_config(auth_key=auth_key)
+    return (config, auth_jwk)
 
 
 @pytest.fixture(name="config")
@@ -57,9 +55,9 @@ def config_fixture(_hidden_fixture: tuple[Config, JWK]) -> Config:
     return _hidden_fixture[0]
 
 
-@pytest.fixture(name="uos_jwk")
-def uos_jwk_fixture(_hidden_fixture: tuple[Config, JWK]) -> JWK:
-    """Returns the UOS JWK used to create the test config"""
+@pytest.fixture(name="auth_jwk")
+def auth_jwk_fixture(_hidden_fixture: tuple[Config, JWK]) -> JWK:
+    """Returns the auth JWK used to create the test config"""
     return _hidden_fixture[1]
 
 
@@ -68,7 +66,7 @@ async def app_fixture(config: Config) -> AsyncGenerator[AppFixture]:
     """A fixture that yields a configured rest client and accessible core override"""
     core_mock = AsyncMock()
     async with (
-        prepare_rest_app(config=config, core_override=core_mock) as app,
+        prepare_rest_app(config=config, upload_orchestrator_override=core_mock) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         yield AppFixture(rest_client=rest_client, core_mock=core_mock)

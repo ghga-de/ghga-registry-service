@@ -20,7 +20,6 @@ from dataclasses import dataclass
 
 import pytest_asyncio
 from ghga_service_commons.api.testing import AsyncTestClient
-from ghga_service_commons.auth.ghga import AuthConfig
 from ghga_service_commons.utils import jwt_helpers
 from hexkit.providers.akafka.testutils import KafkaFixture
 from hexkit.providers.mongodb.testutils import MongoDbFixture
@@ -28,7 +27,7 @@ from jwcrypto.jwk import JWK
 
 from rs.config import Config
 from rs.inject import prepare_core, prepare_rest_app
-from rs.ports.inbound.files import FileControllerPort
+from rs.ports.inbound.orchestrator import UploadOrchestratorPort
 from tests.fixtures.config import get_config
 
 
@@ -37,11 +36,11 @@ class JointFixture:
     """Returned by the `joint_fixture`."""
 
     config: Config
-    controller: FileControllerPort
+    orchestrator: UploadOrchestratorPort
     kafka: KafkaFixture
     mongodb: MongoDbFixture
     rest_client: AsyncTestClient
-    uos_jwk: JWK
+    auth_jwk: JWK
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -49,28 +48,30 @@ async def joint_fixture(
     mongodb: MongoDbFixture,
     kafka: KafkaFixture,
 ) -> AsyncGenerator[JointFixture]:
-    """A fixture that embeds all other fixtures for API-level integration testing.
+    """A fixture that embeds all other fixtures for API-level integration testing."""
+    auth_jwk = jwt_helpers.generate_jwk()
+    auth_key = auth_jwk.export(private_key=False)
+    signing_jwk = jwt_helpers.generate_jwk()
+    work_order_signing_key = signing_jwk.export(private_key=True)
 
-    **Do not call directly** Instead, use get_joint_fixture().
-    """
-    uos_jwk = jwt_helpers.generate_jwk()
-    uos_auth_key = uos_jwk.export(private_key=False)
-    uos_cfg = AuthConfig(auth_key=uos_auth_key, auth_check_claims={})
+    config = get_config(
+        sources=[mongodb.config, kafka.config],
+        auth_key=auth_key,
+        work_order_signing_key=work_order_signing_key,
+    )
 
-    # merge configs from different sources with the default one
-    config = get_config(sources=[mongodb.config, kafka.config], uos_auth_config=uos_cfg)
-
-    # Knit together the components into the joint fixture
     async with (
-        prepare_core(config=config) as controller,
-        prepare_rest_app(config=config, core_override=controller) as app,
+        prepare_core(config=config) as orchestrator,
+        prepare_rest_app(
+            config=config, upload_orchestrator_override=orchestrator
+        ) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         yield JointFixture(
             config=config,
-            controller=controller,
+            orchestrator=orchestrator,
             kafka=kafka,
             mongodb=mongodb,
             rest_client=rest_client,
-            uos_jwk=uos_jwk,
+            auth_jwk=auth_jwk,
         )
