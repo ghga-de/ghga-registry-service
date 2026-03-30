@@ -27,7 +27,7 @@ from jwcrypto.jwk import JWK
 
 from rs.config import Config
 from rs.inject import prepare_core, prepare_rest_app
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.study_registry import StudyRegistryPort
 from tests.fixtures.config import get_config
 
 
@@ -36,7 +36,7 @@ class JointFixture:
     """Returned by the `joint_fixture`."""
 
     config: Config
-    orchestrator: UploadOrchestratorPort
+    study_registry: StudyRegistryPort
     kafka: KafkaFixture
     mongodb: MongoDbFixture
     rest_client: AsyncTestClient
@@ -61,15 +61,13 @@ async def joint_fixture(
     )
 
     async with (
-        prepare_core(config=config) as orchestrator,
-        prepare_rest_app(
-            config=config, upload_orchestrator_override=orchestrator
-        ) as app,
+        prepare_core(config=config) as study_registry,
+        prepare_rest_app(config=config, study_registry_override=study_registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         yield JointFixture(
             config=config,
-            orchestrator=orchestrator,
+            study_registry=study_registry,
             kafka=kafka,
             mongodb=mongodb,
             rest_client=rest_client,

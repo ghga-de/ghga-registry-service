@@ -26,19 +26,17 @@ from ghga_service_commons.api.di import DependencyDummy
 from ghga_service_commons.auth.context import AuthContextProtocol
 from ghga_service_commons.auth.ghga import AuthContext
 
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.study_registry import StudyRegistryPort
 
 __all__ = [
     "AuthProviderDummy",
-    "UploadOrchestratorDummy",
+    "StudyRegistryDummy",
     "auth_provider",
-    "upload_orchestrator_port",
+    "study_registry_port",
 ]
 
 auth_provider = DependencyDummy("auth_provider")
-upload_orchestrator_port = DependencyDummy("upload_orchestrator_port")
+study_registry_port = DependencyDummy("study_registry_port")
 
 AuthProviderDummy = Annotated[AuthContextProtocol[AuthContext], Depends(auth_provider)]
-UploadOrchestratorDummy = Annotated[
-    UploadOrchestratorPort, Depends(upload_orchestrator_port)
-]
+StudyRegistryDummy = Annotated[StudyRegistryPort, Depends(study_registry_port)]

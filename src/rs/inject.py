@@ -43,7 +43,8 @@ from rs.config import Config
 from rs.constants import SERVICE_NAME
 from rs.core.files import FileController
 from rs.core.orchestrator import UploadOrchestrator
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.core.study_registry import StudyRegistry
+from rs.ports.inbound.study_registry import StudyRegistryPort
 
 __all__ = [
     "get_persistent_publisher",
@@ -74,7 +75,7 @@ async def get_persistent_publisher(
 
 
 @asynccontextmanager
-async def prepare_core(*, config: Config) -> AsyncGenerator[UploadOrchestratorPort]:
+async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
     """Constructs and initializes all core components and their outbound dependencies.
 
     The _override parameters can be used to override the default dependencies.
@@ -103,7 +104,7 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[UploadOrchestratorPo
         access_client = AccessClient(config=config, httpx_client=httpx_client)
         file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
 
-        yield UploadOrchestrator(
+        upload_orchestrator = UploadOrchestrator(
             box_dao=box_dao,
             file_controller=file_controller,
             audit_repository=audit_repository,
@@ -111,16 +112,18 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[UploadOrchestratorPo
             file_upload_box_client=file_upload_box_client,
         )
 
+        yield StudyRegistry(upload_orchestrator=upload_orchestrator)
+
 
 def prepare_core_with_override(
     *,
     config: Config,
-    upload_orchestrator_override: UploadOrchestratorPort | None = None,
+    study_registry_override: StudyRegistryPort | None = None,
 ):
-    """Resolve the reverse_transpiler context manager based on config and override (if any)."""
+    """Resolve the prepare_core context manager based on config and override (if any)."""
     return (
-        nullcontext(upload_orchestrator_override)
-        if upload_orchestrator_override
+        nullcontext(study_registry_override)
+        if study_registry_override
         else prepare_core(config=config)
     )
 
@@ -129,7 +132,7 @@ def prepare_core_with_override(
 async def prepare_rest_app(
     *,
     config: Config,
-    upload_orchestrator_override: UploadOrchestratorPort | None = None,
+    study_registry_override: StudyRegistryPort | None = None,
 ) -> AsyncGenerator[FastAPI]:
     """Construct and initialize an REST API app along with all its dependencies.
     By default, the core dependencies are automatically prepared but you can also
@@ -139,17 +142,15 @@ async def prepare_rest_app(
 
     async with (
         prepare_core_with_override(
-            config=config, upload_orchestrator_override=upload_orchestrator_override
-        ) as upload_orchestrator,
+            config=config, study_registry_override=study_registry_override
+        ) as study_registry,
         GHGAAuthContextProvider.construct(
             config=config,
             context_class=AuthContext,
         ) as auth_context,
     ):
         app.dependency_overrides[dummies.auth_provider] = lambda: auth_context
-        app.dependency_overrides[dummies.upload_orchestrator_port] = lambda: (
-            upload_orchestrator
-        )
+        app.dependency_overrides[dummies.study_registry_port] = lambda: study_registry
         yield app
 
 
@@ -157,7 +158,7 @@ async def prepare_rest_app(
 async def prepare_event_subscriber(
     *,
     config: Config,
-    upload_orchestrator_override: UploadOrchestratorPort | None = None,
+    study_registry_override: StudyRegistryPort | None = None,
 ) -> AsyncGenerator[KafkaEventSubscriber]:
     """Construct and initialize an event subscriber with all its dependencies.
     By default, the core dependencies are automatically prepared but you can also
@@ -165,12 +166,12 @@ async def prepare_event_subscriber(
     """
     async with (
         prepare_core_with_override(
-            config=config, upload_orchestrator_override=upload_orchestrator_override
-        ) as upload_orchestrator,
+            config=config, study_registry_override=study_registry_override
+        ) as study_registry,
         KafkaEventPublisher.construct(config=config) as dlq_publisher,
     ):
         outbox_translator = OutboxSubTranslator(
-            config=config, upload_orchestrator=upload_orchestrator
+            config=config, study_registry=study_registry
         )
         translator = ComboTranslator(translators=[outbox_translator])
 

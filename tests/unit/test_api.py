@@ -37,7 +37,7 @@ async def test_create_box_requires_data_steward_role(
     core_mock = app_fixture.core_mock
 
     box_id = uuid4()
-    core_mock.create_research_data_upload_box.return_value = box_id
+    core_mock.upload_orchestrator.create_research_data_upload_box.return_value = box_id
 
     request_body = {
         "title": "Test Box",
@@ -62,7 +62,7 @@ async def test_create_box_requires_data_steward_role(
         "/boxes", json=request_body, headers=steward_header
     )
     assert response.status_code == 201
-    core_mock.create_research_data_upload_box.assert_awaited_once()
+    core_mock.upload_orchestrator.create_research_data_upload_box.assert_awaited_once()
 
 
 async def test_get_boxes_requires_authentication(
@@ -74,8 +74,8 @@ async def test_get_boxes_requires_authentication(
     rest_client = app_fixture.rest_client
     core_mock = app_fixture.core_mock
 
-    core_mock.get_research_data_upload_boxes.return_value = BoxRetrievalResults(
-        count=0, boxes=[]
+    core_mock.upload_orchestrator.get_research_data_upload_boxes.return_value = (
+        BoxRetrievalResults(count=0, boxes=[])
     )
 
     # Unauthenticated request should be rejected with 401
@@ -99,7 +99,7 @@ async def test_get_box_returns_404_on_not_found(auth_jwk: JWK, app_fixture: AppF
     core_mock = app_fixture.core_mock
 
     missing_box_id = uuid4()
-    core_mock.get_research_data_upload_box.side_effect = (
+    core_mock.upload_orchestrator.get_research_data_upload_box.side_effect = (
         UploadOrchestratorPort.BoxNotFoundError(box_id=missing_box_id)
     )
 
@@ -115,8 +115,8 @@ async def test_create_box_returns_500_on_internal_error(
     rest_client = app_fixture.rest_client
     core_mock = app_fixture.core_mock
 
-    core_mock.create_research_data_upload_box.side_effect = RuntimeError(
-        "unexpected core failure"
+    core_mock.upload_orchestrator.create_research_data_upload_box.side_effect = (
+        RuntimeError("unexpected core failure")
     )
 
     request_body = {

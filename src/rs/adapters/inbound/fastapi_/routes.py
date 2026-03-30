@@ -24,7 +24,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import UUID4, NonNegativeInt
 
 from rs.adapters.inbound.fastapi_.auth import StewardAuthContext, UserAuthContext
-from rs.adapters.inbound.fastapi_.dummies import UploadOrchestratorDummy
+from rs.adapters.inbound.fastapi_.dummies import StudyRegistryDummy
 from rs.adapters.inbound.fastapi_.http_exceptions import (
     HttpBoxNotFoundError,
     HttpGrantNotFoundError,
@@ -87,7 +87,7 @@ async def health():
 )
 @TRACER.start_as_current_span("routes.get_research_data_upload_boxes")
 async def get_research_data_upload_boxes(
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: UserAuthContext,
     skip: Annotated[
         NonNegativeInt | None,
@@ -111,14 +111,16 @@ async def get_research_data_upload_boxes(
     """Get list of all research data upload boxes with pagination support.
 
     For data stewards, returns all boxes. For regular users, only returns boxes
-    they have access to according to.
+    they have access to according to the access API.
     """
     try:
-        results = await upload_service.get_research_data_upload_boxes(
-            auth_context=auth_context,
-            skip=skip,
-            limit=limit,
-            state=state,
+        results = (
+            await study_registry.upload_orchestrator.get_research_data_upload_boxes(
+                auth_context=auth_context,
+                skip=skip,
+                limit=limit,
+                state=state,
+            )
         )
         return results
     except Exception as err:
@@ -145,14 +147,14 @@ async def get_research_data_upload_boxes(
 @TRACER.start_as_current_span("routes.get_research_data_upload_box")
 async def get_research_data_upload_box(
     box_id: UUID,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: UserAuthContext,
 ) -> ResearchDataUploadBox:
     """Get details of a specific upload box. If the user doesn't have access to an
     existing box, this endpoint will return a 404.
     """
     try:
-        box = await upload_service.get_research_data_upload_box(
+        box = await study_registry.upload_orchestrator.get_research_data_upload_box(
             box_id=box_id, auth_context=auth_context
         )
         return box
@@ -184,16 +186,18 @@ async def get_research_data_upload_box(
 @TRACER.start_as_current_span("routes.create_research_data_upload_box")
 async def create_research_data_upload_box(
     request: CreateUploadBoxRequest,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: StewardAuthContext,
 ) -> UUID4:
     """Create a new upload box. Requires Data Steward role."""
     try:
-        box_id = await upload_service.create_research_data_upload_box(
-            title=request.title,
-            description=request.description,
-            storage_alias=request.storage_alias,
-            data_steward_id=UUID(auth_context.id),
+        box_id = (
+            await study_registry.upload_orchestrator.create_research_data_upload_box(
+                title=request.title,
+                description=request.description,
+                storage_alias=request.storage_alias,
+                data_steward_id=UUID(auth_context.id),
+            )
         )
         return box_id
     except Exception as err:
@@ -229,12 +233,12 @@ async def create_research_data_upload_box(
 async def update_research_data_upload_box(
     box_id: UUID,
     request: UpdateUploadBoxRequest,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: UserAuthContext,
 ) -> None:
     """Update a ResearchDataUploadBox."""
     try:
-        await upload_service.update_research_data_upload_box(
+        await study_registry.upload_orchestrator.update_research_data_upload_box(
             box_id=box_id, request=request, auth_context=auth_context
         )
     except UploadOrchestratorPort.BoxAccessError as err:
@@ -269,12 +273,12 @@ async def update_research_data_upload_box(
 @TRACER.start_as_current_span("routes.grant_upload_access")
 async def grant_upload_access(
     request: GrantAccessRequest,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: StewardAuthContext,
 ) -> GrantId:
     """Grant upload access to a user. Requires Data Steward role."""
     try:
-        return await upload_service.grant_upload_access(
+        return await study_registry.upload_orchestrator.grant_upload_access(
             user_id=request.user_id,
             iva_id=request.iva_id,
             box_id=request.box_id,
@@ -305,12 +309,12 @@ async def grant_upload_access(
 @TRACER.start_as_current_span("routes.revoke_upload_access_grant")
 async def revoke_upload_access_grant(
     grant_id: UUID4,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: StewardAuthContext,
 ) -> None:
     """Revoke an upload access grant."""
     try:
-        await upload_service.revoke_upload_access_grant(grant_id)
+        await study_registry.upload_orchestrator.revoke_upload_access_grant(grant_id)
     except UploadOrchestratorPort.GrantNotFoundError as err:
         raise HttpGrantNotFoundError(grant_id=grant_id) from err
     except Exception as err:
@@ -339,7 +343,7 @@ async def revoke_upload_access_grant(
 )
 @TRACER.start_as_current_span("routes.get_upload_access_grants")
 async def get_upload_access_grants(  # noqa: PLR0913
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: StewardAuthContext,
     user_id: Annotated[
         UUID4 | None,
@@ -381,7 +385,7 @@ async def get_upload_access_grants(  # noqa: PLR0913
     user ID, IVA ID, box ID, and grant ID.
     """
     try:
-        return await upload_service.get_upload_access_grants(
+        return await study_registry.upload_orchestrator.get_upload_access_grants(
             user_id=user_id, iva_id=iva_id, box_id=box_id, valid=valid
         )
     except Exception as err:
@@ -408,12 +412,12 @@ async def get_upload_access_grants(  # noqa: PLR0913
 @TRACER.start_as_current_span("routes.list_upload_box_files")
 async def list_upload_box_files(
     box_id: UUID,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: UserAuthContext,
 ) -> list[FileUploadWithAccession]:
     """List file uploads in an upload box."""
     try:
-        file_uploads = await upload_service.get_upload_box_files(
+        file_uploads = await study_registry.upload_orchestrator.get_upload_box_files(
             box_id=box_id,
             auth_context=auth_context,
         )
@@ -446,12 +450,12 @@ async def list_upload_box_files(
 async def submit_accession_map(
     box_id: UUID,
     request: AccessionMapRequest,
-    upload_service: UploadOrchestratorDummy,
+    study_registry: StudyRegistryDummy,
     auth_context: StewardAuthContext,
 ) -> None:
-    """Update a ResearchDataUploadBox."""
+    """Submit a file ID to accession number mapping for an upload box."""
     try:
-        await upload_service.update_accession_map(
+        await study_registry.upload_orchestrator.update_accession_map(
             box_id=box_id, request=request, user_id=UUID(auth_context.id)
         )
     except UploadOrchestratorPort.AccessionMapError as err:

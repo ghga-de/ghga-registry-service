@@ -625,7 +625,7 @@ class UploadOrchestrator(UploadOrchestratorPort):
         - each file ID in the mapping exists in the retrieved list of files
         - all file IDs in the box are included in the mapping
 
-        Finally, submit the accession map to the file controller and update the RDUB version.
+        Finally, publish the mappings as events and update the RDUB version.
 
         Raises:
             BoxNotFoundError: If the box doesn't exist
