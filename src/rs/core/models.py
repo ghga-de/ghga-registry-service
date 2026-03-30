@@ -227,16 +227,13 @@ class BoxRetrievalResults(BaseModel):
     )
 
 
-Accession = Annotated[str, StringConstraints(pattern=r"^GHGA.+")]
-
-
 class AccessionMapRequest(BaseModel):
     """The request body schema for submitting accession maps"""
 
     version: int = Field(
         default=..., description="A counter indicating research data upload box version"
     )
-    mapping: dict[Accession, UUID4] = Field(
+    mapping: dict[FileAccession, UUID4] = Field(
         default=..., description="Map of accessions to file IDs"
     )
     study_pid: PID = Field(
@@ -248,6 +245,6 @@ class AccessionMapRequest(BaseModel):
 class FileUploadWithAccession(FileUpload):
     """A FileUpload with its accession"""
 
-    accession: Accession | None = Field(
+    accession: FileAccession | None = Field(
         default=None, description="The accession number assigned to this file."
     )

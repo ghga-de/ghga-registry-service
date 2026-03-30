@@ -291,11 +291,10 @@ class UploadOrchestrator(UploadOrchestratorPort):
 
         # Make sure all files have an accession number
         file_ids_in_box = {f.id for f in files}
-        file_id_strs = {str(f.id) for f in files}
         accessions = await self._file_controller.get_accessions_by_file_ids(
-            file_ids=file_id_strs
+            file_ids=file_ids_in_box
         )
-        mapped_file_ids = {UUID(fid) for fid in accessions}
+        mapped_file_ids = {fid for fid in accessions}
         unassigned_files = file_ids_in_box - mapped_file_ids
 
         if unassigned_files:
@@ -447,14 +446,13 @@ class UploadOrchestrator(UploadOrchestratorPort):
         )
 
         # Get accessions from database
-        file_id_strs = {str(f.id) for f in file_uploads}
+        file_ids = {f.id for f in file_uploads}
         accession_map = await self._file_controller.get_accessions_by_file_ids(
-            file_ids=file_id_strs
+            file_ids=file_ids
         )
         for i, file_upload in enumerate(file_uploads):
-            file_id_str = str(file_upload.id)
-            if file_id_str in accession_map:
-                file_uploads[i].accession = accession_map[file_id_str]
+            if file_upload.id in accession_map:
+                file_uploads[i].accession = accession_map[file_upload.id]
 
         # Sort files by alias for predictability
         return sorted(file_uploads, key=lambda x: x.alias)
