@@ -20,13 +20,13 @@ from dataclasses import dataclass
 
 import pytest_asyncio
 from ghga_service_commons.api.testing import AsyncTestClient
-from ghga_service_commons.utils import jwt_helpers
+from hexkit.providers.akafka import KafkaEventSubscriber
 from hexkit.providers.akafka.testutils import KafkaFixture
 from hexkit.providers.mongodb.testutils import MongoDbFixture
 from jwcrypto.jwk import JWK
 
 from rs.config import Config
-from rs.inject import prepare_core, prepare_rest_app
+from rs.inject import prepare_core, prepare_event_subscriber, prepare_rest_app
 from rs.ports.inbound.study_registry import StudyRegistryPort
 from tests.fixtures.config import get_config
 
@@ -37,22 +37,22 @@ class JointFixture:
 
     config: Config
     study_registry: StudyRegistryPort
+    event_subscriber: KafkaEventSubscriber
     kafka: KafkaFixture
     mongodb: MongoDbFixture
     rest_client: AsyncTestClient
-    auth_jwk: JWK
 
 
 @pytest_asyncio.fixture(scope="function")
 async def joint_fixture(
     mongodb: MongoDbFixture,
     kafka: KafkaFixture,
+    auth_jwk: JWK,
+    work_order_jwk: JWK,
 ) -> AsyncGenerator[JointFixture]:
     """A fixture that embeds all other fixtures for API-level integration testing."""
-    auth_jwk = jwt_helpers.generate_jwk()
     auth_key = auth_jwk.export(private_key=False)
-    signing_jwk = jwt_helpers.generate_jwk()
-    work_order_signing_key = signing_jwk.export(private_key=True)
+    work_order_signing_key = work_order_jwk.export(private_key=True)
 
     config = get_config(
         sources=[mongodb.config, kafka.config],
@@ -62,14 +62,17 @@ async def joint_fixture(
 
     async with (
         prepare_core(config=config) as study_registry,
+        prepare_event_subscriber(
+            config=config, study_registry_override=study_registry
+        ) as event_subscriber,
         prepare_rest_app(config=config, study_registry_override=study_registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         yield JointFixture(
             config=config,
             study_registry=study_registry,
+            event_subscriber=event_subscriber,
             kafka=kafka,
             mongodb=mongodb,
             rest_client=rest_client,
-            auth_jwk=auth_jwk,
         )

@@ -16,13 +16,11 @@
 
 from datetime import timedelta
 from unittest.mock import AsyncMock
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from ghga_service_commons.api.testing import AsyncTestClient
-from ghga_service_commons.utils.jwt_helpers import sign_and_serialize_token
 from hexkit.utils import now_utc_ms_prec
-from jwcrypto.jwk import JWK
 
 from rs.config import Config
 from rs.core.models import (
@@ -35,49 +33,9 @@ from rs.core.models import (
 from rs.inject import prepare_rest_app
 from rs.ports.inbound.orchestrator import UploadOrchestratorPort
 from rs.ports.outbound.http import FileBoxClientPort
+from tests.fixtures.utils import TEST_BOX_ID, TEST_DS_ID
 
 pytestmark = pytest.mark.asyncio
-TEST_DS_ID = UUID("f698158d-8417-4368-bb45-349277bc45ee")
-TEST_BOX_ID = UUID("bf344cd4-0c1b-434a-93d1-36a11b6b02d9")
-INVALID_HEADER: dict[str, str] = {"Authorization": "Bearer ab12"}
-
-DS_AUTH_CLAIMS = {
-    "name": "John Doe",
-    "email": "john@home.org",
-    "title": "Dr.",
-    "id": str(TEST_DS_ID),
-    "roles": ["data_steward"],
-}
-USER_AUTH_CLAIMS = DS_AUTH_CLAIMS.copy()
-del USER_AUTH_CLAIMS["roles"]
-
-
-def headers_for_token(token: str) -> dict[str, str]:
-    """Get the Authorization headers for the given token."""
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture(name="user_auth_headers")
-def fixture_user_auth_headers(config: Config, auth_jwk: JWK) -> dict[str, str]:
-    """Get auth headers for testing"""
-    token = sign_and_serialize_token(USER_AUTH_CLAIMS, auth_jwk)
-    return headers_for_token(token)
-
-
-@pytest.fixture(name="ds_auth_headers")
-def fixture_ds_auth_headers(config: Config, auth_jwk: JWK) -> dict[str, str]:
-    """Get auth headers for testing"""
-    token = sign_and_serialize_token(DS_AUTH_CLAIMS, auth_jwk)
-    return headers_for_token(token)
-
-
-@pytest.fixture(name="bad_auth_headers")
-def fixture_bad_auth_headers(config: Config, auth_jwk: JWK) -> dict[str, str]:
-    """Get a invalid auth headers for testing"""
-    claims = DS_AUTH_CLAIMS.copy()
-    del claims["id"]
-    token = sign_and_serialize_token(claims, auth_jwk)
-    return headers_for_token(token)
 
 
 async def test_health(config: Config):
@@ -93,14 +51,14 @@ async def test_health(config: Config):
 async def test_get_research_data_upload_box(
     config: Config, user_auth_headers, bad_auth_headers
 ):
-    """Test the GET /boxes/{box_id} endpoint."""
+    """Test the GET /upload-boxes/{box_id} endpoint."""
     study_registry = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=study_registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         # unauthenticated
-        url = f"/boxes/{TEST_BOX_ID}"
+        url = f"/upload-boxes/{TEST_BOX_ID}"
         response = await rest_client.get(url)
         assert response.status_code == 401
 
@@ -157,13 +115,13 @@ async def test_get_research_data_upload_box(
 async def test_create_research_data_upload_box(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the POST /boxes endpoint"""
+    """Test the POST /upload-boxes endpoint"""
     study_registry = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=study_registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = "/boxes"
+        url = "/upload-boxes"
         request_data = {
             "title": "Test Box",
             "description": "Test description",
@@ -216,13 +174,13 @@ async def test_create_research_data_upload_box(
 async def test_update_research_data_upload_box(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the PATCH /boxes/{box_id} endpoint."""
+    """Test the PATCH /upload-boxes/{box_id} endpoint."""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = f"/boxes/{TEST_BOX_ID}"
+        url = f"/upload-boxes/{TEST_BOX_ID}"
         request_data = {
             "version": 0,
             "title": "Updated Title",
@@ -320,13 +278,13 @@ async def test_update_research_data_upload_box(
 async def test_grant_upload_access(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the POST /access-grants endpoint"""
+    """Test the POST /upload-grants endpoint"""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = "/access-grants"
+        url = "/upload-grants"
         request_data = {
             "user_id": str(uuid4()),
             "iva_id": str(uuid4()),
@@ -374,13 +332,13 @@ async def test_grant_upload_access(
 async def test_list_upload_box_files(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the GET /boxes/{box_id}/uploads endpoint."""
+    """Test the GET /upload-boxes/{box_id}/uploads endpoint."""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = f"/boxes/{TEST_BOX_ID}/uploads"
+        url = f"/upload-boxes/{TEST_BOX_ID}/uploads"
 
         # unauthenticated
         response = await rest_client.get(url)
@@ -446,7 +404,7 @@ async def test_list_upload_box_files(
 async def test_revoke_upload_access_grant(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the DELETE /access-grants/{grant_id} endpoint"""
+    """Test the DELETE /upload-grants/{grant_id} endpoint"""
     orchestrator = AsyncMock()
     test_grant_id = uuid4()
 
@@ -454,7 +412,7 @@ async def test_revoke_upload_access_grant(
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = f"/access-grants/{test_grant_id}"
+        url = f"/upload-grants/{test_grant_id}"
 
         # unauthenticated
         response = await rest_client.delete(url)
@@ -493,13 +451,13 @@ async def test_revoke_upload_access_grant(
 async def test_get_upload_access_grants(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the GET /access-grants endpoint"""
+    """Test the GET /upload-grants endpoint"""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = "/access-grants"
+        url = "/upload-grants"
 
         # unauthenticated
         response = await rest_client.get(url)
@@ -560,7 +518,7 @@ async def test_get_boxes(
     ds_auth_headers: dict[str, str],
     user_auth_headers: dict[str, str],
 ):
-    """Test GET /boxes endpoint."""
+    """Test GET /upload-boxes endpoint."""
     orchestrator = AsyncMock()
 
     # Create test boxes
@@ -597,7 +555,7 @@ async def test_get_boxes(
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = "/boxes"
+        url = "/upload-boxes"
 
         # Test successful data steward request
         orchestrator.upload_orchestrator.get_research_data_upload_boxes.return_value = (
@@ -676,13 +634,13 @@ async def test_get_boxes(
     ],
 )
 async def test_get_boxes_bad_parameters(config: Config, ds_auth_headers, params):
-    """Test the GET /boxes endpoint with bad parameters but valid auth context"""
+    """Test the GET /upload-boxes endpoint with bad parameters but valid auth context"""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = "/boxes"
+        url = "/upload-boxes"
         response = await rest_client.get(url, headers=ds_auth_headers, params=params)
         assert response.status_code == 422
 
@@ -690,13 +648,13 @@ async def test_get_boxes_bad_parameters(config: Config, ds_auth_headers, params)
 async def test_archive_via_update_endpoint(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test archiving a box through the PATCH /boxes/{box_id} endpoint"""
+    """Test archiving a box through the PATCH /upload-boxes/{box_id} endpoint"""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = f"/boxes/{TEST_BOX_ID}"
+        url = f"/upload-boxes/{TEST_BOX_ID}"
         request_data = {"version": 1, "state": "archived"}
 
         # unauthenticated
@@ -753,66 +711,66 @@ async def test_archive_via_update_endpoint(
 async def test_submit_accession_map(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the PATCH /boxes/{box_id}/accessions endpoint"""
+    """Test the POST /upload-boxes/{box_id}/accessions endpoint"""
     orchestrator = AsyncMock()
     async with (
         prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = f"/boxes/{TEST_BOX_ID}/accessions"
+        url = f"/upload-boxes/{TEST_BOX_ID}/file-ids"
         request_data = {
-            "version": 0,
+            "research_data_upload_box_version": 0,
             "mapping": {"GHGAF001": str(uuid4()), "GHGAF002": str(uuid4())},
-            "study_pid": "GHGA-STUDY-001",
+            "study_id": "GHGA-STUDY-001",
         }
 
         # unauthenticated
-        response = await rest_client.patch(url, json=request_data)
+        response = await rest_client.post(url, json=request_data)
         assert response.status_code == 401
 
         # bad credentials
-        response = await rest_client.patch(
+        response = await rest_client.post(
             url, json=request_data, headers=bad_auth_headers
         )
         assert response.status_code == 401
 
         # normal response but user is not a data steward (no data_steward role)
-        response = await rest_client.patch(
+        response = await rest_client.post(
             url, json=request_data, headers=user_auth_headers
         )
         assert response.status_code == 403
 
         # normal response with data steward role
-        orchestrator.upload_orchestrator.update_accession_map.return_value = None
-        response = await rest_client.patch(
+        orchestrator.upload_orchestrator.store_accession_map.return_value = None
+        response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 204
 
         # handle accession map error from core
         orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_accession_map.side_effect = (
+        orchestrator.upload_orchestrator.store_accession_map.side_effect = (
             UploadOrchestratorPort.AccessionMapError()
         )
-        response = await rest_client.patch(
+        response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 400
 
         # handle box not found error from core
         orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_accession_map.side_effect = (
+        orchestrator.upload_orchestrator.store_accession_map.side_effect = (
             UploadOrchestratorPort.BoxNotFoundError(box_id=TEST_BOX_ID)
         )
-        response = await rest_client.patch(
+        response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 404
 
         # handle other exception
         orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_accession_map.side_effect = TypeError()
-        response = await rest_client.patch(
+        orchestrator.upload_orchestrator.store_accession_map.side_effect = TypeError()
+        response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 500

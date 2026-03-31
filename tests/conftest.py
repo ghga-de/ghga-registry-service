@@ -22,6 +22,7 @@ import pytest
 import pytest_asyncio
 from ghga_service_commons.api.testing import AsyncTestClient
 from ghga_service_commons.utils import jwt_helpers
+from ghga_service_commons.utils.jwt_helpers import sign_and_serialize_token
 from hexkit.correlation import set_new_correlation_id
 from hexkit.providers.akafka.testutils import (  # noqa: F401
     kafka_container_fixture,
@@ -38,6 +39,7 @@ from rs.inject import prepare_rest_app
 from tests.fixtures import AppFixture
 from tests.fixtures.config import get_config
 from tests.fixtures.joint import joint_fixture
+from tests.fixtures.utils import DS_AUTH_CLAIMS, USER_AUTH_CLAIMS, headers_for_token
 
 __all__ = ["joint_fixture"]
 
@@ -102,3 +104,26 @@ async def httpx_client() -> AsyncGenerator[httpx.AsyncClient]:
 async def cid_fixture():
     async with set_new_correlation_id() as cid:
         yield cid
+
+
+@pytest.fixture(name="user_auth_headers")
+def fixture_user_auth_headers(auth_jwk: JWK) -> dict[str, str]:
+    """Get auth headers for testing"""
+    token = sign_and_serialize_token(USER_AUTH_CLAIMS, auth_jwk)
+    return headers_for_token(token)
+
+
+@pytest.fixture(name="ds_auth_headers")
+def fixture_ds_auth_headers(auth_jwk: JWK) -> dict[str, str]:
+    """Get auth headers for testing"""
+    token = sign_and_serialize_token(DS_AUTH_CLAIMS, auth_jwk)
+    return headers_for_token(token)
+
+
+@pytest.fixture(name="bad_auth_headers")
+def fixture_bad_auth_headers(auth_jwk: JWK) -> dict[str, str]:
+    """Get a invalid auth headers for testing"""
+    claims = DS_AUTH_CLAIMS.copy()
+    del claims["id"]
+    token = sign_and_serialize_token(claims, auth_jwk)
+    return headers_for_token(token)

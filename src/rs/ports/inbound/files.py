@@ -27,7 +27,7 @@ class FileControllerPort(ABC):
 
     @abstractmethod
     async def post_file_ids(
-        self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
+        self, *, study_id: str, file_id_map: dict[FileAccession, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings."""
 

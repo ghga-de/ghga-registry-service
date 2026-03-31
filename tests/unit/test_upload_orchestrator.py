@@ -652,7 +652,7 @@ async def test_get_boxes_pagination(rig: JointRig, populated_boxes: list[UUID]):
     assert len(results.boxes) == 5
 
 
-async def test_update_accession_map_happy(rig: JointRig, populated_boxes: list[UUID]):
+async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UUID]):
     """Test the normal path of updating an accession map.
 
     This test also checks for the BoxNotFoundError case, since that is small enough
@@ -685,18 +685,18 @@ async def test_update_accession_map_happy(rig: JointRig, populated_boxes: list[U
 
     # Create an accession map
     accession_map = models.AccessionMapRequest(
-        version=0,
+        research_data_upload_box_version=0,
         mapping={
             "GHGAF001": test_file_ids[0],
             "GHGAF002": test_file_ids[1],
             "GHGAF003": test_file_ids[2],
         },
-        study_pid="GHGA-STUDY-001",
+        study_id="GHGA-STUDY-001",
     )
 
     # Verify that a BoxNotFoundError is raised for a non-existent box
     with pytest.raises(rig.orchestrator.BoxNotFoundError):
-        await rig.orchestrator.update_accession_map(
+        await rig.orchestrator.store_accession_map(
             box_id=uuid4(), request=accession_map, user_id=TEST_DS_ID
         )
 
@@ -711,7 +711,7 @@ async def test_update_accession_map_happy(rig: JointRig, populated_boxes: list[U
     version_pre_update = box.version
 
     # Call the method with the valid map now
-    await rig.orchestrator.update_accession_map(
+    await rig.orchestrator.store_accession_map(
         box_id=box_id, request=accession_map, user_id=TEST_DS_ID
     )
 
@@ -726,7 +726,7 @@ async def test_update_accession_map_happy(rig: JointRig, populated_boxes: list[U
     rig.file_upload_box_client.get_file_upload_list.assert_called_once()  # type: ignore
 
 
-async def test_update_accession_map_invalid_or_unmapped_file_ids(
+async def test_store_accession_map_invalid_or_unmapped_file_ids(
     rig: JointRig, populated_boxes: list[UUID]
 ):
     """Test that invalid file IDs in an accession map or leaving any box files unmapped
@@ -760,14 +760,14 @@ async def test_update_accession_map_invalid_or_unmapped_file_ids(
     # Create an accession map with a file ID that doesn't exist in the box
     invalid_file_id = uuid4()
     accession_map = models.AccessionMapRequest(
-        version=0,
+        research_data_upload_box_version=0,
         mapping={"GHGAF001": test_file_ids[0], "GHGAF002": invalid_file_id},
-        study_pid="GHGA-STUDY-001",
+        study_id="GHGA-STUDY-001",
     )
 
     # Should raise AccessionMapError
     with pytest.raises(rig.orchestrator.AccessionMapError, match="not in the box"):
-        await rig.orchestrator.update_accession_map(
+        await rig.orchestrator.store_accession_map(
             box_id=box_id, request=accession_map, user_id=TEST_DS_ID
         )
 
@@ -776,19 +776,21 @@ async def test_update_accession_map_invalid_or_unmapped_file_ids(
 
     # Create an accession map that omits a file
     accession_map = models.AccessionMapRequest(
-        version=0, mapping={"GHGAF001": test_file_ids[0]}, study_pid="GHGA-STUDY-001"
+        research_data_upload_box_version=0,
+        mapping={"GHGAF001": test_file_ids[0]},
+        study_id="GHGA-STUDY-001",
     )
 
     # Should raise AccessionMapError
     with pytest.raises(
         rig.orchestrator.AccessionMapError, match="still need to be mapped"
     ):
-        await rig.orchestrator.update_accession_map(
+        await rig.orchestrator.store_accession_map(
             box_id=box_id, request=accession_map, user_id=TEST_DS_ID
         )
 
 
-async def test_update_accession_map_filters_cancelled_and_failed(
+async def test_store_accession_map_filters_cancelled_and_failed(
     rig: JointRig, populated_boxes: list[UUID]
 ):
     """Test that cancelled and failed files are filtered out when validating accession map."""
@@ -860,13 +862,13 @@ async def test_update_accession_map_filters_cancelled_and_failed(
 
     # Create an accession map for only the valid files
     request = models.AccessionMapRequest(
-        version=0,
+        research_data_upload_box_version=0,
         mapping={"GHGAF001": test_file_ids[0], "GHGAF004": test_file_ids[3]},
-        study_pid="GHGA-STUDY-001",
+        study_id="GHGA-STUDY-001",
     )
 
     # This should succeed because cancelled and failed files are ignored
-    await rig.orchestrator.update_accession_map(
+    await rig.orchestrator.store_accession_map(
         box_id=box_id, request=request, user_id=TEST_DS_ID
     )
 

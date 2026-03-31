@@ -18,58 +18,24 @@
 from pathlib import Path
 from uuid import UUID
 
-from ghga_service_commons.utils import jwt_helpers
-from ghga_service_commons.utils.utc_dates import now_as_utc
-from jwcrypto.jwk import JWK
-
 BASE_DIR = Path(__file__).parent.resolve()
 
 TOKEN_LIFESPAN = 30  # seconds
-DATA_STEWARD_ID = UUID("6d1a41c3-de07-42f8-80ef-243aa69b6261")
-REGULAR_USER_ID = UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
+TEST_DS_ID = UUID("f698158d-8417-4368-bb45-349277bc45ee")
+TEST_BOX_ID = UUID("bf344cd4-0c1b-434a-93d1-36a11b6b02d9")
+INVALID_HEADER: dict[str, str] = {"Authorization": "Bearer ab12"}
+
+DS_AUTH_CLAIMS = {
+    "name": "John Doe",
+    "email": "john@home.org",
+    "title": "Dr.",
+    "id": str(TEST_DS_ID),
+    "roles": ["data_steward"],
+}
+USER_AUTH_CLAIMS = DS_AUTH_CLAIMS.copy()
+del USER_AUTH_CLAIMS["roles"]
 
 
-def _make_ghga_auth_header(
-    *,
-    user_id: UUID,
-    user_name: str,
-    user_email: str,
-    roles: list[str],
-    jwk: JWK,
-) -> dict[str, str]:
-    """Create a GHGA auth header with a signed JWT containing the given claims."""
-    now = now_as_utc()
-    claims = {
-        "id": str(user_id),
-        "name": user_name,
-        "email": user_email,
-        "iat": int(now.timestamp()),
-        "exp": int(now.timestamp()) + TOKEN_LIFESPAN,
-        "roles": roles,
-    }
-    signed_token = jwt_helpers.sign_and_serialize_token(
-        claims=claims, key=jwk, valid_seconds=TOKEN_LIFESPAN
-    )
-    return {"Authorization": f"Bearer {signed_token}"}
-
-
-def data_steward_auth_header(*, jwk: JWK) -> dict[str, str]:
-    """Generate a GHGA auth header for a data steward user."""
-    return _make_ghga_auth_header(
-        user_id=DATA_STEWARD_ID,
-        user_name="Test Data Steward",
-        user_email="steward@example.org",
-        roles=["data_steward"],
-        jwk=jwk,
-    )
-
-
-def regular_user_auth_header(*, jwk: JWK) -> dict[str, str]:
-    """Generate a GHGA auth header for a regular (non-steward) user."""
-    return _make_ghga_auth_header(
-        user_id=REGULAR_USER_ID,
-        user_name="Test Regular User",
-        user_email="user@example.org",
-        roles=[],
-        jwk=jwk,
-    )
+def headers_for_token(token: str) -> dict[str, str]:
+    """Get the Authorization headers for the given token."""
+    return {"Authorization": f"Bearer {token}"}

@@ -11,20 +11,20 @@ components:
               type: string
           title: Mapping
           type: object
-        study_pid:
+        research_data_upload_box_version:
+          description: A counter indicating research data upload box version
+          title: Research Data Upload Box Version
+          type: integer
+        study_id:
           description: Identifier of the study to which the file accessions belong.
           maxLength: 256
           minLength: 1
-          title: Study Pid
+          title: Study Id
           type: string
-        version:
-          description: A counter indicating research data upload box version
-          title: Version
-          type: integer
       required:
-      - version
+      - research_data_upload_box_version
       - mapping
-      - study_pid
+      - study_id
       title: AccessionMapRequest
       type: object
     BoxRetrievalResults:
@@ -215,11 +215,11 @@ components:
           title: Valid Until
           type: string
       required:
-      - valid_from
-      - valid_until
+      - box_id
       - user_id
       - iva_id
-      - box_id
+      - valid_from
+      - valid_until
       title: GrantAccessRequest
       type: object
     GrantId:
@@ -466,149 +466,24 @@ info:
   version: 0.1.0
 openapi: 3.1.0
 paths:
-  /access-grants:
+  /health:
     get:
-      description: Endpoint to get the list of all upload access grants. Can be filtered
-        by user ID, IVA ID, and box ID. Results are sorted by validity, box ID, user
-        ID, IVA ID, and grant ID.
-      operationId: get_upload_access_grants_access_grants_get
-      parameters:
-      - description: The internal ID of the user
-        in: query
-        name: user_id
-        required: false
-        schema:
-          anyOf:
-          - format: uuid4
-            type: string
-          - type: 'null'
-          description: The internal ID of the user
-          title: User Id
-      - description: The ID of the IVA
-        in: query
-        name: iva_id
-        required: false
-        schema:
-          anyOf:
-          - format: uuid4
-            type: string
-          - type: 'null'
-          description: The ID of the IVA
-          title: Iva Id
-      - description: The ID of the upload box
-        in: query
-        name: box_id
-        required: false
-        schema:
-          anyOf:
-          - format: uuid4
-            type: string
-          - type: 'null'
-          description: The ID of the upload box
-          title: Box Id
-      - description: Whether the grant is currently valid
-        in: query
-        name: valid
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          description: Whether the grant is currently valid
-          title: Valid
+      description: Used to test if this service is alive
+      operationId: health_health_get
       responses:
         '200':
           content:
             application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/GrantWithBoxInfo'
-                title: Response 200 Get Upload Access Grants Access Grants Get
-                type: array
-          description: Upload access grants have been fetched.
-        '401':
-          description: Not authenticated.
-        '403':
-          description: Not authorized.
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-      security:
-      - HTTPBearer: []
-      summary: Get upload access grants
-      tags:
-      - ResearchDataUploadBoxes
-    post:
-      description: Grant upload access to a user for a single research data upload
-        box. Users cannot upload any files until they have been granted access to
-        a box.
-      operationId: grant_upload_access_access_grants_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GrantAccessRequest'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GrantId'
-          description: Upload access granted successfully.
-        '401':
-          description: Not authenticated.
-        '403':
-          description: Not authorized.
-        '422':
-          description: Validation error in request body.
-      security:
-      - HTTPBearer: []
-      summary: Grant upload access
-      tags:
-      - ResearchDataUploadBoxes
-  /access-grants/{grant_id}:
-    delete:
-      description: Revokes an existing upload access grant.
-      operationId: revoke_upload_access_grant_access_grants__grant_id__delete
-      parameters:
-      - in: path
-        name: grant_id
-        required: true
-        schema:
-          format: uuid4
-          title: Grant Id
-          type: string
-      responses:
-        '204':
-          description: Upload access grant has been revoked.
-        '401':
-          description: Not authenticated.
-        '403':
-          description: Not authorized.
-        '404':
-          description: The upload access grant was not found.
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-      security:
-      - HTTPBearer: []
-      summary: Revoke an upload access grant
-      tags:
-      - ResearchDataUploadBoxes
-  /boxes:
+              schema: {}
+          description: Successful Response
+      summary: health
+  /upload-boxes:
     get:
       description: Returns a list of research data upload boxes. Results are sorted
         first by locked status (unlocked followed by locked), then by most recently
         changed, then by box ID. Data Stewards have access to all boxes, while regular
         users may only access boxes to which they have been granted upload access.
-      operationId: get_research_data_upload_boxes_boxes_get
+      operationId: get_research_data_upload_boxes_upload_boxes_get
       parameters:
       - description: Number of research data upload boxes to skip for pagination
         in: query
@@ -667,7 +542,7 @@ paths:
     post:
       description: Create a new research data upload box to label and track related
         file uploads for a given user.
-      operationId: create_research_data_upload_box_boxes_post
+      operationId: create_research_data_upload_box_upload_boxes_post
       requestBody:
         content:
           application/json:
@@ -680,7 +555,7 @@ paths:
             application/json:
               schema:
                 format: uuid4
-                title: Response 201 Create Research Data Upload Box Boxes Post
+                title: Response 201 Create Research Data Upload Box Upload Boxes Post
                 type: string
           description: Upload box created successfully.
         '401':
@@ -694,10 +569,10 @@ paths:
       summary: Create upload box
       tags:
       - ResearchDataUploadBoxes
-  /boxes/{box_id}:
+  /upload-boxes/{box_id}:
     get:
       description: Returns the details of an existing research data upload box.
-      operationId: get_research_data_upload_box_boxes__box_id__get
+      operationId: get_research_data_upload_box_upload_boxes__box_id__get
       parameters:
       - in: path
         name: box_id
@@ -738,7 +613,7 @@ paths:
         be modified, and files in the box will be moved to permanent storage. If any
         files in the box have yet to be re-encrypted, if the box is still open, or
         if there are any files that lack an accession number, archival is denied.'
-      operationId: update_research_data_upload_box_boxes__box_id__patch
+      operationId: update_research_data_upload_box_upload_boxes__box_id__patch
       parameters:
       - in: path
         name: box_id
@@ -771,10 +646,10 @@ paths:
       summary: Update upload box
       tags:
       - ResearchDataUploadBoxes
-  /boxes/{box_id}/accessions:
-    patch:
+  /upload-boxes/{box_id}/file-ids:
+    post:
       description: Submit a file ID to accession number mapping for an upload box.
-      operationId: submit_accession_map_boxes__box_id__accessions_patch
+      operationId: submit_accession_map_upload_boxes__box_id__file_ids_post
       parameters:
       - in: path
         name: box_id
@@ -807,11 +682,11 @@ paths:
       summary: Map file IDs to accession numbers for files in the upload box
       tags:
       - ResearchDataUploadBoxes
-  /boxes/{box_id}/uploads:
+  /upload-boxes/{box_id}/uploads:
     get:
       description: List the details of all files uploads for a research data upload
         box.
-      operationId: list_upload_box_files_boxes__box_id__uploads_get
+      operationId: list_upload_box_files_upload_boxes__box_id__uploads_get
       parameters:
       - in: path
         name: box_id
@@ -827,7 +702,8 @@ paths:
               schema:
                 items:
                   $ref: '#/components/schemas/FileUploadWithAccession'
-                title: Response 200 List Upload Box Files Boxes  Box Id  Uploads Get
+                title: Response 200 List Upload Box Files Upload Boxes  Box Id  Uploads
+                  Get
                 type: array
           description: File upload information successfully retrieved.
         '401':
@@ -847,16 +723,141 @@ paths:
       summary: List files in upload box
       tags:
       - ResearchDataUploadBoxes
-  /health:
+  /upload-grants:
     get:
-      description: Used to test if this service is alive
-      operationId: health_health_get
+      description: Endpoint to get the list of all upload access grants. Can be filtered
+        by user ID, IVA ID, and box ID. Results are sorted by validity, box ID, user
+        ID, IVA ID, and grant ID.
+      operationId: get_upload_access_grants_upload_grants_get
+      parameters:
+      - description: The internal ID of the user
+        in: query
+        name: user_id
+        required: false
+        schema:
+          anyOf:
+          - format: uuid4
+            type: string
+          - type: 'null'
+          description: The internal ID of the user
+          title: User Id
+      - description: The ID of the IVA
+        in: query
+        name: iva_id
+        required: false
+        schema:
+          anyOf:
+          - format: uuid4
+            type: string
+          - type: 'null'
+          description: The ID of the IVA
+          title: Iva Id
+      - description: The ID of the upload box
+        in: query
+        name: box_id
+        required: false
+        schema:
+          anyOf:
+          - format: uuid4
+            type: string
+          - type: 'null'
+          description: The ID of the upload box
+          title: Box Id
+      - description: Whether the grant is currently valid
+        in: query
+        name: valid
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: Whether the grant is currently valid
+          title: Valid
       responses:
         '200':
           content:
             application/json:
-              schema: {}
-          description: Successful Response
-      summary: health
+              schema:
+                items:
+                  $ref: '#/components/schemas/GrantWithBoxInfo'
+                title: Response 200 Get Upload Access Grants Upload Grants Get
+                type: array
+          description: Upload access grants have been fetched.
+        '401':
+          description: Not authenticated.
+        '403':
+          description: Not authorized.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+      - HTTPBearer: []
+      summary: Get upload access grants
+      tags:
+      - ResearchDataUploadBoxes
+    post:
+      description: Grant upload access to a user for a single research data upload
+        box. Users cannot upload any files until they have been granted access to
+        a box.
+      operationId: grant_upload_access_upload_grants_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantAccessRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantId'
+          description: Upload access granted successfully.
+        '401':
+          description: Not authenticated.
+        '403':
+          description: Not authorized.
+        '422':
+          description: Validation error in request body.
+      security:
+      - HTTPBearer: []
+      summary: Grant upload access
+      tags:
+      - ResearchDataUploadBoxes
+  /upload-grants/{grant_id}:
+    delete:
+      description: Revokes an existing upload access grant.
+      operationId: revoke_upload_access_grant_upload_grants__grant_id__delete
+      parameters:
+      - in: path
+        name: grant_id
+        required: true
+        schema:
+          format: uuid4
+          title: Grant Id
+          type: string
+      responses:
+        '204':
+          description: Upload access grant has been revoked.
+        '401':
+          description: Not authenticated.
+        '403':
+          description: Not authorized.
+        '404':
+          description: The upload access grant was not found.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+      - HTTPBearer: []
+      summary: Revoke an upload access grant
+      tags:
+      - ResearchDataUploadBoxes
 tags:
 - name: ResearchDataUploadBoxes

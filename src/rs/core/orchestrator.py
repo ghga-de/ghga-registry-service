@@ -600,7 +600,7 @@ class UploadOrchestrator(UploadOrchestratorPort):
 
         return BoxRetrievalResults(count=count, boxes=boxes)
 
-    async def update_accession_map(
+    async def store_accession_map(
         self,
         *,
         box_id: UUID4,
@@ -641,11 +641,11 @@ class UploadOrchestrator(UploadOrchestratorPort):
             raise self.BoxNotFoundError(box_id=box_id) from err
 
         # Make sure requested box version is current
-        if request.version != box.version:
+        if request.research_data_upload_box_version != box.version:
             log.error(
                 "Accession Map update request specified version %i for RDUB %s, but"
                 + " the current version is %i.",
-                request.version,
+                request.research_data_upload_box_version,
                 box_id,
                 box.version,
             )
@@ -720,7 +720,7 @@ class UploadOrchestrator(UploadOrchestratorPort):
 
         # Submit the accession map via the file controller
         await self._file_controller.post_file_ids(
-            study_pid=request.study_pid, file_id_map=request.mapping
+            study_id=request.study_id, file_id_map=request.mapping
         )
 
         # Bump the RDUB version number

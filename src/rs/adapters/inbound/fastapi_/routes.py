@@ -65,7 +65,7 @@ async def health():
 
 
 @router.get(
-    "/boxes",
+    "/upload-boxes",
     summary="List upload boxes",
     description=(
         "Returns a list of research data upload boxes. Results are sorted first by"
@@ -129,7 +129,7 @@ async def get_research_data_upload_boxes(
 
 
 @router.get(
-    "/boxes/{box_id}",
+    "/upload-boxes/{box_id}",
     summary="Get upload box details",
     description="Returns the details of an existing research data upload box.",
     tags=TAGS,
@@ -169,7 +169,7 @@ async def get_research_data_upload_box(
 
 
 @router.post(
-    "/boxes",
+    "/upload-boxes",
     summary="Create upload box",
     description="Create a new research data upload box to label and track related file"
     + " uploads for a given user.",
@@ -206,7 +206,7 @@ async def create_research_data_upload_box(
 
 
 @router.patch(
-    "/boxes/{box_id}",
+    "/upload-boxes/{box_id}",
     summary="Update upload box",
     description="Update modifiable details for a research data upload box, including"
     + " the description, title, and state. When modifying the state, users are only"
@@ -257,7 +257,7 @@ async def update_research_data_upload_box(
 
 
 @router.post(
-    "/access-grants",
+    "/upload-grants",
     summary="Grant upload access",
     description="Grant upload access to a user for a single research data upload box."
     + " Users cannot upload any files until they have been granted access to a box.",
@@ -292,7 +292,7 @@ async def grant_upload_access(
 
 
 @router.delete(
-    "/access-grants/{grant_id}",
+    "/upload-grants/{grant_id}",
     summary="Revoke an upload access grant",
     description="Revokes an existing upload access grant.",
     tags=TAGS,
@@ -323,7 +323,7 @@ async def revoke_upload_access_grant(
 
 
 @router.get(
-    "/access-grants",
+    "/upload-grants",
     summary="Get upload access grants",
     description=(
         "Endpoint to get the list of all upload access grants. Can be filtered by user"
@@ -393,8 +393,11 @@ async def get_upload_access_grants(  # noqa: PLR0913
         raise HttpInternalError(message="Failed to get upload access grants") from err
 
 
+# TODO: Add endpoint to get ACCESSION -> name & alias mapping for files
+
+
 @router.get(
-    "/boxes/{box_id}/uploads",
+    "/upload-boxes/{box_id}/uploads",
     summary="List files in upload box",
     description="List the details of all files uploads for a research data upload box.",
     tags=TAGS,
@@ -431,8 +434,8 @@ async def list_upload_box_files(
         raise HttpInternalError(message="Failed to list upload box files") from err
 
 
-@router.patch(
-    "/boxes/{box_id}/accessions",
+@router.post(
+    "/upload-boxes/{box_id}/file-ids",
     summary="Map file IDs to accession numbers for files in the upload box",
     tags=TAGS,
     response_model=None,
@@ -455,7 +458,7 @@ async def submit_accession_map(
 ) -> None:
     """Submit a file ID to accession number mapping for an upload box."""
     try:
-        await study_registry.upload_orchestrator.update_accession_map(
+        await study_registry.upload_orchestrator.store_accession_map(
             box_id=box_id, request=request, user_id=UUID(auth_context.id)
         )
     except UploadOrchestratorPort.AccessionMapError as err:

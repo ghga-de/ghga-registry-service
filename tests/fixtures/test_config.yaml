@@ -5,9 +5,9 @@ db_name: rs
 mongo_timeout: 300
 auth_key: "{}"
 auth_check_claims: {}
-access_url: "http://access:8080"
 work_order_signing_key: "{}"
-ucs_url: "http://ucs:8080"
+access_url: http://127.0.0.1/access
+ucs_url: http://127.0.0.1/upload
 audit_record_topic: "audit-records"
 audit_record_type: "audit_record_created"
 file_upload_box_topic: "file-upload-boxes"

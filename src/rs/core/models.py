@@ -126,7 +126,7 @@ class SubmitAccessionMapWorkOrder(BaseWorkOrderToken):
 
     work_type: Literal["map"] = "map"
     user_id: UUID4
-    study_pid: PID
+    study_id: PID
 
 
 # API Request/Response models
@@ -166,11 +166,11 @@ class GrantId(BaseModel):
 class GrantAccessRequest(BaseModel):
     """Request model for granting upload access to a user."""
 
-    valid_from: UTCDatetime = Field(..., description="Start date of validity")
-    valid_until: UTCDatetime = Field(..., description="End date of validity")
+    box_id: UUID4 = Field(..., description="ID of the upload box")
     user_id: UUID4 = Field(..., description="ID of the user to grant access to")
     iva_id: UUID4 = Field(..., description="ID of the IVA verification")
-    box_id: UUID4 = Field(..., description="ID of the upload box")
+    valid_from: UTCDatetime = Field(..., description="Start date of validity")
+    valid_until: UTCDatetime = Field(..., description="End date of validity")
 
     @field_validator("valid_until")
     @classmethod
@@ -229,13 +229,13 @@ class BoxRetrievalResults(BaseModel):
 class AccessionMapRequest(BaseModel):
     """The request body schema for submitting accession maps"""
 
-    version: int = Field(
+    research_data_upload_box_version: int = Field(
         default=..., description="A counter indicating research data upload box version"
     )
     mapping: dict[FileAccession, UUID4] = Field(
         default=..., description="Map of accessions to file IDs"
     )
-    study_pid: PID = Field(
+    study_id: PID = Field(
         default=...,
         description="Identifier of the study to which the file accessions belong.",
     )

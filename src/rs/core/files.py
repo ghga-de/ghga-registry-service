@@ -16,6 +16,7 @@
 """Core service logic"""
 
 import logging
+from uuid import UUID
 
 from hexkit.utils import now_utc_ms_prec
 from pydantic import UUID4
@@ -34,7 +35,7 @@ class FileController(FileControllerPort):
         self._alt_accession_dao = alt_accession_dao
 
     async def post_file_ids(
-        self, *, study_pid: str, file_id_map: dict[FileAccession, UUID4]
+        self, *, study_id: str, file_id_map: dict[FileAccession, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings."""
         for accession, file_id in file_id_map.items():
@@ -50,19 +51,19 @@ class FileController(FileControllerPort):
                 "Upserted alt accession for internal file ID %s pointing to PID %s for study PID %s.",
                 file_id,
                 accession,
-                study_pid,
+                study_id,
             )
 
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]
     ) -> dict[UUID4, str]:
         """Query AltAccession records for the given file IDs.
-        Returns a dict mapping file_id (str) to accession (str).
+        Returns a dict mapping file_id (UUID4) to accession (str).
         """
         result = {}
-        for file_id in file_ids:
-            async for record in self._alt_accession_dao.find_all(
-                mapping={"id": file_id}
-            ):
-                result[file_id] = record.pid
+        file_ids_str = [str(fid) for fid in file_ids]
+        async for record in self._alt_accession_dao.find_all(
+            mapping={"id": {"$in": file_ids_str}}
+        ):
+            result[UUID(record.id)] = record.pid
         return result

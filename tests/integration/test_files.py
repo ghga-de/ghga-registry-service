@@ -15,55 +15,105 @@
 
 """Integration tests for the REST API with real infrastructure components"""
 
-import pytest
+from uuid import uuid4
 
+import pytest
+from hexkit.utils import now_utc_ms_prec
+from pytest_httpx import HTTPXMock
+
+from rs.core.models import AccessionMapRequest, FileUploadWithAccession
 from tests.fixtures import utils
 from tests.fixtures.joint import JointFixture
 
 pytestmark = pytest.mark.asyncio
 
 
-async def test_health_endpoint(joint_fixture: JointFixture):
-    """Test that the health endpoint responds with 200 OK."""
-    response = await joint_fixture.rest_client.get("/health")
-    assert response.status_code == 200
-    assert response.json() == {"status": "OK"}
+async def test_submission(
+    joint_fixture: JointFixture, httpx_mock: HTTPXMock, ds_auth_headers
+):
+    """Test the process starting from the start to finish.
 
+    Submit a map to the HTTP API and inspect the outbox events.
+    """
+    accession1 = "GHGAF001"
+    accession2 = "GHGAF002"
+    file_id1 = uuid4()
+    file_id2 = uuid4()
+    file_upload_box_id = uuid4()
 
-async def test_unauthenticated_requests_are_rejected(joint_fixture: JointFixture):
-    """Test that protected endpoints reject unauthenticated requests with 401."""
-    rest_client = joint_fixture.rest_client
-
-    # GET /boxes requires authentication
-    response = await rest_client.get("/boxes")
-    assert response.status_code == 401
-
-    # POST /boxes requires authentication
-    response = await rest_client.post(
-        "/boxes",
-        json={
-            "title": "Test Box",
-            "description": "description",
-            "storage_alias": "s3-default",
-        },
+    # Mock the UCS call to create a FileUploadBox (occurs when we create an RDUB)
+    httpx_mock.add_response(
+        method="POST",
+        url=f"{joint_fixture.config.ucs_url}/boxes",
+        status_code=201,
+        json=str(file_upload_box_id),
     )
-    assert response.status_code == 401
 
-    # GET /access-grants requires authentication
-    response = await rest_client.get("/access-grants")
-    assert response.status_code == 401
-
-
-async def test_regular_user_cannot_create_box(joint_fixture: JointFixture):
-    """Test that a user without the data steward role cannot create an upload box."""
-    regular_user_header = utils.regular_user_auth_header(jwk=joint_fixture.auth_jwk)
-    response = await joint_fixture.rest_client.post(
-        "/boxes",
-        json={
-            "title": "Test Box",
-            "description": "description",
-            "storage_alias": "s3-default",
-        },
-        headers=regular_user_header,
+    # Create an RDUB
+    upload_orchestrator = joint_fixture.study_registry.upload_orchestrator
+    box_id = await upload_orchestrator.create_research_data_upload_box(
+        title="Box A",
+        description="Description of Box A",
+        storage_alias="HD01",
+        data_steward_id=utils.TEST_DS_ID,
     )
-    assert response.status_code == 403
+
+    # Mock the UCS call to list files in the FileUploadBox
+    file_upload1 = FileUploadWithAccession(
+        id=file_id1,
+        box_id=box_id,
+        storage_alias="HD01",
+        bucket_id="inbox",
+        object_id=uuid4(),
+        alias="test1.bam",
+        decrypted_sha256="checksum1",
+        decrypted_size=10 * 1024**3,
+        encrypted_size=10 * 1024**3 + 124,
+        part_size=100,
+        state="archived",
+        state_updated=now_utc_ms_prec(),
+        accession=accession1,
+    )
+    file_upload2 = file_upload1.model_copy(
+        update={"id": file_id2, "alias": "test2.bam", "accession": accession2}
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url=f"{joint_fixture.config.ucs_url}/boxes/{file_upload_box_id}/uploads",
+        status_code=200,
+        json=[
+            file_upload1.model_dump(mode="json"),
+            file_upload2.model_dump(mode="json"),
+        ],
+    )
+
+    # Prepare the HTTP request attributes
+    mapping_request = AccessionMapRequest(
+        research_data_upload_box_version=0,
+        study_id="test-study-1",
+        mapping={accession1: file_id1, accession2: file_id2},
+    )
+    body = mapping_request.model_dump(mode="json")
+    url = f"/upload-boxes/{box_id}/file-ids"
+
+    # Submit the map to the endpoint and capture the events (Should be 2)
+    async with joint_fixture.kafka.record_events(
+        in_topic=joint_fixture.config.alt_accessions_topic
+    ) as recorder:
+        response = await joint_fixture.rest_client.post(
+            url, json=body, headers=ds_auth_headers
+        )
+        assert response.status_code == 204
+
+    # Sort the events (should already be in order, but no reason not to make sure)
+    assert len(recorder.recorded_events or []) == 2
+    event1, event2 = sorted(
+        recorder.recorded_events, key=lambda x: str(x.payload["accession"])
+    )
+
+    # Inspect the events. Check the type, key, and payload
+    assert event1.type_ == event2.type_ == "upserted"
+    assert event1.key == accession1
+    assert event2.key == accession2
+    assert event1.payload == {"accession": accession1, "file_id": str(file_id1)}
+    assert event2.payload == {"accession": accession2, "file_id": str(file_id2)}
