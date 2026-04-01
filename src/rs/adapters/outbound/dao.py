@@ -19,7 +19,6 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from ghga_event_schemas.configs import ResearchDataUploadBoxEventsConfig
-from hexkit.custom_types import JsonObject
 from hexkit.providers.mongodb import MongoDbIndex
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
@@ -34,11 +33,6 @@ class OutboxPubConfig(ResearchDataUploadBoxEventsConfig):
     """Config needed to publish outbox events"""
 
 
-def alt_accession_to_event(alt_accession: AltAccession) -> JsonObject:
-    """Map an AltAccession DTO to its Kafka event payload."""
-    return {"accession": alt_accession.pid, "file_id": alt_accession.id}
-
-
 @asynccontextmanager
 async def get_alt_accession_dao(
     *,
@@ -50,7 +44,7 @@ async def get_alt_accession_dao(
         name=config.alt_accessions_collection,
         dto_model=AltAccession,
         id_field="pid",
-        dto_to_event=alt_accession_to_event,
+        dto_to_event=lambda event: event.model_dump(mode="json"),
         event_topic=config.alt_accessions_topic,
         autopublish=True,
     )

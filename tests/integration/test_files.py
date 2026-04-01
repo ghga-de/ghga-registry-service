@@ -21,7 +21,11 @@ import pytest
 from hexkit.utils import now_utc_ms_prec
 from pytest_httpx import HTTPXMock
 
-from rs.core.models import AccessionMapRequest, FileUploadWithAccession
+from rs.core.models import (
+    AccessionMapRequest,
+    AltAccessionType,
+    FileUploadWithAccession,
+)
 from tests.fixtures import utils
 from tests.fixtures.joint import JointFixture
 
@@ -108,12 +112,16 @@ async def test_submission(
     # Sort the events (should already be in order, but no reason not to make sure)
     assert len(recorder.recorded_events or []) == 2
     event1, event2 = sorted(
-        recorder.recorded_events, key=lambda x: str(x.payload["accession"])
+        recorder.recorded_events, key=lambda x: str(x.payload["pid"])
     )
 
     # Inspect the events. Check the type, key, and payload
     assert event1.type_ == event2.type_ == "upserted"
     assert event1.key == accession1
     assert event2.key == accession2
-    assert event1.payload == {"accession": accession1, "file_id": str(file_id1)}
-    assert event2.payload == {"accession": accession2, "file_id": str(file_id2)}
+    assert event1.payload["pid"] == accession1
+    assert event1.payload["id"] == str(file_id1)
+    assert event1.payload["type"] == AltAccessionType.FILE_ID
+    assert event2.payload["pid"] == accession2
+    assert event2.payload["id"] == str(file_id2)
+    assert event2.payload["type"] == AltAccessionType.FILE_ID
