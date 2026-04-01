@@ -284,7 +284,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
         )
     assert recorder.recorded_events
     assert len(recorder.recorded_events) == 3
-    accessions = {str(event.payload["accession"]) for event in recorder.recorded_events}
+    accessions = {str(event.payload["pid"]) for event in recorder.recorded_events}
     assert accessions == {"GHGAF001", "GHGAF002", "GHGAF003"}
 
     # Make sure the RDUB version was bumped by the accession map update
