@@ -2,6 +2,15 @@
   "additionalProperties": false,
   "description": "Modifies the original Settings class provided by the user",
   "properties": {
+    "accession_map_topic": {
+      "description": "The name of the topic used for file accession map events",
+      "examples": [
+        "accession-maps",
+        "file-accession-maps"
+      ],
+      "title": "Accession Map Topic",
+      "type": "string"
+    },
     "research_data_upload_box_topic": {
       "description": "Name of the event topic containing research data upload box events",
       "examples": [
@@ -506,20 +515,15 @@
       ],
       "title": "Cors Exposed Headers"
     },
-    "alt_accessions_collection": {
-      "default": "altAccessions",
-      "description": "MongoDB collection name for alternative accessions",
-      "title": "Alt Accessions Collection",
-      "type": "string"
-    },
-    "alt_accessions_topic": {
-      "default": "alt-accessions",
-      "description": "Kafka topic for alternative accession events",
-      "title": "Alt Accessions Topic",
+    "file_accession_mappings_collection": {
+      "default": "fileAccessionMappings",
+      "description": "MongoDB collection name for file accession mappings",
+      "title": "File Accession Mappings Collection",
       "type": "string"
     }
   },
   "required": [
+    "accession_map_topic",
     "research_data_upload_box_topic",
     "file_upload_box_topic",
     "audit_record_topic",

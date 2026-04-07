@@ -36,7 +36,7 @@ from rs.adapters.inbound.event_sub import OutboxSubTranslator
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.configure import get_configured_app
 from rs.adapters.outbound.audit import AuditRepository
-from rs.adapters.outbound.dao import get_alt_accession_dao, get_box_dao
+from rs.adapters.outbound.dao import get_box_dao, get_file_accession_mapping_dao
 from rs.adapters.outbound.event_pub import EventPubTranslator
 from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
@@ -86,9 +86,6 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
         get_persistent_publisher(
             config=config, dao_factory=dao_factory
         ) as persistent_pub_provider,
-        get_alt_accession_dao(
-            config=config, dao_publisher_factory=dao_publisher_factory
-        ) as alt_accession_dao,
         httpx.AsyncClient() as httpx_client,
     ):
         event_publisher = EventPubTranslator(
@@ -97,7 +94,12 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
         audit_repository = AuditRepository(
             service=SERVICE_NAME, event_publisher=event_publisher
         )
-        file_controller = FileController(alt_accession_dao=alt_accession_dao)
+        file_accession_mapping_dao = await get_file_accession_mapping_dao(
+            config=config, dao_publisher_factory=dao_publisher_factory
+        )
+        file_controller = FileController(
+            file_accession_mapping_dao=file_accession_mapping_dao
+        )
         box_dao = await get_box_dao(
             config=config, dao_publisher_factory=dao_publisher_factory
         )

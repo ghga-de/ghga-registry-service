@@ -23,7 +23,6 @@ from pytest_httpx import HTTPXMock
 
 from rs.core.models import (
     AccessionMapRequest,
-    AltAccessionType,
     FileUploadWithAccession,
 )
 from tests.fixtures import utils
@@ -102,7 +101,7 @@ async def test_submission(
 
     # Submit the map to the endpoint and capture the events (Should be 2)
     async with joint_fixture.kafka.record_events(
-        in_topic=joint_fixture.config.alt_accessions_topic
+        in_topic=joint_fixture.config.accession_map_topic
     ) as recorder:
         response = await joint_fixture.rest_client.post(
             url, json=body, headers=ds_auth_headers
@@ -112,16 +111,14 @@ async def test_submission(
     # Sort the events (should already be in order, but no reason not to make sure)
     assert len(recorder.recorded_events or []) == 2
     event1, event2 = sorted(
-        recorder.recorded_events, key=lambda x: str(x.payload["pid"])
+        recorder.recorded_events, key=lambda x: str(x.payload["accession"])
     )
 
     # Inspect the events. Check the type, key, and payload
     assert event1.type_ == event2.type_ == "upserted"
     assert event1.key == accession1
     assert event2.key == accession2
-    assert event1.payload["pid"] == accession1
-    assert event1.payload["id"] == str(file_id1)
-    assert event1.payload["type"] == AltAccessionType.FILE_ID
-    assert event2.payload["pid"] == accession2
-    assert event2.payload["id"] == str(file_id2)
-    assert event2.payload["type"] == AltAccessionType.FILE_ID
+    assert event1.payload["accession"] == accession1
+    assert event1.payload["file_id"] == str(file_id1)
+    assert event2.payload["accession"] == accession2
+    assert event2.payload["file_id"] == str(file_id2)

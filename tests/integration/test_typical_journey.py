@@ -275,16 +275,15 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     )
 
     # Update the accession map and check that the outbox event was published
-    alt_accessions_topic = joint_fixture.config.alt_accessions_topic
     async with joint_fixture.kafka.record_events(
-        in_topic=alt_accessions_topic
+        in_topic=joint_fixture.config.accession_map_topic
     ) as recorder:
         await orchestrator.store_accession_map(
             box_id=box_id, request=accession_map, user_id=ds_user_id
         )
     assert recorder.recorded_events
     assert len(recorder.recorded_events) == 3
-    accessions = {str(event.payload["pid"]) for event in recorder.recorded_events}
+    accessions = {str(event.payload["accession"]) for event in recorder.recorded_events}
     assert accessions == {"GHGAF001", "GHGAF002", "GHGAF003"}
 
     # Make sure the RDUB version was bumped by the accession map update

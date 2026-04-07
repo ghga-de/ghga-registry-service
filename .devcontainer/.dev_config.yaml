@@ -3,8 +3,8 @@ kafka_servers: ["kafka:9092"]
 mongo_dsn: mongodb://localhost:27017
 db_name: rs
 mongo_timeout: 300
-alt_accessions_collection: alt_accessions
-alt_accessions_topic: alt-accessions
+file_accession_mappings_collection: fileAccessionMappings
+accession_map_topic: file-accession-mappings
 auth_key: "{}"
 access_url: http://127.0.0.1/access
 ucs_url: http://127.0.0.1/upload

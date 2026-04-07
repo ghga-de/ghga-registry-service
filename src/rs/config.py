@@ -50,13 +50,9 @@ class Config(
     service_name: str = Field(
         default=SERVICE_NAME, description="Short name of this service"
     )
-    alt_accessions_collection: str = Field(
-        default="altAccessions",
-        description="MongoDB collection name for alternative accessions",
-    )
-    alt_accessions_topic: str = Field(
-        default="alt-accessions",
-        description="Kafka topic for alternative accession events",
+    file_accession_mappings_collection: str = Field(
+        default="fileAccessionMappings",
+        description="MongoDB collection name for file accession mappings",
     )
 
 

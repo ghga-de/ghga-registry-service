@@ -49,6 +49,17 @@ rs --help
 ### Parameters
 
 The service requires the following configuration parameters:
+- <a id="properties/accession_map_topic"></a>**`accession_map_topic`** *(string, required)*: The name of the topic used for file accession map events.
+
+  Examples:
+  ```json
+  "accession-maps"
+  ```
+
+  ```json
+  "file-accession-maps"
+  ```
+
 - <a id="properties/research_data_upload_box_topic"></a>**`research_data_upload_box_topic`** *(string, required)*: Name of the event topic containing research data upload box events.
 
   Examples:
@@ -383,8 +394,7 @@ The service requires the following configuration parameters:
   []
   ```
 
-- <a id="properties/alt_accessions_collection"></a>**`alt_accessions_collection`** *(string)*: MongoDB collection name for alternative accessions. Default: `"altAccessions"`.
-- <a id="properties/alt_accessions_topic"></a>**`alt_accessions_topic`** *(string)*: Kafka topic for alternative accession events. Default: `"alt-accessions"`.
+- <a id="properties/file_accession_mappings_collection"></a>**`file_accession_mappings_collection`** *(string)*: MongoDB collection name for file accession mappings. Default: `"fileAccessionMappings"`.
 
 ### Usage:
 

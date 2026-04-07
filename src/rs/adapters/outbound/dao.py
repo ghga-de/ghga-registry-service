@@ -15,40 +15,41 @@
 
 """Outbound DAO adapter — wires DTO models to MongoDB/Kafka via the outbox pattern."""
 
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
-
-from ghga_event_schemas.configs import ResearchDataUploadBoxEventsConfig
+from ghga_event_schemas.configs import (
+    FileAccessionMappingEventsConfig,
+    ResearchDataUploadBoxEventsConfig,
+)
+from ghga_event_schemas.pydantic_ import FileAccessionMapping
 from hexkit.providers.mongodb import MongoDbIndex
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
 from rs.constants import BOX_COLLECTION
-from rs.core.models import AltAccession, ResearchDataUploadBox
-from rs.ports.outbound.dao import AltAccessionDao, BoxDao
+from rs.core.models import ResearchDataUploadBox
+from rs.ports.outbound.dao import BoxDao, FileAccessionMappingDao
 
-__all__ = ["OutboxPubConfig", "get_alt_accession_dao", "get_box_dao"]
+__all__ = ["OutboxPubConfig", "get_box_dao", "get_file_accession_mapping_dao"]
 
 
-class OutboxPubConfig(ResearchDataUploadBoxEventsConfig):
+class OutboxPubConfig(
+    ResearchDataUploadBoxEventsConfig, FileAccessionMappingEventsConfig
+):
     """Config needed to publish outbox events"""
 
 
-@asynccontextmanager
-async def get_alt_accession_dao(
+async def get_file_accession_mapping_dao(
     *,
     config,
     dao_publisher_factory: MongoKafkaDaoPublisherFactory,
-) -> AsyncGenerator[AltAccessionDao]:
-    """Construct an AltAccession DAO from the shared factory."""
-    alt_accession_dao = await dao_publisher_factory.get_dao(
-        name=config.alt_accessions_collection,
-        dto_model=AltAccession,
-        id_field="pid",
+) -> FileAccessionMappingDao:
+    """Construct a FileAccessionMapping DAO from the shared factory."""
+    return await dao_publisher_factory.get_dao(
+        name=config.file_accession_mappings_collection,
+        dto_model=FileAccessionMapping,
+        id_field="accession",
         dto_to_event=lambda event: event.model_dump(mode="json"),
-        event_topic=config.alt_accessions_topic,
+        event_topic=config.accession_map_topic,
         autopublish=True,
     )
-    yield alt_accession_dao
 
 
 async def get_box_dao(

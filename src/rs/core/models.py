@@ -15,7 +15,6 @@
 
 """Defines dataclasses for holding business-logic data."""
 
-from enum import StrEnum
 from typing import Annotated, Literal
 
 from ghga_event_schemas.pydantic_ import (
@@ -40,8 +39,6 @@ from pydantic import (
 # Note: shared classes re-exported to avoid importing from ghga_event_schemas everywhere
 __all__ = [
     "AccessionMapRequest",
-    "AltAccession",
-    "AltAccessionType",
     "BaseWorkOrderToken",
     "BoxRetrievalResults",
     "ChangeFileBoxWorkOrder",
@@ -75,23 +72,6 @@ PID = Annotated[
 ]
 
 FileAccession = Annotated[str, StringConstraints(pattern=r"^GHGAF.+")]
-
-
-class AltAccessionType(StrEnum):
-    """Kinds of alternative accessions."""
-
-    EGA = "EGA"
-    FILE_ID = "FILE_ID"
-    GHGA_LEGACY = "GHGA_LEGACY"
-
-
-class AltAccession(BaseModel):
-    """Stores alternative accessions referencing a primary accession."""
-
-    id: str
-    pid: PID
-    type: AltAccessionType
-    created: UTCDatetime
 
 
 class BaseWorkOrderToken(BaseModel):
