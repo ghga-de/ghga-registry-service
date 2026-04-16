@@ -30,7 +30,6 @@ from rs.core.models import (
     GrantId,
     GrantWithBoxInfo,
     ResearchDataUploadBox,
-    UpdateUploadBoxRequest,
     UploadBoxState,
 )
 
@@ -103,11 +102,14 @@ class RDUBManagerPort(ABC):
         ...
 
     @abstractmethod
-    async def update_research_data_upload_box(
+    async def update_research_data_upload_box(  # noqa: PLR0913
         self,
         *,
         box_id: UUID4,
-        request: UpdateUploadBoxRequest,
+        version: int,
+        title: str | None,
+        description: str | None,
+        state: UploadBoxState | None,
         auth_context: AuthContext,
     ) -> None:
         """Update a research data upload box.

@@ -34,7 +34,6 @@ from rs.core.models import (
     GrantId,
     GrantWithBoxInfo,
     ResearchDataUploadBox,
-    UpdateUploadBoxRequest,
     UploadBoxState,
 )
 from rs.ports.inbound.files import FileControllerPort
@@ -116,11 +115,14 @@ class RDUBManager(RDUBManagerPort):
         await self._audit_repository.log_box_created(box=box, user_id=data_steward_id)
         return box.id
 
-    async def update_research_data_upload_box(
+    async def update_research_data_upload_box(  # noqa: PLR0913
         self,
         *,
         box_id: UUID4,
-        request: UpdateUploadBoxRequest,
+        version: int,
+        title: str | None,
+        description: str | None,
+        state: UploadBoxState | None,
         auth_context: AuthContext,
     ) -> None:
         """Update a research data upload box.
@@ -140,21 +142,24 @@ class RDUBManager(RDUBManagerPort):
         )
 
         # Make sure the request is not based on outdated info
-        if box.version != request.version:
+        if box.version != version:
             log.error(
                 "Can't update RDUB %s because the request is outdated.",
                 box_id,
                 extra={
                     "box_id": box_id,
                     "current_version": box.version,
-                    "requested_version": request.version,
+                    "requested_version": version,
                 },
             )
             raise self.VersionError(f"Research Data Upload Box {box_id} has changed")
 
-        changed_fields = {
-            k: v for k, v in request.model_dump().items() if v and getattr(box, k) != v
+        update = {
+            "title": title,
+            "description": description,
+            "state": state,
         }
+        changed_fields = {k: v for k, v in update.items() if v and getattr(box, k) != v}
         if not changed_fields:
             log.info(
                 "RDUB update request for box %s did not contain any changes.", box_id

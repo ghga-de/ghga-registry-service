@@ -79,7 +79,12 @@ async def update_research_data_upload_box(
     """Update a ResearchDataUploadBox."""
     try:
         await ghga_registry.rdub_manager.update_research_data_upload_box(
-            box_id=box_id, request=request, auth_context=auth_context
+            box_id=box_id,
+            version=request.version,
+            title=request.title,
+            description=request.description,
+            state=request.state,
+            auth_context=auth_context,
         )
     except RDUBManagerPort.BoxAccessError as err:
         raise HttpNotAuthorizedError() from err

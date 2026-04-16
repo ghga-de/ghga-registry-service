@@ -146,14 +146,14 @@ async def test_update_research_data_upload_box_happy(
     box_id = populated_boxes[0]
     box = await rig.box_dao.get_by_id(box_id)
 
-    # Create an update request
-    update_request = models.UpdateUploadBoxRequest(
-        version=box.version, title="Updated Title", description="Updated Description"
-    )
-
     # Call the update method
     await rig.rdub_manager.update_research_data_upload_box(
-        box_id=box_id, request=update_request, auth_context=DATA_STEWARD_AUTH_CONTEXT
+        box_id=box_id,
+        version=box.version,
+        title="Updated Title",
+        description="Updated Description",
+        state=None,
+        auth_context=DATA_STEWARD_AUTH_CONTEXT,
     )
 
     # Verify the box was updated
@@ -177,19 +177,17 @@ async def test_update_research_data_upload_box_unauthorized(
     # Mock the access client to return that the user has access (but box doesn't exist)
     rig.access_client.check_box_access.return_value = True  # type: ignore
 
-    # Create an update request
     box_id = populated_boxes[0]
     box = await rig.box_dao.get_by_id(box_id)
-
-    update_request = models.UpdateUploadBoxRequest(
-        version=box.version, title="Updated Title", description="Updated Description"
-    )
 
     # Call the update method
     with pytest.raises(rig.rdub_manager.BoxAccessError):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=update_request,
+            version=box.version,
+            title="Updated Title",
+            description="Updated Description",
+            state=None,
             auth_context=USER1_AUTH_CONTEXT,
         )
 
@@ -199,11 +197,6 @@ async def test_update_research_data_upload_box_not_found(rig: JointRig):
     # Mock the access client to return that the user has access (but box doesn't exist)
     rig.access_client.check_box_access.return_value = True  # type: ignore
 
-    # Create an update request
-    update_request = models.UpdateUploadBoxRequest(
-        version=0, title="Updated Title", description="Updated Description"
-    )
-
     # Try to update a non-existent box ID
     non_existent_box_id = uuid4()
 
@@ -211,7 +204,10 @@ async def test_update_research_data_upload_box_not_found(rig: JointRig):
     with pytest.raises(rig.rdub_manager.BoxNotFoundError):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=non_existent_box_id,
-            request=update_request,
+            version=0,
+            title="Updated Title",
+            description="Updated Description",
+            state=None,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
@@ -584,7 +580,10 @@ async def test_get_boxes_sorting(rig: JointRig, populated_boxes: list[UUID]):
         box = await rig.box_dao.get_by_id(box_id)
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=models.UpdateUploadBoxRequest(version=box.version, state="locked"),
+            version=box.version,
+            title=None,
+            description=None,
+            state="locked",
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
@@ -912,12 +911,12 @@ async def test_archive_research_data_upload_box_happy(
         test_file_ids[1]: "GHGAF002",
     }
 
-    # Archive the box via update
-    update_request = models.UpdateUploadBoxRequest(version=1, state="archived")
-
     await rig.rdub_manager.update_research_data_upload_box(
         box_id=box_id,
-        request=update_request,
+        version=1,
+        title=None,
+        description=None,
+        state="archived",
         auth_context=DATA_STEWARD_AUTH_CONTEXT,
     )
 
@@ -937,13 +936,14 @@ async def test_archive_via_update_box_not_found(rig: JointRig):
     """Test that archiving a non-existent box raises BoxNotFoundError."""
     non_existent_box_id = uuid4()
 
-    update_request = models.UpdateUploadBoxRequest(version=0, state="archived")
-
     # This should raise BoxNotFoundError
     with pytest.raises(rig.rdub_manager.BoxNotFoundError):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=non_existent_box_id,
-            request=update_request,
+            version=0,
+            title=None,
+            description=None,
+            state="archived",
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
@@ -957,16 +957,13 @@ async def test_update_box_outdated_version(rig: JointRig, populated_boxes: list[
     box.version = 5
     await rig.box_dao.update(box)
 
-    # Try to update with outdated version
-    update_request = models.UpdateUploadBoxRequest(
-        version=3,  # Outdated!
-        title="New Title",
-    )
-
     with pytest.raises(rig.rdub_manager.VersionError, match="has changed"):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=update_request,
+            version=3,  # Outdated!
+            title="New Title",
+            description=None,
+            state=None,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
@@ -979,18 +976,16 @@ async def test_archive_box_not_locked(rig: JointRig, populated_boxes: list[UUID]
     box = await rig.box_dao.get_by_id(box_id)
     assert box.state == "open"
 
-    # Try to archive without locking first (invalid state transition)
-    update_request = models.UpdateUploadBoxRequest(
-        version=box.version, state="archived"
-    )
-
     with pytest.raises(
         rig.rdub_manager.StateChangeError,
         match="cannot be changed from 'open' to 'archived'",
     ):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=update_request,
+            version=box.version,
+            title=None,
+            description=None,
+            state="archived",
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
@@ -1035,17 +1030,15 @@ async def test_archive_box_missing_accessions(
         test_file_ids[1]: "GHGAF002",
     }
 
-    # Try to archive with missing accessions
-    update_request = models.UpdateUploadBoxRequest(
-        version=box.version, state="archived"
-    )
-
     with pytest.raises(
         rig.rdub_manager.ArchivalPrereqsError, match="missing an accession"
     ):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=update_request,
+            version=box.version,
+            title=None,
+            description=None,
+            state="archived",
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
@@ -1092,15 +1085,13 @@ async def test_archive_box_file_upload_box_version_error(
         test_file_ids[0]: "GHGAF001"
     }
 
-    # Try to archive - should raise VersionError due to FUB version mismatch
-    update_request = models.UpdateUploadBoxRequest(
-        version=box.version, state="archived"
-    )
-
     with pytest.raises(rig.rdub_manager.VersionError, match="out of date"):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=update_request,
+            version=box.version,
+            title=None,
+            description=None,
+            state="archived",
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 

@@ -24,7 +24,7 @@ from ghga_service_commons.auth.ghga import AuthContext
 from hexkit.utils import now_utc_ms_prec
 from pytest_httpx import HTTPXMock
 
-from rs.core.models import AccessionMapRequest, GrantId, UpdateUploadBoxRequest
+from rs.core.models import GrantId
 from tests.fixtures.joint import JointFixture
 
 pytestmark = pytest.mark.asyncio
@@ -122,11 +122,6 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     assert grant_id == GrantId(id=test_grant_id)
 
     # Update the title or description of the box by a DS (this bumps version to 1)
-    update_request = UpdateUploadBoxRequest(
-        version=0,  # Initial version
-        title="Updated Test Box",
-        description="Updated description",
-    )
     async with (
         joint_fixture.kafka.record_events(in_topic=audit_topic) as audit_event_recorder,
         joint_fixture.kafka.record_events(
@@ -135,7 +130,10 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     ):
         await rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=update_request,
+            version=0,  # Initial version
+            title="Updated Test Box",
+            description="Updated description",
+            state=None,
             auth_context=ds_auth_context,
         )
     assert audit_event_recorder.recorded_events
@@ -190,7 +188,6 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     assert updated_box.size == 1024000
 
     # Set the state to LOCKED
-    lock_request = UpdateUploadBoxRequest(version=updated_box.version, state="locked")
     httpx_mock.add_response(
         method="PATCH",
         url=f"{file_box_service_url}/boxes/{file_upload_box_id}",
@@ -198,7 +195,10 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     )
     await rdub_manager.update_research_data_upload_box(
         box_id=box_id,
-        request=lock_request,
+        version=updated_box.version,
+        title=None,
+        description=None,
+        state="locked",
         auth_context=user_auth_context,
     )
 
@@ -266,20 +266,19 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
         ],
     )
 
-    # Submit an accession map
-    study_id = "GHGA-STUDY-001"
-    accession_map = AccessionMapRequest(
-        box_version=box_after_lock.version,
-        mapping={"GHGAF001": file_id_1, "GHGAF002": file_id_2, "GHGAF003": file_id_3},
-        study_id=study_id,
-    )
-
     # Update the accession map and check that the outbox event was published
     async with joint_fixture.kafka.record_events(
         in_topic=joint_fixture.config.accession_map_topic
     ) as recorder:
         await rdub_manager.store_accession_map(
-            box_id=box_id, request=accession_map, user_id=ds_user_id
+            box_id=box_id,
+            box_version=box_after_lock.version,
+            accession_map={
+                "GHGAF001": file_id_1,
+                "GHGAF002": file_id_2,
+                "GHGAF003": file_id_3,
+            },
+            study_id="GHGA-STUDY-001",
         )
     assert recorder.recorded_events
     assert len(recorder.recorded_events) == 3
@@ -301,10 +300,6 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     )
 
     # Archive the box via update
-    archive_request = UpdateUploadBoxRequest(
-        version=box_after_mapping.version, state="archived"
-    )
-
     async with (
         joint_fixture.kafka.record_events(in_topic=audit_topic) as audit_event_recorder,
         joint_fixture.kafka.record_events(
@@ -313,7 +308,10 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     ):
         await rdub_manager.update_research_data_upload_box(
             box_id=box_id,
-            request=archive_request,
+            version=box_after_mapping.version,
+            title=None,
+            description=None,
+            state="archived",
             auth_context=ds_auth_context,
         )
 
