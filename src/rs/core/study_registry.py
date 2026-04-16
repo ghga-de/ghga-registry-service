@@ -12,13 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""StudyRegistry implementation"""
+"""GHGARegistry implementation"""
 
 from rs.ports.inbound.orchestrator import RDUBManagerPort
-from rs.ports.inbound.study_registry import StudyRegistryPort
+from rs.ports.inbound.study_registry import GHGARegistryPort
 
 
-class StudyRegistry(StudyRegistryPort):
+class GHGARegistry(GHGARegistryPort):
     """Top-level class linking all constituent registry operations"""
 
     def __init__(

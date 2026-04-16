@@ -52,7 +52,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     research_box_topic = joint_fixture.config.research_data_upload_box_topic
 
     # Shorthand reference to the orchestrator
-    rdub_manager = joint_fixture.study_registry.rdub_manager
+    rdub_manager = joint_fixture.ghga_registry.rdub_manager
 
     # Create auth contexts
     iat = now_utc_ms_prec() - timedelta(hours=1)

@@ -41,7 +41,7 @@ pytestmark = pytest.mark.asyncio
 async def test_health(config: Config):
     """Test the health endpoint returns a 200"""
     async with (
-        prepare_rest_app(config=config, study_registry_override=AsyncMock()) as app,
+        prepare_rest_app(config=config, ghga_registry_override=AsyncMock()) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         response = await rest_client.get("/health")
@@ -52,9 +52,9 @@ async def test_get_research_data_upload_box(
     config: Config, user_auth_headers, bad_auth_headers
 ):
     """Test the GET /upload-boxes/{box_id} endpoint."""
-    study_registry = AsyncMock()
+    ghga_registry = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=study_registry) as app,
+        prepare_rest_app(config=config, ghga_registry_override=ghga_registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         # unauthenticated
@@ -80,30 +80,30 @@ async def test_get_research_data_upload_box(
             file_upload_box_state="open",
             storage_alias="HD",
         )
-        study_registry.rdub_manager.get_research_data_upload_box.return_value = box
+        ghga_registry.rdub_manager.get_research_data_upload_box.return_value = box
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 200
         assert response.json() == box.model_dump(mode="json")
 
         # handle box access error from core -- we obscure this with 404 for security
-        study_registry.reset_mock()
-        study_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+        ghga_registry.reset_mock()
+        ghga_registry.rdub_manager.get_research_data_upload_box.side_effect = (
             RDUBManagerPort.BoxAccessError()
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle box not found error from core
-        study_registry.reset_mock()
-        study_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+        ghga_registry.reset_mock()
+        ghga_registry.rdub_manager.get_research_data_upload_box.side_effect = (
             RDUBManagerPort.BoxNotFoundError(box_id=box.id)
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle other exception
-        study_registry.reset_mock()
-        study_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+        ghga_registry.reset_mock()
+        ghga_registry.rdub_manager.get_research_data_upload_box.side_effect = (
             TypeError()
         )
         response = await rest_client.get(url, headers=user_auth_headers)
@@ -114,9 +114,9 @@ async def test_create_research_data_upload_box(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the POST /upload-boxes endpoint"""
-    study_registry = AsyncMock()
+    ghga_registry = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=study_registry) as app,
+        prepare_rest_app(config=config, ghga_registry_override=ghga_registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -145,7 +145,7 @@ async def test_create_research_data_upload_box(
         # normal response with data steward role
         # Mock the orchestrator to return a box ID
         test_box_id = uuid4()
-        study_registry.rdub_manager.create_research_data_upload_box.return_value = (
+        ghga_registry.rdub_manager.create_research_data_upload_box.return_value = (
             test_box_id
         )
         response = await rest_client.post(
@@ -155,8 +155,8 @@ async def test_create_research_data_upload_box(
         assert response.json() == str(test_box_id)
 
         # handle file box service error from core
-        study_registry.reset_mock()
-        study_registry.rdub_manager.create_research_data_upload_box.side_effect = (
+        ghga_registry.reset_mock()
+        ghga_registry.rdub_manager.create_research_data_upload_box.side_effect = (
             FileBoxClientPort.OperationError()
         )
         response = await rest_client.post(
@@ -165,8 +165,8 @@ async def test_create_research_data_upload_box(
         assert response.status_code == 500
 
         # handle other exception
-        study_registry.reset_mock()
-        study_registry.rdub_manager.create_research_data_upload_box.side_effect = (
+        ghga_registry.reset_mock()
+        ghga_registry.rdub_manager.create_research_data_upload_box.side_effect = (
             TypeError()
         )
         response = await rest_client.post(
@@ -181,7 +181,7 @@ async def test_update_research_data_upload_box(
     """Test the PATCH /upload-boxes/{box_id} endpoint."""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -283,7 +283,7 @@ async def test_grant_upload_access(
     """Test the POST /upload-grants endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -337,7 +337,7 @@ async def test_list_upload_box_files(
     """Test the GET /upload-boxes/{box_id}/uploads endpoint."""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/uploads"
@@ -411,7 +411,7 @@ async def test_revoke_upload_access_grant(
     test_grant_id = uuid4()
 
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-grants/{test_grant_id}"
@@ -454,7 +454,7 @@ async def test_get_upload_access_grants(
     """Test the GET /upload-grants endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -550,7 +550,7 @@ async def test_get_boxes(
     ]
 
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -631,7 +631,7 @@ async def test_get_boxes_bad_parameters(config: Config, ds_auth_headers, params)
     """Test the GET /upload-boxes endpoint with bad parameters but valid auth context"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -645,7 +645,7 @@ async def test_archive_via_update_endpoint(
     """Test archiving a box through the PATCH /upload-boxes/{box_id} endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -706,7 +706,7 @@ async def test_submit_accession_map(
     """Test the POST /upload-boxes/{box_id}/accessions endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/file-ids"

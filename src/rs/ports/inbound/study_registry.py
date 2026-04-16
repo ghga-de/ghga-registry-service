@@ -20,8 +20,8 @@ from abc import ABC, abstractmethod
 from rs.ports.inbound.orchestrator import RDUBManagerPort
 
 
-class StudyRegistryPort(ABC):
-    """Inbound port defining all operations of the Study Registry Service."""
+class GHGARegistryPort(ABC):
+    """Inbound port defining all operations of the GHGA Registry Service."""
 
     @property
     @abstractmethod

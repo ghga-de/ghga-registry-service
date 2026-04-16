@@ -73,12 +73,12 @@ box_router = APIRouter()
 async def update_research_data_upload_box(
     box_id: UUID,
     request: UpdateUploadBoxRequest,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: UserAuthContext,
 ) -> None:
     """Update a ResearchDataUploadBox."""
     try:
-        await study_registry.rdub_manager.update_research_data_upload_box(
+        await ghga_registry.rdub_manager.update_research_data_upload_box(
             box_id=box_id, request=request, auth_context=auth_context
         )
     except RDUBManagerPort.BoxAccessError as err:
@@ -114,14 +114,14 @@ async def update_research_data_upload_box(
 @TRACER.start_as_current_span("routes.get_research_data_upload_box")
 async def get_research_data_upload_box(
     box_id: UUID,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: UserAuthContext,
 ) -> ResearchDataUploadBox:
     """Get details of a specific upload box. If the user doesn't have access to an
     existing box, this endpoint will return a 404.
     """
     try:
-        box = await study_registry.rdub_manager.get_research_data_upload_box(
+        box = await ghga_registry.rdub_manager.get_research_data_upload_box(
             box_id=box_id, auth_context=auth_context
         )
         return box
@@ -153,12 +153,12 @@ async def get_research_data_upload_box(
 @TRACER.start_as_current_span("routes.list_upload_box_files")
 async def list_upload_box_files(
     box_id: UUID,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: UserAuthContext,
 ) -> list[FileUploadWithAccession]:
     """List file uploads in an upload box."""
     try:
-        file_uploads = await study_registry.rdub_manager.get_upload_box_files(
+        file_uploads = await ghga_registry.rdub_manager.get_upload_box_files(
             box_id=box_id,
             auth_context=auth_context,
         )
@@ -190,12 +190,12 @@ async def list_upload_box_files(
 async def submit_accession_map(
     box_id: UUID,
     request: AccessionMapRequest,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: StewardAuthContext,
 ) -> None:
     """Submit a file ID to accession number mapping for an upload box."""
     try:
-        await study_registry.rdub_manager.store_accession_map(
+        await ghga_registry.rdub_manager.store_accession_map(
             box_id=box_id, request=request, user_id=UUID(auth_context.id)
         )
     except RDUBManagerPort.AccessionMapError as err:
@@ -231,7 +231,7 @@ async def submit_accession_map(
 )
 @TRACER.start_as_current_span("routes.get_research_data_upload_boxes")
 async def get_research_data_upload_boxes(
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: UserAuthContext,
     skip: Annotated[
         NonNegativeInt | None,
@@ -258,7 +258,7 @@ async def get_research_data_upload_boxes(
     they have access to according to the access API.
     """
     try:
-        results = await study_registry.rdub_manager.get_research_data_upload_boxes(
+        results = await ghga_registry.rdub_manager.get_research_data_upload_boxes(
             auth_context=auth_context,
             skip=skip,
             limit=limit,
@@ -287,12 +287,12 @@ async def get_research_data_upload_boxes(
 @TRACER.start_as_current_span("routes.create_research_data_upload_box")
 async def create_research_data_upload_box(
     request: CreateUploadBoxRequest,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: StewardAuthContext,
 ) -> UUID4:
     """Create a new upload box. Requires Data Steward role."""
     try:
-        box_id = await study_registry.rdub_manager.create_research_data_upload_box(
+        box_id = await ghga_registry.rdub_manager.create_research_data_upload_box(
             title=request.title,
             description=request.description,
             storage_alias=request.storage_alias,

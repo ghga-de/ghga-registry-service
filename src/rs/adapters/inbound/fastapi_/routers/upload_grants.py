@@ -54,12 +54,12 @@ upload_grant_router = APIRouter()
 @TRACER.start_as_current_span("routes.revoke_upload_access_grant")
 async def revoke_upload_access_grant(
     grant_id: UUID4,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: StewardAuthContext,
 ) -> None:
     """Revoke an upload access grant."""
     try:
-        await study_registry.rdub_manager.revoke_upload_access_grant(grant_id)
+        await ghga_registry.rdub_manager.revoke_upload_access_grant(grant_id)
     except RDUBManagerPort.GrantNotFoundError as err:
         raise HttpGrantNotFoundError(grant_id=grant_id) from err
     except Exception as err:
@@ -87,7 +87,7 @@ async def revoke_upload_access_grant(
 )
 @TRACER.start_as_current_span("routes.get_upload_access_grants")
 async def get_upload_access_grants(  # noqa: PLR0913
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: StewardAuthContext,
     user_id: Annotated[
         UUID4 | None,
@@ -129,7 +129,7 @@ async def get_upload_access_grants(  # noqa: PLR0913
     user ID, IVA ID, box ID, and grant ID.
     """
     try:
-        return await study_registry.rdub_manager.get_upload_access_grants(
+        return await ghga_registry.rdub_manager.get_upload_access_grants(
             user_id=user_id, iva_id=iva_id, box_id=box_id, valid=valid
         )
     except Exception as err:
@@ -153,12 +153,12 @@ async def get_upload_access_grants(  # noqa: PLR0913
 @TRACER.start_as_current_span("routes.grant_upload_access")
 async def grant_upload_access(
     request: GrantAccessRequest,
-    study_registry: dummies.StudyRegistryDummy,
+    ghga_registry: dummies.GHGARegistryDummy,
     auth_context: StewardAuthContext,
 ) -> GrantId:
     """Grant upload access to a user. Requires Data Steward role."""
     try:
-        return await study_registry.rdub_manager.grant_upload_access(
+        return await ghga_registry.rdub_manager.grant_upload_access(
             user_id=request.user_id,
             iva_id=request.iva_id,
             box_id=request.box_id,

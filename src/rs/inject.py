@@ -43,8 +43,8 @@ from rs.config import Config
 from rs.constants import SERVICE_NAME
 from rs.core.files import FileController
 from rs.core.orchestrator import RDUBManager
-from rs.core.study_registry import StudyRegistry
-from rs.ports.inbound.study_registry import StudyRegistryPort
+from rs.core.study_registry import GHGARegistry
+from rs.ports.inbound.study_registry import GHGARegistryPort
 
 __all__ = [
     "get_persistent_publisher",
@@ -75,7 +75,7 @@ async def get_persistent_publisher(
 
 
 @asynccontextmanager
-async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
+async def prepare_core(*, config: Config) -> AsyncGenerator[GHGARegistryPort]:
     """Constructs and initializes all core components and their outbound dependencies.
 
     The _override parameters can be used to override the default dependencies.
@@ -114,18 +114,18 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             file_upload_box_client=file_upload_box_client,
         )
 
-        yield StudyRegistry(rdub_manager=rdub_manager)
+        yield GHGARegistry(rdub_manager=rdub_manager)
 
 
 def prepare_core_with_override(
     *,
     config: Config,
-    study_registry_override: StudyRegistryPort | None = None,
+    ghga_registry_override: GHGARegistryPort | None = None,
 ):
     """Resolve the prepare_core context manager based on config and override (if any)."""
     return (
-        nullcontext(study_registry_override)
-        if study_registry_override
+        nullcontext(ghga_registry_override)
+        if ghga_registry_override
         else prepare_core(config=config)
     )
 
@@ -134,7 +134,7 @@ def prepare_core_with_override(
 async def prepare_rest_app(
     *,
     config: Config,
-    study_registry_override: StudyRegistryPort | None = None,
+    ghga_registry_override: GHGARegistryPort | None = None,
 ) -> AsyncGenerator[FastAPI]:
     """Construct and initialize an REST API app along with all its dependencies.
     By default, the core dependencies are automatically prepared but you can also
@@ -144,15 +144,15 @@ async def prepare_rest_app(
 
     async with (
         prepare_core_with_override(
-            config=config, study_registry_override=study_registry_override
-        ) as study_registry,
+            config=config, ghga_registry_override=ghga_registry_override
+        ) as ghga_registry,
         GHGAAuthContextProvider.construct(
             config=config,
             context_class=AuthContext,
         ) as auth_context,
     ):
         app.dependency_overrides[dummies.auth_provider] = lambda: auth_context
-        app.dependency_overrides[dummies.study_registry_port] = lambda: study_registry
+        app.dependency_overrides[dummies.ghga_registry_port] = lambda: ghga_registry
         yield app
 
 
@@ -160,7 +160,7 @@ async def prepare_rest_app(
 async def prepare_event_subscriber(
     *,
     config: Config,
-    study_registry_override: StudyRegistryPort | None = None,
+    ghga_registry_override: GHGARegistryPort | None = None,
 ) -> AsyncGenerator[KafkaEventSubscriber]:
     """Construct and initialize an event subscriber with all its dependencies.
     By default, the core dependencies are automatically prepared but you can also
@@ -168,12 +168,12 @@ async def prepare_event_subscriber(
     """
     async with (
         prepare_core_with_override(
-            config=config, study_registry_override=study_registry_override
-        ) as study_registry,
+            config=config, ghga_registry_override=ghga_registry_override
+        ) as ghga_registry,
         KafkaEventPublisher.construct(config=config) as dlq_publisher,
     ):
         outbox_translator = OutboxSubTranslator(
-            config=config, study_registry=study_registry
+            config=config, ghga_registry=ghga_registry
         )
         translator = ComboTranslator(translators=[outbox_translator])
 
