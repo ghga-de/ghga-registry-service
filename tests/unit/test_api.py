@@ -143,7 +143,7 @@ async def test_create_research_data_upload_box(
         assert response.status_code == 403
 
         # normal response with data steward role
-        # Mock the orchestrator to return a box ID
+        # Mock the rdub_manager to return a box ID
         test_box_id = uuid4()
         ghga_registry.rdub_manager.create_research_data_upload_box.return_value = (
             test_box_id
@@ -592,7 +592,7 @@ async def test_get_boxes(
         assert response_data["count"] == 1
         assert len(response_data["boxes"]) == 1
 
-        # Verify orchestrator was called with state="locked"
+        # Verify rdub_manager was called with state="locked"
         call_args = rdub_manager.rdub_manager.get_research_data_upload_boxes.call_args
         assert call_args.kwargs["state"] == "locked"
 

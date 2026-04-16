@@ -54,7 +54,7 @@ InMemBoxDao = new_mock_dao_class(dto_model=models.ResearchDataUploadBox, id_fiel
 
 @dataclass
 class JointRig:
-    """Test fixture containing all components needed for orchestrator testing."""
+    """Test fixture containing all components needed for testing."""
 
     config: Config
     box_dao: BaseInMemDao[models.ResearchDataUploadBox]
@@ -232,7 +232,7 @@ async def test_get_upload_box_files_happy(rig: JointRig, populated_boxes: list[U
         )
         for i in range(3)
     ]
-    # Sort by alias as expected by the orchestrator
+    # Sort by alias as expected by the RDUBManager
     test_file_uploads_sorted = sorted(test_file_uploads, key=lambda x: x.alias)
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
 

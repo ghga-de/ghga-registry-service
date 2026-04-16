@@ -51,7 +51,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     audit_topic = joint_fixture.config.audit_record_topic
     research_box_topic = joint_fixture.config.research_data_upload_box_topic
 
-    # Shorthand reference to the orchestrator
+    # Shorthand reference to the rdub_manager
     rdub_manager = joint_fixture.ghga_registry.rdub_manager
 
     # Create auth contexts
