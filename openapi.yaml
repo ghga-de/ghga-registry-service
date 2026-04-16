@@ -246,10 +246,20 @@ components:
           format: uuid4
           title: Box Id
           type: string
+        box_state:
+          enum:
+          - open
+          - locked
+          - archived
+          title: Box State
+          type: string
         box_title:
           description: Short meaningful name for the box
           title: Box Title
           type: string
+        box_version:
+          title: Box Version
+          type: integer
         created:
           description: Date of creation of this grant
           format: date-time
@@ -308,6 +318,8 @@ components:
       - user_email
       - box_title
       - box_description
+      - box_state
+      - box_version
       title: GrantWithBoxInfo
       type: object
     HTTPValidationError:

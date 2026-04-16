@@ -390,6 +390,8 @@ class UploadOrchestrator(UploadOrchestratorPort):
                     **grant.model_dump(),
                     box_title=box.title,
                     box_description=box.description,
+                    box_state=box.state,
+                    box_version=box.version,
                 )
                 grants_with_info.append(grant_with_info)
             except ResourceNotFoundError:
