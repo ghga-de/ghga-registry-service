@@ -27,7 +27,7 @@ from jwcrypto.jwk import JWK
 
 from rs.config import Config
 from rs.inject import prepare_core, prepare_event_subscriber, prepare_rest_app
-from rs.ports.inbound.study_registry import GHGARegistryPort
+from rs.ports.inbound.ghga_registry import GHGARegistryPort
 from tests.fixtures.config import get_config
 
 

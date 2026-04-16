@@ -42,9 +42,9 @@ from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
 from rs.constants import SERVICE_NAME
 from rs.core.files import FileController
+from rs.core.ghga_registry import GHGARegistry
 from rs.core.rdub_manager import RDUBManager
-from rs.core.study_registry import GHGARegistry
-from rs.ports.inbound.study_registry import GHGARegistryPort
+from rs.ports.inbound.ghga_registry import GHGARegistryPort
 
 __all__ = [
     "get_persistent_publisher",

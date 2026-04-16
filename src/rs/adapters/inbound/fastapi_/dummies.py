@@ -26,7 +26,7 @@ from ghga_service_commons.api.di import DependencyDummy
 from ghga_service_commons.auth.context import AuthContextProtocol
 from ghga_service_commons.auth.ghga import AuthContext
 
-from rs.ports.inbound.study_registry import GHGARegistryPort
+from rs.ports.inbound.ghga_registry import GHGARegistryPort
 
 __all__ = [
     "AuthProviderDummy",

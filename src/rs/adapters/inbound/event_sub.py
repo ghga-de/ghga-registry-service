@@ -21,7 +21,7 @@ from ghga_event_schemas.configs import FileUploadBoxEventsConfig
 from hexkit.protocols.daosub import DaoSubscriberProtocol
 
 from rs.core.models import FileUploadBox
-from rs.ports.inbound.study_registry import GHGARegistryPort
+from rs.ports.inbound.ghga_registry import GHGARegistryPort
 
 log = logging.getLogger(__name__)
 
