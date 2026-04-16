@@ -393,7 +393,7 @@ async def get_upload_access_grants(  # noqa: PLR0913
         raise HttpInternalError(message="Failed to get upload access grants") from err
 
 
-# TODO: Add endpoint to get ACCESSION -> name & alias mapping for files
+# TODO: Add `/filenames/{study_id}` endpoint to get ACCESSION -> name & alias mapping for files
 
 
 @router.get(
