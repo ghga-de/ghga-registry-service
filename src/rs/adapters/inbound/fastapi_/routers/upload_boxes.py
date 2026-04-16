@@ -23,10 +23,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import UUID4, NonNegativeInt
 
 from rs.adapters.inbound.fastapi_ import dummies
-from rs.adapters.inbound.fastapi_.auth import (
-    StewardAuthContext,
-    UserAuthContext,
-)
+from rs.adapters.inbound.fastapi_.auth import StewardAuthContext, UserAuthContext
 from rs.adapters.inbound.fastapi_.http_exceptions import (
     HttpBoxNotFoundError,
     HttpInternalError,

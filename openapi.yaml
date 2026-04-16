@@ -797,7 +797,7 @@ paths:
       - HTTPBearer: []
       summary: Get upload access grants
       tags:
-      - ResearchDataUploadBoxes
+      - UploadGrants
     post:
       description: Grant upload access to a user for a single research data upload
         box. Users cannot upload any files until they have been granted access to
@@ -826,7 +826,7 @@ paths:
       - HTTPBearer: []
       summary: Grant upload access
       tags:
-      - ResearchDataUploadBoxes
+      - UploadGrants
   /upload-grants/{grant_id}:
     delete:
       description: Revokes an existing upload access grant.
@@ -858,6 +858,6 @@ paths:
       - HTTPBearer: []
       summary: Revoke an upload access grant
       tags:
-      - ResearchDataUploadBoxes
+      - UploadGrants
 tags:
 - name: ResearchDataUploadBoxes
