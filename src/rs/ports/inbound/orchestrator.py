@@ -22,8 +22,9 @@ from ghga_service_commons.utils.utc_dates import UTCDatetime
 from pydantic import UUID4
 
 from rs.core.models import (
-    AccessionMapRequest,
+    PID,
     BoxRetrievalResults,
+    FileAccession,
     FileUploadBox,
     FileUploadWithAccession,
     GrantId,
@@ -236,7 +237,12 @@ class RDUBManagerPort(ABC):
 
     @abstractmethod
     async def store_accession_map(
-        self, *, box_id: UUID4, request: AccessionMapRequest, user_id: UUID4
+        self,
+        *,
+        box_id: UUID4,
+        box_version: int,
+        accession_map: dict[FileAccession, UUID4],
+        study_id: PID,
     ) -> None:
         """Update the file accession map for a given box and publish an outbox event.
         This results in a version increment for the ResearchDataUploadBox.

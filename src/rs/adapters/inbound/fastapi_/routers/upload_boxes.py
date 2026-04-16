@@ -196,7 +196,10 @@ async def submit_accession_map(
     """Submit a file ID to accession number mapping for an upload box."""
     try:
         await ghga_registry.rdub_manager.store_accession_map(
-            box_id=box_id, request=request, user_id=UUID(auth_context.id)
+            box_id=box_id,
+            box_version=request.box_version,
+            accession_map=request.mapping,
+            study_id=request.study_id,
         )
     except RDUBManagerPort.AccessionMapError as err:
         raise HTTPException(status_code=400, detail=str(err)) from err

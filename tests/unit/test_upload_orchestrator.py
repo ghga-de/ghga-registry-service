@@ -36,6 +36,7 @@ from rs.ports.outbound.http import AccessClientPort, FileBoxClientPort
 pytestmark = pytest.mark.asyncio
 
 TEST_FILE_UPLOAD_BOX_ID = UUID("2735c960-5e15-45dc-b27a-59162fbb2fd7")
+TEST_STUDY_ID = "GHGA-STUDY-001"
 TEST_DS_ID = UUID("f698158d-8417-4368-bb45-349277bc45ee")
 TEST_USER_ID1 = UUID("0ef5e39b-3ff2-4685-99e8-5aaf04942c45")
 
@@ -684,20 +685,16 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
 
     # Create an accession map
-    accession_map = models.AccessionMapRequest(
-        box_version=0,
-        mapping={
-            "GHGAF001": test_file_ids[0],
-            "GHGAF002": test_file_ids[1],
-            "GHGAF003": test_file_ids[2],
-        },
-        study_id="GHGA-STUDY-001",
-    )
+    mapping = {
+        "GHGAF001": test_file_ids[0],
+        "GHGAF002": test_file_ids[1],
+        "GHGAF003": test_file_ids[2],
+    }
 
     # Verify that a BoxNotFoundError is raised for a non-existent box
     with pytest.raises(rig.rdub_manager.BoxNotFoundError):
         await rig.rdub_manager.store_accession_map(
-            box_id=uuid4(), request=accession_map, user_id=TEST_DS_ID
+            box_id=uuid4(), box_version=0, accession_map=mapping, study_id=TEST_STUDY_ID
         )
 
     # Verify that the FileController's method was not called
@@ -712,7 +709,7 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
 
     # Call the method with the valid map now
     await rig.rdub_manager.store_accession_map(
-        box_id=box_id, request=accession_map, user_id=TEST_DS_ID
+        box_id=box_id, box_version=0, accession_map=mapping, study_id=TEST_STUDY_ID
     )
 
     # Verify the research data upload box version was incremented
@@ -759,34 +756,32 @@ async def test_store_accession_map_invalid_or_unmapped_file_ids(
 
     # Create an accession map with a file ID that doesn't exist in the box
     invalid_file_id = uuid4()
-    accession_map = models.AccessionMapRequest(
-        box_version=0,
-        mapping={"GHGAF001": test_file_ids[0], "GHGAF002": invalid_file_id},
-        study_id="GHGA-STUDY-001",
-    )
+    mapping = {"GHGAF001": test_file_ids[0], "GHGAF002": invalid_file_id}
 
     # Should raise AccessionMapError
     with pytest.raises(rig.rdub_manager.AccessionMapError, match="not in the box"):
         await rig.rdub_manager.store_accession_map(
-            box_id=box_id, request=accession_map, user_id=TEST_DS_ID
+            box_id=box_id,
+            box_version=0,
+            accession_map=mapping,
+            study_id=TEST_STUDY_ID,
         )
 
     # Verify file box client was called
     rig.file_upload_box_client.get_file_upload_list.assert_called_once()  # type: ignore
 
     # Create an accession map that omits a file
-    accession_map = models.AccessionMapRequest(
-        box_version=0,
-        mapping={"GHGAF001": test_file_ids[0]},
-        study_id="GHGA-STUDY-001",
-    )
+    mapping = {"GHGAF001": test_file_ids[0]}
 
     # Should raise AccessionMapError
     with pytest.raises(
         rig.rdub_manager.AccessionMapError, match="still need to be mapped"
     ):
         await rig.rdub_manager.store_accession_map(
-            box_id=box_id, request=accession_map, user_id=TEST_DS_ID
+            box_id=box_id,
+            box_version=0,
+            accession_map=mapping,
+            study_id=TEST_STUDY_ID,
         )
 
 
@@ -861,15 +856,14 @@ async def test_store_accession_map_filters_cancelled_and_failed(
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
 
     # Create an accession map for only the valid files
-    request = models.AccessionMapRequest(
-        box_version=0,
-        mapping={"GHGAF001": test_file_ids[0], "GHGAF004": test_file_ids[3]},
-        study_id="GHGA-STUDY-001",
-    )
+    mapping = {"GHGAF001": test_file_ids[0], "GHGAF004": test_file_ids[3]}
 
     # This should succeed because cancelled and failed files are ignored
     await rig.rdub_manager.store_accession_map(
-        box_id=box_id, request=request, user_id=TEST_DS_ID
+        box_id=box_id,
+        box_version=0,
+        accession_map=mapping,
+        study_id=TEST_STUDY_ID,
     )
 
     # Verify the accession map was stored by checking the FileController mock

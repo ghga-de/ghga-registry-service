@@ -26,8 +26,9 @@ from pydantic import UUID4
 
 from rs.constants import VALID_STATE_TRANSITIONS
 from rs.core.models import (
-    AccessionMapRequest,
+    PID,
     BoxRetrievalResults,
+    FileAccession,
     FileUploadBox,
     FileUploadWithAccession,
     GrantId,
@@ -603,8 +604,9 @@ class RDUBManager(RDUBManagerPort):
         self,
         *,
         box_id: UUID4,
-        request: AccessionMapRequest,
-        user_id: UUID4,
+        box_version: int,
+        accession_map: dict[FileAccession, UUID4],
+        study_id: PID,
     ) -> None:
         """Update the file accession map for a given box and publish an outbox event.
         This results in a version increment for the ResearchDataUploadBox.
@@ -640,11 +642,11 @@ class RDUBManager(RDUBManagerPort):
             raise self.BoxNotFoundError(box_id=box_id) from err
 
         # Make sure requested box version is current
-        if request.box_version != box.version:
+        if box_version != box.version:
             log.error(
                 "Accession Map update request specified version %i for RDUB %s, but"
                 + " the current version is %i.",
-                request.box_version,
+                box_version,
                 box_id,
                 box.version,
             )
@@ -662,8 +664,8 @@ class RDUBManager(RDUBManagerPort):
             )
 
         # Make sure all file IDs are only specified once
-        unique_file_ids = set(request.mapping.values())
-        if dupe_count := (len(request.mapping) - len(unique_file_ids)):
+        unique_file_ids = set(accession_map.values())
+        if dupe_count := (len(accession_map) - len(unique_file_ids)):
             log.error(
                 "Duplicate file IDs in accession map for box %s.",
                 box_id,
@@ -719,7 +721,7 @@ class RDUBManager(RDUBManagerPort):
 
         # Submit the accession map via the file controller
         await self._file_controller.post_file_ids(
-            study_id=request.study_id, file_id_map=request.mapping
+            study_id=study_id, file_id_map=accession_map
         )
 
         # Bump the RDUB version number
