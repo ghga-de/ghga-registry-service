@@ -31,7 +31,7 @@ from rs.core.models import (
     ResearchDataUploadBox,
 )
 from rs.inject import prepare_rest_app
-from rs.ports.inbound.orchestrator import RDUBManagerPort
+from rs.ports.inbound.rdub_manager import RDUBManagerPort
 from rs.ports.outbound.http import FileBoxClientPort
 from tests.fixtures.utils import TEST_BOX_ID, TEST_DS_ID
 

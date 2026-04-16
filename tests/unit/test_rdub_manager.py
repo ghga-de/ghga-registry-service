@@ -29,7 +29,7 @@ from hexkit.utils import now_utc_ms_prec
 
 from rs.config import Config
 from rs.core import models
-from rs.core.orchestrator import RDUBManager
+from rs.core.rdub_manager import RDUBManager
 from rs.ports.inbound.files import FileControllerPort
 from rs.ports.outbound.http import AccessClientPort, FileBoxClientPort
 

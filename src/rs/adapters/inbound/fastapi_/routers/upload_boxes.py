@@ -39,7 +39,7 @@ from rs.core.models import (
     UpdateUploadBoxRequest,
     UploadBoxState,
 )
-from rs.ports.inbound.orchestrator import RDUBManagerPort
+from rs.ports.inbound.rdub_manager import RDUBManagerPort
 
 log = logging.getLogger(__name__)
 

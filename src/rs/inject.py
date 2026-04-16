@@ -42,7 +42,7 @@ from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
 from rs.constants import SERVICE_NAME
 from rs.core.files import FileController
-from rs.core.orchestrator import RDUBManager
+from rs.core.rdub_manager import RDUBManager
 from rs.core.study_registry import GHGARegistry
 from rs.ports.inbound.study_registry import GHGARegistryPort
 

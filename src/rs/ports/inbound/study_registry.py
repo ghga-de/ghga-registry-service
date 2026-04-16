@@ -17,7 +17,7 @@
 
 from abc import ABC, abstractmethod
 
-from rs.ports.inbound.orchestrator import RDUBManagerPort
+from rs.ports.inbound.rdub_manager import RDUBManagerPort
 
 
 class GHGARegistryPort(ABC):

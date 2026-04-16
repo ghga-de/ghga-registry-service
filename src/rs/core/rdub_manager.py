@@ -37,7 +37,7 @@ from rs.core.models import (
     UploadBoxState,
 )
 from rs.ports.inbound.files import FileControllerPort
-from rs.ports.inbound.orchestrator import RDUBManagerPort
+from rs.ports.inbound.rdub_manager import RDUBManagerPort
 from rs.ports.outbound.audit import AuditRepositoryPort
 from rs.ports.outbound.dao import BoxDao
 from rs.ports.outbound.http import AccessClientPort, FileBoxClientPort

@@ -30,7 +30,7 @@ from rs.adapters.inbound.fastapi_.http_exceptions import (
 )
 from rs.constants import TRACER
 from rs.core.models import GrantAccessRequest, GrantId, GrantWithBoxInfo
-from rs.ports.inbound.orchestrator import RDUBManagerPort
+from rs.ports.inbound.rdub_manager import RDUBManagerPort
 
 log = logging.getLogger(__name__)
 

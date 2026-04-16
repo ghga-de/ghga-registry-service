@@ -14,7 +14,7 @@
 # limitations under the License.
 """GHGARegistry implementation"""
 
-from rs.ports.inbound.orchestrator import RDUBManagerPort
+from rs.ports.inbound.rdub_manager import RDUBManagerPort
 from rs.ports.inbound.study_registry import GHGARegistryPort
 
 
