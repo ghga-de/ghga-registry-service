@@ -269,7 +269,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     # Submit an accession map
     study_id = "GHGA-STUDY-001"
     accession_map = AccessionMapRequest(
-        research_data_upload_box_version=box_after_lock.version,
+        box_version=box_after_lock.version,
         mapping={"GHGAF001": file_id_1, "GHGAF002": file_id_2, "GHGAF003": file_id_3},
         study_id=study_id,
     )

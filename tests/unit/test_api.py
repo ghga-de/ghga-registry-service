@@ -721,7 +721,7 @@ async def test_submit_accession_map(
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/file-ids"
         request_data = {
-            "research_data_upload_box_version": 0,
+            "box_version": 0,
             "mapping": {"GHGAF001": str(uuid4()), "GHGAF002": str(uuid4())},
             "study_id": "GHGA-STUDY-001",
         }

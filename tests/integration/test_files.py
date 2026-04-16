@@ -92,7 +92,7 @@ async def test_submission(
 
     # Prepare the HTTP request attributes
     mapping_request = AccessionMapRequest(
-        research_data_upload_box_version=0,
+        box_version=0,
         study_id="test-study-1",
         mapping={accession1: file_id1, accession2: file_id2},
     )

@@ -685,7 +685,7 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
 
     # Create an accession map
     accession_map = models.AccessionMapRequest(
-        research_data_upload_box_version=0,
+        box_version=0,
         mapping={
             "GHGAF001": test_file_ids[0],
             "GHGAF002": test_file_ids[1],
@@ -760,7 +760,7 @@ async def test_store_accession_map_invalid_or_unmapped_file_ids(
     # Create an accession map with a file ID that doesn't exist in the box
     invalid_file_id = uuid4()
     accession_map = models.AccessionMapRequest(
-        research_data_upload_box_version=0,
+        box_version=0,
         mapping={"GHGAF001": test_file_ids[0], "GHGAF002": invalid_file_id},
         study_id="GHGA-STUDY-001",
     )
@@ -776,7 +776,7 @@ async def test_store_accession_map_invalid_or_unmapped_file_ids(
 
     # Create an accession map that omits a file
     accession_map = models.AccessionMapRequest(
-        research_data_upload_box_version=0,
+        box_version=0,
         mapping={"GHGAF001": test_file_ids[0]},
         study_id="GHGA-STUDY-001",
     )
@@ -862,7 +862,7 @@ async def test_store_accession_map_filters_cancelled_and_failed(
 
     # Create an accession map for only the valid files
     request = models.AccessionMapRequest(
-        research_data_upload_box_version=0,
+        box_version=0,
         mapping={"GHGAF001": test_file_ids[0], "GHGAF004": test_file_ids[3]},
         study_id="GHGA-STUDY-001",
     )

@@ -643,11 +643,11 @@ class UploadOrchestrator(UploadOrchestratorPort):
             raise self.BoxNotFoundError(box_id=box_id) from err
 
         # Make sure requested box version is current
-        if request.research_data_upload_box_version != box.version:
+        if request.box_version != box.version:
             log.error(
                 "Accession Map update request specified version %i for RDUB %s, but"
                 + " the current version is %i.",
-                request.research_data_upload_box_version,
+                request.box_version,
                 box_id,
                 box.version,
             )

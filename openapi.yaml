@@ -3,6 +3,10 @@ components:
     AccessionMapRequest:
       description: The request body schema for submitting accession maps
       properties:
+        box_version:
+          description: A counter indicating research data upload box version
+          title: Box Version
+          type: integer
         mapping:
           description: Map of accessions to file IDs
           patternProperties:
@@ -11,10 +15,6 @@ components:
               type: string
           title: Mapping
           type: object
-        research_data_upload_box_version:
-          description: A counter indicating research data upload box version
-          title: Research Data Upload Box Version
-          type: integer
         study_id:
           description: Identifier of the study to which the file accessions belong.
           maxLength: 256
@@ -22,7 +22,7 @@ components:
           title: Study Id
           type: string
       required:
-      - research_data_upload_box_version
+      - box_version
       - mapping
       - study_id
       title: AccessionMapRequest

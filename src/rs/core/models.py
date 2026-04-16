@@ -211,7 +211,7 @@ class BoxRetrievalResults(BaseModel):
 class AccessionMapRequest(BaseModel):
     """The request body schema for submitting accession maps"""
 
-    research_data_upload_box_version: int = Field(
+    box_version: int = Field(
         default=..., description="A counter indicating research data upload box version"
     )
     mapping: dict[FileAccession, UUID4] = Field(
