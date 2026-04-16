@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Business logic service for the Upload Orchestration Service."""
+"""Core logic for the file upload orchestration."""
 
 import logging
 from uuid import UUID
