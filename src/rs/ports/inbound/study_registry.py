@@ -13,11 +13,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Defines the main Study Registry Service inbound port."""
+"""Defines the main GHGA Registry Service inbound port."""
 
 from abc import ABC, abstractmethod
 
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.orchestrator import RDUBManagerPort
 
 
 class StudyRegistryPort(ABC):
@@ -25,6 +25,6 @@ class StudyRegistryPort(ABC):
 
     @property
     @abstractmethod
-    def upload_orchestrator(self) -> UploadOrchestratorPort:
-        """The upload orchestrator component."""
+    def rdub_manager(self) -> RDUBManagerPort:
+        """The RDUBManager component."""
         ...

@@ -31,7 +31,7 @@ from rs.core.models import (
     ResearchDataUploadBox,
 )
 from rs.inject import prepare_rest_app
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.orchestrator import RDUBManagerPort
 from rs.ports.outbound.http import FileBoxClientPort
 from tests.fixtures.utils import TEST_BOX_ID, TEST_DS_ID
 
@@ -80,32 +80,30 @@ async def test_get_research_data_upload_box(
             file_upload_box_state="open",
             storage_alias="HD",
         )
-        study_registry.upload_orchestrator.get_research_data_upload_box.return_value = (
-            box
-        )
+        study_registry.rdub_manager.get_research_data_upload_box.return_value = box
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 200
         assert response.json() == box.model_dump(mode="json")
 
         # handle box access error from core -- we obscure this with 404 for security
         study_registry.reset_mock()
-        study_registry.upload_orchestrator.get_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.BoxAccessError()
+        study_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+            RDUBManagerPort.BoxAccessError()
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle box not found error from core
         study_registry.reset_mock()
-        study_registry.upload_orchestrator.get_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.BoxNotFoundError(box_id=box.id)
+        study_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+            RDUBManagerPort.BoxNotFoundError(box_id=box.id)
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle other exception
         study_registry.reset_mock()
-        study_registry.upload_orchestrator.get_research_data_upload_box.side_effect = (
+        study_registry.rdub_manager.get_research_data_upload_box.side_effect = (
             TypeError()
         )
         response = await rest_client.get(url, headers=user_auth_headers)
@@ -147,7 +145,9 @@ async def test_create_research_data_upload_box(
         # normal response with data steward role
         # Mock the orchestrator to return a box ID
         test_box_id = uuid4()
-        study_registry.upload_orchestrator.create_research_data_upload_box.return_value = test_box_id
+        study_registry.rdub_manager.create_research_data_upload_box.return_value = (
+            test_box_id
+        )
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
@@ -156,7 +156,9 @@ async def test_create_research_data_upload_box(
 
         # handle file box service error from core
         study_registry.reset_mock()
-        study_registry.upload_orchestrator.create_research_data_upload_box.side_effect = FileBoxClientPort.OperationError()
+        study_registry.rdub_manager.create_research_data_upload_box.side_effect = (
+            FileBoxClientPort.OperationError()
+        )
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
@@ -164,7 +166,9 @@ async def test_create_research_data_upload_box(
 
         # handle other exception
         study_registry.reset_mock()
-        study_registry.upload_orchestrator.create_research_data_upload_box.side_effect = TypeError()
+        study_registry.rdub_manager.create_research_data_upload_box.side_effect = (
+            TypeError()
+        )
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
@@ -175,9 +179,9 @@ async def test_update_research_data_upload_box(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the PATCH /upload-boxes/{box_id} endpoint."""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -198,24 +202,24 @@ async def test_update_research_data_upload_box(
         assert response.status_code == 401
 
         # normal response with user auth (should work for regular users too)
-        orchestrator.upload_orchestrator.update_research_data_upload_box.return_value = None
+        rdub_manager.rdub_manager.update_research_data_upload_box.return_value = None
         response = await rest_client.patch(
             url, json=request_data, headers=user_auth_headers
         )
         assert response.status_code == 204
 
         # normal response with data steward auth
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.return_value = None
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.return_value = None
         response = await rest_client.patch(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 204
 
         # handle box access error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.BoxAccessError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
+            RDUBManagerPort.BoxAccessError()
         )
         response = await rest_client.patch(
             url, json=request_data, headers=user_auth_headers
@@ -223,9 +227,9 @@ async def test_update_research_data_upload_box(
         assert response.status_code == 403
 
         # handle box not found error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.BoxNotFoundError(box_id=TEST_BOX_ID)
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
+            RDUBManagerPort.BoxNotFoundError(box_id=TEST_BOX_ID)
         )
         response = await rest_client.patch(
             url, json=request_data, headers=user_auth_headers
@@ -233,9 +237,9 @@ async def test_update_research_data_upload_box(
         assert response.status_code == 404
 
         # handle version error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.VersionError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
+            RDUBManagerPort.VersionError()
         )
         response = await rest_client.patch(
             url, json=request_data, headers=user_auth_headers
@@ -243,11 +247,9 @@ async def test_update_research_data_upload_box(
         assert response.status_code == 409
 
         # handle state change error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.StateChangeError(
-                old_state="archived", new_state="open"
-            )
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
+            RDUBManagerPort.StateChangeError(old_state="archived", new_state="open")
         )
         response = await rest_client.patch(
             url, json=request_data, headers=user_auth_headers
@@ -255,8 +257,8 @@ async def test_update_research_data_upload_box(
         assert response.status_code == 409
 
         # handle file box service error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
             FileBoxClientPort.OperationError()
         )
         response = await rest_client.patch(
@@ -265,8 +267,8 @@ async def test_update_research_data_upload_box(
         assert response.status_code == 500
 
         # handle other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
             TypeError()
         )
         response = await rest_client.patch(
@@ -279,9 +281,9 @@ async def test_grant_upload_access(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the POST /upload-grants endpoint"""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -311,7 +313,7 @@ async def test_grant_upload_access(
 
         # normal response with data steward role
         test_grant_id = uuid4()
-        orchestrator.upload_orchestrator.grant_upload_access.return_value = GrantId(
+        rdub_manager.rdub_manager.grant_upload_access.return_value = GrantId(
             id=test_grant_id
         )
         response = await rest_client.post(
@@ -321,8 +323,8 @@ async def test_grant_upload_access(
         assert response.json() == {"id": str(test_grant_id)}
 
         # handle other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.grant_upload_access.side_effect = TypeError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.grant_upload_access.side_effect = TypeError()
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
@@ -333,9 +335,9 @@ async def test_list_upload_box_files(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the GET /upload-boxes/{box_id}/uploads endpoint."""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/uploads"
@@ -368,7 +370,7 @@ async def test_list_upload_box_files(
         ]
 
         file_list_json = [file.model_dump(mode="json") for file in file_list]
-        orchestrator.upload_orchestrator.get_upload_box_files.return_value = file_list
+        rdub_manager.rdub_manager.get_upload_box_files.return_value = file_list
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 200
         assert response.json() == file_list_json
@@ -379,24 +381,24 @@ async def test_list_upload_box_files(
         assert response.json() == file_list_json
 
         # handle box access error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.get_upload_box_files.side_effect = (
-            UploadOrchestratorPort.BoxAccessError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_upload_box_files.side_effect = (
+            RDUBManagerPort.BoxAccessError()
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 403
 
         # handle box not found error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.get_upload_box_files.side_effect = (
-            UploadOrchestratorPort.BoxNotFoundError(box_id=TEST_BOX_ID)
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_upload_box_files.side_effect = (
+            RDUBManagerPort.BoxNotFoundError(box_id=TEST_BOX_ID)
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle other exception (including FileBoxClient errors that bubble up)
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.get_upload_box_files.side_effect = TypeError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_upload_box_files.side_effect = TypeError()
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 500
 
@@ -405,11 +407,11 @@ async def test_revoke_upload_access_grant(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the DELETE /upload-grants/{grant_id} endpoint"""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     test_grant_id = uuid4()
 
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-grants/{test_grant_id}"
@@ -427,23 +429,21 @@ async def test_revoke_upload_access_grant(
         assert response.status_code == 403
 
         # normal response with data steward role
-        orchestrator.upload_orchestrator.revoke_upload_access_grant.return_value = None
+        rdub_manager.rdub_manager.revoke_upload_access_grant.return_value = None
         response = await rest_client.delete(url, headers=ds_auth_headers)
         assert response.status_code == 204
 
         # handle grant not found error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.revoke_upload_access_grant.side_effect = (
-            UploadOrchestratorPort.GrantNotFoundError(grant_id=test_grant_id)
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.revoke_upload_access_grant.side_effect = (
+            RDUBManagerPort.GrantNotFoundError(grant_id=test_grant_id)
         )
         response = await rest_client.delete(url, headers=ds_auth_headers)
         assert response.status_code == 404
 
         # handle other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.revoke_upload_access_grant.side_effect = (
-            TypeError()
-        )
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.revoke_upload_access_grant.side_effect = TypeError()
         response = await rest_client.delete(url, headers=ds_auth_headers)
         assert response.status_code == 500
 
@@ -452,9 +452,9 @@ async def test_get_upload_access_grants(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the GET /upload-grants endpoint"""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -489,9 +489,7 @@ async def test_get_upload_access_grants(
                 box_version=0,
             )
         ]
-        orchestrator.upload_orchestrator.get_upload_access_grants.return_value = (
-            test_grants
-        )
+        rdub_manager.rdub_manager.get_upload_access_grants.return_value = test_grants
         response = await rest_client.get(url, headers=ds_auth_headers)
         assert response.status_code == 200
         assert response.json() == [
@@ -507,10 +505,8 @@ async def test_get_upload_access_grants(
         assert response.status_code == 200
 
         # handle other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.get_upload_access_grants.side_effect = (
-            TypeError()
-        )
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_upload_access_grants.side_effect = TypeError()
         response = await rest_client.get(url, headers=ds_auth_headers)
         assert response.status_code == 500
 
@@ -521,7 +517,7 @@ async def test_get_boxes(
     user_auth_headers: dict[str, str],
 ):
     """Test GET /upload-boxes endpoint."""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
 
     # Create test boxes
     test_boxes = [
@@ -554,13 +550,13 @@ async def test_get_boxes(
     ]
 
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
 
         # Test successful data steward request
-        orchestrator.upload_orchestrator.get_research_data_upload_boxes.return_value = (
+        rdub_manager.rdub_manager.get_research_data_upload_boxes.return_value = (
             BoxRetrievalResults(count=2, boxes=test_boxes)
         )
         response = await rest_client.get(url, headers=ds_auth_headers)
@@ -572,8 +568,8 @@ async def test_get_boxes(
         assert response_data["boxes"][1]["title"] == "Box B"
 
         # Test with non-data steward (regular user)
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.get_research_data_upload_boxes.return_value = (
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_research_data_upload_boxes.return_value = (
             BoxRetrievalResults(count=1, boxes=[test_boxes[0]])
         )
         response = await rest_client.get(url, headers=user_auth_headers)
@@ -583,9 +579,9 @@ async def test_get_boxes(
         assert len(response_data["boxes"]) == 1
 
         # Test locked parameter filtering
-        orchestrator.reset_mock()
+        rdub_manager.reset_mock()
         locked_box = test_boxes[0].model_copy(update={"locked": True})
-        orchestrator.upload_orchestrator.get_research_data_upload_boxes.return_value = (
+        rdub_manager.rdub_manager.get_research_data_upload_boxes.return_value = (
             BoxRetrievalResults(count=1, boxes=[locked_box])
         )
         response = await rest_client.get(
@@ -597,29 +593,25 @@ async def test_get_boxes(
         assert len(response_data["boxes"]) == 1
 
         # Verify orchestrator was called with state="locked"
-        call_args = (
-            orchestrator.upload_orchestrator.get_research_data_upload_boxes.call_args
-        )
+        call_args = rdub_manager.rdub_manager.get_research_data_upload_boxes.call_args
         assert call_args.kwargs["state"] == "locked"
 
         # Test locked=false parameter
-        orchestrator.reset_mock()
+        rdub_manager.reset_mock()
         unlocked_box = test_boxes[1].model_copy(update={"locked": False})
-        orchestrator.upload_orchestrator.get_research_data_upload_boxes.return_value = (
+        rdub_manager.rdub_manager.get_research_data_upload_boxes.return_value = (
             BoxRetrievalResults(count=1, boxes=[unlocked_box])
         )
         response = await rest_client.get(
             url, headers=ds_auth_headers, params={"state": "open"}
         )
         assert response.status_code == 200
-        call_args = (
-            orchestrator.upload_orchestrator.get_research_data_upload_boxes.call_args
-        )
+        call_args = rdub_manager.rdub_manager.get_research_data_upload_boxes.call_args
         assert call_args.kwargs["state"] == "open"
 
         # Test other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.get_research_data_upload_boxes.side_effect = (
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_research_data_upload_boxes.side_effect = (
             ValueError("Test error")
         )
         response = await rest_client.get(url, headers=ds_auth_headers)
@@ -637,9 +629,9 @@ async def test_get_boxes(
 )
 async def test_get_boxes_bad_parameters(config: Config, ds_auth_headers, params):
     """Test the GET /upload-boxes endpoint with bad parameters but valid auth context"""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -651,9 +643,9 @@ async def test_archive_via_update_endpoint(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test archiving a box through the PATCH /upload-boxes/{box_id} endpoint"""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -670,8 +662,8 @@ async def test_archive_via_update_endpoint(
         assert response.status_code == 401
 
         # normal response but user is not a data steward (regular users can't archive)
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.BoxAccessError()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
+            RDUBManagerPort.BoxAccessError()
         )
         response = await rest_client.patch(
             url, json=request_data, headers=user_auth_headers
@@ -679,20 +671,18 @@ async def test_archive_via_update_endpoint(
         assert response.status_code == 403
 
         # normal response with data steward role
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            None
-        )
-        orchestrator.upload_orchestrator.update_research_data_upload_box.return_value = None
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = None
+        rdub_manager.rdub_manager.update_research_data_upload_box.return_value = None
         response = await rest_client.patch(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 204
 
         # handle archival prerequisites error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
-            UploadOrchestratorPort.ArchivalPrereqsError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
+            RDUBManagerPort.ArchivalPrereqsError()
         )
         response = await rest_client.patch(
             url, json=request_data, headers=ds_auth_headers
@@ -700,8 +690,8 @@ async def test_archive_via_update_endpoint(
         assert response.status_code == 409
 
         # handle other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.update_research_data_upload_box.side_effect = (
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.update_research_data_upload_box.side_effect = (
             TypeError()
         )
         response = await rest_client.patch(
@@ -714,9 +704,9 @@ async def test_submit_accession_map(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the POST /upload-boxes/{box_id}/accessions endpoint"""
-    orchestrator = AsyncMock()
+    rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, study_registry_override=orchestrator) as app,
+        prepare_rest_app(config=config, study_registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/file-ids"
@@ -743,16 +733,16 @@ async def test_submit_accession_map(
         assert response.status_code == 403
 
         # normal response with data steward role
-        orchestrator.upload_orchestrator.store_accession_map.return_value = None
+        rdub_manager.rdub_manager.store_accession_map.return_value = None
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
         assert response.status_code == 204
 
         # handle accession map error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.store_accession_map.side_effect = (
-            UploadOrchestratorPort.AccessionMapError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.store_accession_map.side_effect = (
+            RDUBManagerPort.AccessionMapError()
         )
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
@@ -760,9 +750,9 @@ async def test_submit_accession_map(
         assert response.status_code == 400
 
         # handle box not found error from core
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.store_accession_map.side_effect = (
-            UploadOrchestratorPort.BoxNotFoundError(box_id=TEST_BOX_ID)
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.store_accession_map.side_effect = (
+            RDUBManagerPort.BoxNotFoundError(box_id=TEST_BOX_ID)
         )
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
@@ -770,8 +760,8 @@ async def test_submit_accession_map(
         assert response.status_code == 404
 
         # handle other exception
-        orchestrator.reset_mock()
-        orchestrator.upload_orchestrator.store_accession_map.side_effect = TypeError()
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.store_accession_map.side_effect = TypeError()
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Core logic for the file upload orchestration."""
+"""Logic for creating and managing ResearchDataUploadBoxes."""
 
 import logging
 from uuid import UUID
@@ -37,17 +37,14 @@ from rs.core.models import (
     UploadBoxState,
 )
 from rs.ports.inbound.files import FileControllerPort
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.orchestrator import RDUBManagerPort
 from rs.ports.outbound.audit import AuditRepositoryPort
 from rs.ports.outbound.dao import BoxDao
-from rs.ports.outbound.http import (
-    AccessClientPort,
-    FileBoxClientPort,
-)
+from rs.ports.outbound.http import AccessClientPort, FileBoxClientPort
 
 log = logging.getLogger(__name__)
 
-__all__ = ["UploadOrchestrator"]
+__all__ = ["RDUBManager"]
 
 
 def is_data_steward(auth_context: AuthContext) -> bool:
@@ -55,8 +52,8 @@ def is_data_steward(auth_context: AuthContext) -> bool:
     return "data_steward" in auth_context.roles
 
 
-class UploadOrchestrator(UploadOrchestratorPort):
-    """A class for orchestrating upload operations."""
+class RDUBManager(RDUBManagerPort):
+    """A class for executing operations surrounding ResearchDataUploadBoxes"""
 
     def __init__(
         self,

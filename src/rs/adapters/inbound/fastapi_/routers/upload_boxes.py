@@ -39,7 +39,7 @@ from rs.core.models import (
     UpdateUploadBoxRequest,
     UploadBoxState,
 )
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.orchestrator import RDUBManagerPort
 
 log = logging.getLogger(__name__)
 
@@ -78,17 +78,17 @@ async def update_research_data_upload_box(
 ) -> None:
     """Update a ResearchDataUploadBox."""
     try:
-        await study_registry.upload_orchestrator.update_research_data_upload_box(
+        await study_registry.rdub_manager.update_research_data_upload_box(
             box_id=box_id, request=request, auth_context=auth_context
         )
-    except UploadOrchestratorPort.BoxAccessError as err:
+    except RDUBManagerPort.BoxAccessError as err:
         raise HttpNotAuthorizedError() from err
-    except UploadOrchestratorPort.BoxNotFoundError as err:
+    except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
     except (
-        UploadOrchestratorPort.ArchivalPrereqsError,
-        UploadOrchestratorPort.VersionError,
-        UploadOrchestratorPort.StateChangeError,
+        RDUBManagerPort.ArchivalPrereqsError,
+        RDUBManagerPort.VersionError,
+        RDUBManagerPort.StateChangeError,
     ) as err:
         raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
@@ -121,14 +121,14 @@ async def get_research_data_upload_box(
     existing box, this endpoint will return a 404.
     """
     try:
-        box = await study_registry.upload_orchestrator.get_research_data_upload_box(
+        box = await study_registry.rdub_manager.get_research_data_upload_box(
             box_id=box_id, auth_context=auth_context
         )
         return box
-    except UploadOrchestratorPort.BoxAccessError as err:
+    except RDUBManagerPort.BoxAccessError as err:
         # Return BoxAccessError as a 404 on purpose
         raise HttpBoxNotFoundError(box_id=box_id) from err
-    except UploadOrchestratorPort.BoxNotFoundError as err:
+    except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
     except Exception as err:
         log.error(err, exc_info=True)
@@ -158,14 +158,14 @@ async def list_upload_box_files(
 ) -> list[FileUploadWithAccession]:
     """List file uploads in an upload box."""
     try:
-        file_uploads = await study_registry.upload_orchestrator.get_upload_box_files(
+        file_uploads = await study_registry.rdub_manager.get_upload_box_files(
             box_id=box_id,
             auth_context=auth_context,
         )
         return file_uploads
-    except UploadOrchestratorPort.BoxAccessError as err:
+    except RDUBManagerPort.BoxAccessError as err:
         raise HttpNotAuthorizedError() from err
-    except UploadOrchestratorPort.BoxNotFoundError as err:
+    except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
     except Exception as err:
         log.error(err, exc_info=True)
@@ -195,14 +195,14 @@ async def submit_accession_map(
 ) -> None:
     """Submit a file ID to accession number mapping for an upload box."""
     try:
-        await study_registry.upload_orchestrator.store_accession_map(
+        await study_registry.rdub_manager.store_accession_map(
             box_id=box_id, request=request, user_id=UUID(auth_context.id)
         )
-    except UploadOrchestratorPort.AccessionMapError as err:
+    except RDUBManagerPort.AccessionMapError as err:
         raise HTTPException(status_code=400, detail=str(err)) from err
-    except UploadOrchestratorPort.BoxNotFoundError as err:
+    except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
-    except UploadOrchestratorPort.VersionError as err:
+    except RDUBManagerPort.VersionError as err:
         raise HTTPException(status_code=409, detail=str(err)) from err
     except Exception as err:
         log.error(err, exc_info=True)
@@ -258,13 +258,11 @@ async def get_research_data_upload_boxes(
     they have access to according to the access API.
     """
     try:
-        results = (
-            await study_registry.upload_orchestrator.get_research_data_upload_boxes(
-                auth_context=auth_context,
-                skip=skip,
-                limit=limit,
-                state=state,
-            )
+        results = await study_registry.rdub_manager.get_research_data_upload_boxes(
+            auth_context=auth_context,
+            skip=skip,
+            limit=limit,
+            state=state,
         )
         return results
     except Exception as err:
@@ -294,13 +292,11 @@ async def create_research_data_upload_box(
 ) -> UUID4:
     """Create a new upload box. Requires Data Steward role."""
     try:
-        box_id = (
-            await study_registry.upload_orchestrator.create_research_data_upload_box(
-                title=request.title,
-                description=request.description,
-                storage_alias=request.storage_alias,
-                data_steward_id=UUID(auth_context.id),
-            )
+        box_id = await study_registry.rdub_manager.create_research_data_upload_box(
+            title=request.title,
+            description=request.description,
+            storage_alias=request.storage_alias,
+            data_steward_id=UUID(auth_context.id),
         )
         return box_id
     except Exception as err:

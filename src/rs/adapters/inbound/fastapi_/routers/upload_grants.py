@@ -30,7 +30,7 @@ from rs.adapters.inbound.fastapi_.http_exceptions import (
 )
 from rs.constants import TRACER
 from rs.core.models import GrantAccessRequest, GrantId, GrantWithBoxInfo
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.orchestrator import RDUBManagerPort
 
 log = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ async def revoke_upload_access_grant(
 ) -> None:
     """Revoke an upload access grant."""
     try:
-        await study_registry.upload_orchestrator.revoke_upload_access_grant(grant_id)
-    except UploadOrchestratorPort.GrantNotFoundError as err:
+        await study_registry.rdub_manager.revoke_upload_access_grant(grant_id)
+    except RDUBManagerPort.GrantNotFoundError as err:
         raise HttpGrantNotFoundError(grant_id=grant_id) from err
     except Exception as err:
         log.error(err, exc_info=True)
@@ -129,7 +129,7 @@ async def get_upload_access_grants(  # noqa: PLR0913
     user ID, IVA ID, box ID, and grant ID.
     """
     try:
-        return await study_registry.upload_orchestrator.get_upload_access_grants(
+        return await study_registry.rdub_manager.get_upload_access_grants(
             user_id=user_id, iva_id=iva_id, box_id=box_id, valid=valid
         )
     except Exception as err:
@@ -158,7 +158,7 @@ async def grant_upload_access(
 ) -> GrantId:
     """Grant upload access to a user. Requires Data Steward role."""
     try:
-        return await study_registry.upload_orchestrator.grant_upload_access(
+        return await study_registry.rdub_manager.grant_upload_access(
             user_id=request.user_id,
             iva_id=request.iva_id,
             box_id=request.box_id,

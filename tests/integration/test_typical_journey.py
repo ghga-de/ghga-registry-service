@@ -52,7 +52,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     research_box_topic = joint_fixture.config.research_data_upload_box_topic
 
     # Shorthand reference to the orchestrator
-    orchestrator = joint_fixture.study_registry.upload_orchestrator
+    rdub_manager = joint_fixture.study_registry.rdub_manager
 
     # Create auth contexts
     iat = now_utc_ms_prec() - timedelta(hours=1)
@@ -87,7 +87,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
             in_topic=research_box_topic
         ) as box_event_recorder,
     ):
-        box_id = await orchestrator.create_research_data_upload_box(
+        box_id = await rdub_manager.create_research_data_upload_box(
             title="Test Box",
             description="A test upload box",
             storage_alias="test-storage",
@@ -111,7 +111,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     )
     valid_from = now_utc_ms_prec()
     valid_until = now_utc_ms_prec() + timedelta(days=7)
-    grant_id = await orchestrator.grant_upload_access(
+    grant_id = await rdub_manager.grant_upload_access(
         user_id=regular_user_id,
         iva_id=iva_id,
         box_id=box_id,
@@ -133,7 +133,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
             in_topic=research_box_topic
         ) as box_event_recorder,
     ):
-        await orchestrator.update_research_data_upload_box(
+        await rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=update_request,
             auth_context=ds_auth_context,
@@ -178,7 +178,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
         url=f"{access_url}/upload-access/users/{regular_user_id}/boxes/{box_id}",
         status_code=200,
     )
-    updated_box = await orchestrator.get_research_data_upload_box(
+    updated_box = await rdub_manager.get_research_data_upload_box(
         box_id=box_id,
         auth_context=user_auth_context,
     )
@@ -196,14 +196,14 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
         url=f"{file_box_service_url}/boxes/{file_upload_box_id}",
         status_code=204,
     )
-    await orchestrator.update_research_data_upload_box(
+    await rdub_manager.update_research_data_upload_box(
         box_id=box_id,
         request=lock_request,
         auth_context=user_auth_context,
     )
 
     # Verify the box is now locked
-    box_after_lock = await orchestrator.get_research_data_upload_box(
+    box_after_lock = await rdub_manager.get_research_data_upload_box(
         box_id=box_id,
         auth_context=user_auth_context,
     )
@@ -278,7 +278,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     async with joint_fixture.kafka.record_events(
         in_topic=joint_fixture.config.accession_map_topic
     ) as recorder:
-        await orchestrator.store_accession_map(
+        await rdub_manager.store_accession_map(
             box_id=box_id, request=accession_map, user_id=ds_user_id
         )
     assert recorder.recorded_events
@@ -287,7 +287,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     assert accessions == {"GHGAF001", "GHGAF002", "GHGAF003"}
 
     # Make sure the RDUB version was bumped by the accession map update
-    box_after_mapping = await orchestrator.get_research_data_upload_box(
+    box_after_mapping = await rdub_manager.get_research_data_upload_box(
         box_id=box_id,
         auth_context=user_auth_context,
     )
@@ -311,7 +311,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
             in_topic=research_box_topic
         ) as box_event_recorder,
     ):
-        await orchestrator.update_research_data_upload_box(
+        await rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=archive_request,
             auth_context=ds_auth_context,
@@ -326,7 +326,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     assert box_event_recorder.recorded_events[0].payload["state"] == "archived"
 
     # Verify the box is now archived
-    archived_box = await orchestrator.get_research_data_upload_box(
+    archived_box = await rdub_manager.get_research_data_upload_box(
         box_id=box_id,
         auth_context=ds_auth_context,
     )

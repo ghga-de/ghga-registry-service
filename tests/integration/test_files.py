@@ -53,8 +53,8 @@ async def test_submission(
     )
 
     # Create an RDUB
-    upload_orchestrator = joint_fixture.study_registry.upload_orchestrator
-    box_id = await upload_orchestrator.create_research_data_upload_box(
+    rdub_manager = joint_fixture.study_registry.rdub_manager
+    box_id = await rdub_manager.create_research_data_upload_box(
         title="Box A",
         description="Description of Box A",
         storage_alias="HD01",

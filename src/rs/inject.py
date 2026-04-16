@@ -42,7 +42,7 @@ from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
 from rs.constants import SERVICE_NAME
 from rs.core.files import FileController
-from rs.core.orchestrator import UploadOrchestrator
+from rs.core.orchestrator import RDUBManager
 from rs.core.study_registry import StudyRegistry
 from rs.ports.inbound.study_registry import StudyRegistryPort
 
@@ -106,7 +106,7 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
         access_client = AccessClient(config=config, httpx_client=httpx_client)
         file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
 
-        upload_orchestrator = UploadOrchestrator(
+        rdub_manager = RDUBManager(
             box_dao=box_dao,
             file_controller=file_controller,
             audit_repository=audit_repository,
@@ -114,7 +114,7 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[StudyRegistryPort]:
             file_upload_box_client=file_upload_box_client,
         )
 
-        yield StudyRegistry(upload_orchestrator=upload_orchestrator)
+        yield StudyRegistry(rdub_manager=rdub_manager)
 
 
 def prepare_core_with_override(

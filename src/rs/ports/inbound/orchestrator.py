@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Port definition for the Upload Orchestrator."""
+"""Port definition for the RDUBManager."""
 
 from abc import ABC, abstractmethod
 
@@ -34,8 +34,8 @@ from rs.core.models import (
 )
 
 
-class UploadOrchestratorPort(ABC):
-    """Port for the Upload Orchestrator service."""
+class RDUBManagerPort(ABC):
+    """Port for a class that executes operations surrounding ResearchDataUploadBoxes"""
 
     class BoxAccessError(RuntimeError):
         """Raised when a ResearchDataUploadBox cannot be accessed."""

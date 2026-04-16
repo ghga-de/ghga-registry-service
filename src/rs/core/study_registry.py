@@ -14,7 +14,7 @@
 # limitations under the License.
 """StudyRegistry implementation"""
 
-from rs.ports.inbound.orchestrator import UploadOrchestratorPort
+from rs.ports.inbound.orchestrator import RDUBManagerPort
 from rs.ports.inbound.study_registry import StudyRegistryPort
 
 
@@ -24,11 +24,11 @@ class StudyRegistry(StudyRegistryPort):
     def __init__(
         self,
         *,
-        upload_orchestrator: UploadOrchestratorPort,
+        rdub_manager: RDUBManagerPort,
     ) -> None:
-        self._upload_orchestrator = upload_orchestrator
+        self._rdub_manager = rdub_manager
 
     @property
-    def upload_orchestrator(self) -> UploadOrchestratorPort:
-        """The upload orchestrator component."""
-        return self._upload_orchestrator
+    def rdub_manager(self) -> RDUBManagerPort:
+        """The RDUBManager component."""
+        return self._rdub_manager

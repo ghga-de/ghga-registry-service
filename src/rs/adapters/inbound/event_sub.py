@@ -43,7 +43,7 @@ class OutboxSubTranslator(DaoSubscriberProtocol):
 
     async def changed(self, resource_id: str, update: FileUploadBox) -> None:
         """Consume an upserted FileUploadBox and update its parent ResearchDataUploadBox"""
-        await self._study_registry.upload_orchestrator.upsert_file_upload_box(
+        await self._study_registry.rdub_manager.upsert_file_upload_box(
             file_upload_box=update
         )
 

@@ -29,7 +29,7 @@ from hexkit.utils import now_utc_ms_prec
 
 from rs.config import Config
 from rs.core import models
-from rs.core.orchestrator import UploadOrchestrator
+from rs.core.orchestrator import RDUBManager
 from rs.ports.inbound.files import FileControllerPort
 from rs.ports.outbound.http import AccessClientPort, FileBoxClientPort
 
@@ -60,7 +60,7 @@ class JointRig:
     file_upload_box_client: FileBoxClientPort
     access_client: AccessClientPort
     file_controller: FileControllerPort
-    orchestrator: UploadOrchestrator
+    rdub_manager: RDUBManager
 
 
 async def file_upload_box_id_generator(*args, **kwargs) -> UUID:
@@ -76,7 +76,7 @@ def rig(config: Config) -> JointRig:
     access_client_mock = AsyncMock()
     file_controller = AsyncMock()
 
-    orchestrator = UploadOrchestrator(
+    rdub_manager = RDUBManager(
         box_dao=(box_dao := InMemBoxDao()),  # type: ignore
         file_upload_box_client=file_box_client_mock,
         access_client=access_client_mock,
@@ -90,7 +90,7 @@ def rig(config: Config) -> JointRig:
         file_controller=file_controller,
         file_upload_box_client=file_box_client_mock,
         access_client=access_client_mock,
-        orchestrator=orchestrator,
+        rdub_manager=rdub_manager,
     )
 
 
@@ -100,7 +100,7 @@ async def populate_boxes(rig: JointRig):
     # Create multiple boxes for testing
     box_ids: list[UUID] = []
     for i in range(5):
-        box_id = await rig.orchestrator.create_research_data_upload_box(
+        box_id = await rig.rdub_manager.create_research_data_upload_box(
             title=f"Box {chr(65 + i)}",  # "Box A", "Box B", etc.
             description=f"Description {i}",
             storage_alias="HD01",
@@ -113,7 +113,7 @@ async def populate_boxes(rig: JointRig):
 
 async def test_create_research_data_upload_box(rig: JointRig):
     """Test the normal path of creating a research data upload box."""
-    box_id = await rig.orchestrator.create_research_data_upload_box(
+    box_id = await rig.rdub_manager.create_research_data_upload_box(
         title="Test",
         description="Just a test",
         storage_alias="HD01",
@@ -151,7 +151,7 @@ async def test_update_research_data_upload_box_happy(
     )
 
     # Call the update method
-    await rig.orchestrator.update_research_data_upload_box(
+    await rig.rdub_manager.update_research_data_upload_box(
         box_id=box_id, request=update_request, auth_context=DATA_STEWARD_AUTH_CONTEXT
     )
 
@@ -185,8 +185,8 @@ async def test_update_research_data_upload_box_unauthorized(
     )
 
     # Call the update method
-    with pytest.raises(rig.orchestrator.BoxAccessError):
-        await rig.orchestrator.update_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.BoxAccessError):
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=update_request,
             auth_context=USER1_AUTH_CONTEXT,
@@ -207,8 +207,8 @@ async def test_update_research_data_upload_box_not_found(rig: JointRig):
     non_existent_box_id = uuid4()
 
     # This should raise BoxNotFoundError since the box doesn't exist
-    with pytest.raises(rig.orchestrator.BoxNotFoundError):
-        await rig.orchestrator.update_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.BoxNotFoundError):
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=non_existent_box_id,
             request=update_request,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
@@ -244,7 +244,7 @@ async def test_get_upload_box_files_happy(rig: JointRig, populated_boxes: list[U
     rig.access_client.check_box_access.return_value = [box_id]  # type: ignore
 
     # Call the method
-    result = await rig.orchestrator.get_upload_box_files(
+    result = await rig.rdub_manager.get_upload_box_files(
         box_id=box_id, auth_context=USER1_AUTH_CONTEXT
     )
 
@@ -266,8 +266,8 @@ async def test_get_upload_box_files_access_error(
     rig.access_client.check_box_access.return_value = False  # type: ignore
 
     # This should raise BoxAccessError since the user doesn't have access
-    with pytest.raises(rig.orchestrator.BoxAccessError):
-        await rig.orchestrator.get_upload_box_files(
+    with pytest.raises(rig.rdub_manager.BoxAccessError):
+        await rig.rdub_manager.get_upload_box_files(
             box_id=populated_boxes[0], auth_context=USER1_AUTH_CONTEXT
         )
 
@@ -285,8 +285,8 @@ async def test_get_upload_box_files_box_not_found(rig: JointRig):
 
     # This should raise BoxNotFoundError since the box doesn't exist
     # The error comes from the initial get_by_id call in get_upload_box_files
-    with pytest.raises(rig.orchestrator.BoxNotFoundError):
-        await rig.orchestrator.get_upload_box_files(
+    with pytest.raises(rig.rdub_manager.BoxNotFoundError):
+        await rig.rdub_manager.get_upload_box_files(
             box_id=non_existent_box_id, auth_context=DATA_STEWARD_AUTH_CONTEXT
         )
 
@@ -320,7 +320,7 @@ async def test_upsert_file_upload_box_happy(rig: JointRig, populated_boxes: list
     )
 
     # Call upsert_file_upload_box
-    await rig.orchestrator.upsert_file_upload_box(updated_file_upload_box)
+    await rig.rdub_manager.upsert_file_upload_box(updated_file_upload_box)
 
     # Verify the research data upload box was updated
     updated_box = await rig.box_dao.get_by_id(box_id)
@@ -349,7 +349,7 @@ async def test_upsert_file_upload_box_not_found(rig: JointRig):
     )
 
     # This should not raise an error, just log and continue
-    await rig.orchestrator.upsert_file_upload_box(orphaned_file_upload_box)
+    await rig.rdub_manager.upsert_file_upload_box(orphaned_file_upload_box)
 
     # Verify nothing was inserted in the DB
     assert not [x async for x in rig.box_dao.find_all(mapping={})]
@@ -362,7 +362,7 @@ async def test_get_research_data_upload_box_happy(
     # Try retrieval with Data Steward credentials
     rig.access_client.check_box_access.return_value = True  # type: ignore
     box_id = populated_boxes[0]
-    result = await rig.orchestrator.get_research_data_upload_box(
+    result = await rig.rdub_manager.get_research_data_upload_box(
         box_id=box_id, auth_context=DATA_STEWARD_AUTH_CONTEXT
     )
 
@@ -378,7 +378,7 @@ async def test_get_research_data_upload_box_happy(
 
     # Try with regular user
     rig.access_client.check_box_access.return_value = True  # type: ignore
-    result = await rig.orchestrator.get_research_data_upload_box(
+    result = await rig.rdub_manager.get_research_data_upload_box(
         box_id=box_id, auth_context=USER1_AUTH_CONTEXT
     )
     rig.access_client.check_box_access.assert_called_once()  # type: ignore
@@ -393,8 +393,8 @@ async def test_get_research_data_upload_box_access_denied(
 
     # Try to get the box with a different user
     # This should raise BoxAccessError since the user doesn't have access
-    with pytest.raises(rig.orchestrator.BoxAccessError):
-        await rig.orchestrator.get_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.BoxAccessError):
+        await rig.rdub_manager.get_research_data_upload_box(
             box_id=populated_boxes[0], auth_context=USER1_AUTH_CONTEXT
         )
 
@@ -411,8 +411,8 @@ async def test_get_research_data_upload_box_not_found(rig: JointRig):
     non_existent_box_id = uuid4()
 
     # This should raise BoxNotFoundError since the box doesn't exist
-    with pytest.raises(rig.orchestrator.BoxNotFoundError):
-        await rig.orchestrator.get_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.BoxNotFoundError):
+        await rig.rdub_manager.get_research_data_upload_box(
             box_id=non_existent_box_id, auth_context=USER1_AUTH_CONTEXT
         )
 
@@ -446,7 +446,7 @@ async def test_get_upload_access_grants_happy(
     rig.access_client.get_upload_access_grants.return_value = mock_grants  # type: ignore
 
     # Call the method
-    results = await rig.orchestrator.get_upload_access_grants(
+    results = await rig.rdub_manager.get_upload_access_grants(
         user_id=TEST_USER_ID1,
         iva_id=test_iva_id,
         box_id=None,
@@ -509,7 +509,7 @@ async def test_get_upload_access_grants_box_missing(
     rig.access_client.get_upload_access_grants.return_value = mock_grants  # type: ignore
 
     # Call the method
-    result = await rig.orchestrator.get_upload_access_grants()
+    result = await rig.rdub_manager.get_upload_access_grants()
 
     # Verify the results - should only contain the grant with the valid box
     assert len(result) == 1
@@ -533,7 +533,7 @@ async def test_get_upload_access_grants_box_missing(
 
 async def test_get_boxes_data_steward(rig: JointRig, populated_boxes: list[UUID]):
     """Test the get_research_data_upload_boxes method for data stewards."""
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT
     )
     assert results.count == 5
@@ -544,7 +544,7 @@ async def test_get_boxes_regular_user(rig: JointRig, populated_boxes: list[UUID]
     """Test the get_research_data_upload_boxes method for users."""
     # Assert that, before being given access, the user gets an empty list
     rig.access_client.get_accessible_upload_boxes.return_value = []  # type: ignore
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=USER1_AUTH_CONTEXT
     )
     assert results.count == 0
@@ -553,7 +553,7 @@ async def test_get_boxes_regular_user(rig: JointRig, populated_boxes: list[UUID]
     # Give User1 access boxes 1-3 and check results
     rig.access_client.get_accessible_upload_boxes.return_value = populated_boxes[:3]  # type: ignore
 
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=USER1_AUTH_CONTEXT
     )
     assert results.count == 3
@@ -563,7 +563,7 @@ async def test_get_boxes_regular_user(rig: JointRig, populated_boxes: list[UUID]
 
     # Try retrieving boxes when there's no access
     rig.access_client.get_accessible_upload_boxes.return_value = []  # type: ignore
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=USER1_AUTH_CONTEXT
     )
     assert results.count == 0
@@ -581,13 +581,13 @@ async def test_get_boxes_sorting(rig: JointRig, populated_boxes: list[UUID]):
     for box_id in locked_box_ids:
         await sleep(0.001)
         box = await rig.box_dao.get_by_id(box_id)
-        await rig.orchestrator.update_research_data_upload_box(
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=models.UpdateUploadBoxRequest(version=box.version, state="locked"),
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
         )
 
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT
     )
     assert results.count == 5
@@ -601,7 +601,7 @@ async def test_get_boxes_sorting(rig: JointRig, populated_boxes: list[UUID]):
     ]
 
     # Filter by locked
-    locked_results = await rig.orchestrator.get_research_data_upload_boxes(
+    locked_results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT, state="locked"
     )
     assert locked_results.count == 2
@@ -609,7 +609,7 @@ async def test_get_boxes_sorting(rig: JointRig, populated_boxes: list[UUID]):
     assert locked_results_ids == [populated_boxes[3], populated_boxes[1]]
 
     # Filter by open
-    unlocked_results = await rig.orchestrator.get_research_data_upload_boxes(
+    unlocked_results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT, state="open"
     )
     assert unlocked_results.count == 3
@@ -624,7 +624,7 @@ async def test_get_boxes_sorting(rig: JointRig, populated_boxes: list[UUID]):
 async def test_get_boxes_pagination(rig: JointRig, populated_boxes: list[UUID]):
     """Test pagination of the get_research_data_upload_boxes method."""
     # Verify pagination works
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT, skip=2, limit=2
     )
     assert results.count == 5  # Total count is still 5
@@ -632,20 +632,20 @@ async def test_get_boxes_pagination(rig: JointRig, populated_boxes: list[UUID]):
     results_ids = [box.id for box in results.boxes]
     assert results_ids == [populated_boxes[2], populated_boxes[1]]  # sorted results
 
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT, skip=6, limit=None
     )
     assert results.count == 5
     assert results.boxes == []
 
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT, skip=6, limit=1
     )
     assert results.count == 5
     assert results.boxes == []
 
     # The following won't happen in the real world because all requests go through API
-    results = await rig.orchestrator.get_research_data_upload_boxes(
+    results = await rig.rdub_manager.get_research_data_upload_boxes(
         auth_context=DATA_STEWARD_AUTH_CONTEXT, skip=-1, limit=-1
     )
     assert results.count == 5
@@ -695,8 +695,8 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
     )
 
     # Verify that a BoxNotFoundError is raised for a non-existent box
-    with pytest.raises(rig.orchestrator.BoxNotFoundError):
-        await rig.orchestrator.store_accession_map(
+    with pytest.raises(rig.rdub_manager.BoxNotFoundError):
+        await rig.rdub_manager.store_accession_map(
             box_id=uuid4(), request=accession_map, user_id=TEST_DS_ID
         )
 
@@ -711,7 +711,7 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
     version_pre_update = box.version
 
     # Call the method with the valid map now
-    await rig.orchestrator.store_accession_map(
+    await rig.rdub_manager.store_accession_map(
         box_id=box_id, request=accession_map, user_id=TEST_DS_ID
     )
 
@@ -766,8 +766,8 @@ async def test_store_accession_map_invalid_or_unmapped_file_ids(
     )
 
     # Should raise AccessionMapError
-    with pytest.raises(rig.orchestrator.AccessionMapError, match="not in the box"):
-        await rig.orchestrator.store_accession_map(
+    with pytest.raises(rig.rdub_manager.AccessionMapError, match="not in the box"):
+        await rig.rdub_manager.store_accession_map(
             box_id=box_id, request=accession_map, user_id=TEST_DS_ID
         )
 
@@ -783,9 +783,9 @@ async def test_store_accession_map_invalid_or_unmapped_file_ids(
 
     # Should raise AccessionMapError
     with pytest.raises(
-        rig.orchestrator.AccessionMapError, match="still need to be mapped"
+        rig.rdub_manager.AccessionMapError, match="still need to be mapped"
     ):
-        await rig.orchestrator.store_accession_map(
+        await rig.rdub_manager.store_accession_map(
             box_id=box_id, request=accession_map, user_id=TEST_DS_ID
         )
 
@@ -868,7 +868,7 @@ async def test_store_accession_map_filters_cancelled_and_failed(
     )
 
     # This should succeed because cancelled and failed files are ignored
-    await rig.orchestrator.store_accession_map(
+    await rig.rdub_manager.store_accession_map(
         box_id=box_id, request=request, user_id=TEST_DS_ID
     )
 
@@ -921,7 +921,7 @@ async def test_archive_research_data_upload_box_happy(
     # Archive the box via update
     update_request = models.UpdateUploadBoxRequest(version=1, state="archived")
 
-    await rig.orchestrator.update_research_data_upload_box(
+    await rig.rdub_manager.update_research_data_upload_box(
         box_id=box_id,
         request=update_request,
         auth_context=DATA_STEWARD_AUTH_CONTEXT,
@@ -946,8 +946,8 @@ async def test_archive_via_update_box_not_found(rig: JointRig):
     update_request = models.UpdateUploadBoxRequest(version=0, state="archived")
 
     # This should raise BoxNotFoundError
-    with pytest.raises(rig.orchestrator.BoxNotFoundError):
-        await rig.orchestrator.update_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.BoxNotFoundError):
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=non_existent_box_id,
             request=update_request,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
@@ -969,8 +969,8 @@ async def test_update_box_outdated_version(rig: JointRig, populated_boxes: list[
         title="New Title",
     )
 
-    with pytest.raises(rig.orchestrator.VersionError, match="has changed"):
-        await rig.orchestrator.update_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.VersionError, match="has changed"):
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=update_request,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
@@ -991,10 +991,10 @@ async def test_archive_box_not_locked(rig: JointRig, populated_boxes: list[UUID]
     )
 
     with pytest.raises(
-        rig.orchestrator.StateChangeError,
+        rig.rdub_manager.StateChangeError,
         match="cannot be changed from 'open' to 'archived'",
     ):
-        await rig.orchestrator.update_research_data_upload_box(
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=update_request,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
@@ -1047,9 +1047,9 @@ async def test_archive_box_missing_accessions(
     )
 
     with pytest.raises(
-        rig.orchestrator.ArchivalPrereqsError, match="missing an accession"
+        rig.rdub_manager.ArchivalPrereqsError, match="missing an accession"
     ):
-        await rig.orchestrator.update_research_data_upload_box(
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=update_request,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
@@ -1103,8 +1103,8 @@ async def test_archive_box_file_upload_box_version_error(
         version=box.version, state="archived"
     )
 
-    with pytest.raises(rig.orchestrator.VersionError, match="out of date"):
-        await rig.orchestrator.update_research_data_upload_box(
+    with pytest.raises(rig.rdub_manager.VersionError, match="out of date"):
+        await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             request=update_request,
             auth_context=DATA_STEWARD_AUTH_CONTEXT,
