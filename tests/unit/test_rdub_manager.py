@@ -152,7 +152,7 @@ async def test_update_research_data_upload_box_happy(
         version=box.version,
         title="Updated Title",
         description="Updated Description",
-        state=None,
+        state="locked",
         auth_context=DATA_STEWARD_AUTH_CONTEXT,
     )
 
@@ -162,6 +162,11 @@ async def test_update_research_data_upload_box_happy(
     assert updated_box.description == "Updated Description"
     assert updated_box.changed_by == TEST_DS_ID
     assert updated_box.last_changed - now_utc_ms_prec() < timedelta(seconds=5)
+
+    # Make sure the correct FUB version was sent to the UCS
+    rig.file_upload_box_client.lock_file_upload_box.assert_called_with(  # type: ignore
+        box_id=box.file_upload_box_id, version=box.version
+    )
 
     # Verify access client was not used because user is a Data Steward
     rig.access_client.check_box_access.assert_not_called()  # type: ignore
