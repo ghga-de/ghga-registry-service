@@ -1,23 +1,46 @@
+# ---
+# name: CI on release
+#
+# on:
+#   release:
+#     types: [published]
+#
+# jobs:
+#   push_to_docker_hub:
+#     name: Push to Docker Hub
+#
+#     strategy:
+#       matrix:
+#         flavor: ["", "debian"]
+#
+#     runs-on: ubuntu-latest
+#
+#     steps:
+#       - uses: ghga-de/gh-action-ci@v1
+#         with:
+#           tag: ${{ github.event.release.tag_name }}
+#           dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+#           dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+#           flavor: ${{ matrix.flavor }}
+#
+---
 name: CI on release
 
 on:
   release:
-      types: [published]
+    types: [published]
 
 jobs:
+  permissions:
+    id-token: write
+    contents: read
   push_to_docker_hub:
-    name: Push to Docker Hub
-
     strategy:
       matrix:
         flavor: ["", "debian"]
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: ghga-de/gh-action-ci@v1
-        with:
-          tag: ${{ github.event.release.tag_name }}
-          dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
-          flavor: ${{ matrix.flavor }}
+    uses: ghga-de/.github/.github/workflows/docker.yml@3e929024beaf54c07082f7fd545bf3feea847f2f
+    with:
+      tag: ${{ github.event.release.tag_name }}
+      flavor: ${{ matrix.flavor }}
+    secrets:
+      dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
