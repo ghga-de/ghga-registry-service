@@ -30,10 +30,11 @@ on:
   release:
     types: [published]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
-  permissions:
-    id-token: write
-    contents: read
   push_to_docker_hub:
     strategy:
       matrix:
