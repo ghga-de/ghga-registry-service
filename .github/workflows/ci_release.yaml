@@ -43,4 +43,4 @@ jobs:
     with:
       tag: ${{ github.event.release.tag_name }}
       flavor: ${{ matrix.flavor }}
-      dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+      dockerhub_token: ${{ input.DOCKERHUB_TOKEN }}
