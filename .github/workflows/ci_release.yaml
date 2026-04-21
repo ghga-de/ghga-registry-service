@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         flavor: ["", "debian"]
-    uses: ghga-de/gh-action-ci/.github/workflows/docker.yml@3e929024beaf54c07082f7fd545bf3feea847f2f
+    uses: ghga-de/gh-action-ci/.github/workflows/docker.yml@453592f47a12243c77fe612fc6be3828430d727c
     with:
       tag: ${{ github.event.release.tag_name }}
       flavor: ${{ matrix.flavor }}
