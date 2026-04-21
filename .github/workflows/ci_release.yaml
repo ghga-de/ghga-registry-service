@@ -43,5 +43,4 @@ jobs:
     with:
       tag: ${{ github.event.release.tag_name }}
       flavor: ${{ matrix.flavor }}
-      dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
     secrets: inherit
