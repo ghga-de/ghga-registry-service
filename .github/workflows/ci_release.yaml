@@ -1,23 +1,46 @@
+# ---
+# name: CI on release
+#
+# on:
+#   release:
+#     types: [published]
+#
+# jobs:
+#   push_to_docker_hub:
+#     name: Push to Docker Hub
+#
+#     strategy:
+#       matrix:
+#         flavor: ["", "debian"]
+#
+#     runs-on: ubuntu-latest
+#
+#     steps:
+#       - uses: ghga-de/gh-action-ci@v1
+#         with:
+#           tag: ${{ github.event.release.tag_name }}
+#           dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+#           dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+#           flavor: ${{ matrix.flavor }}
+#
+---
 name: CI on release
 
 on:
   release:
-      types: [published]
+    types: [published]
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   push_to_docker_hub:
-    name: Push to Docker Hub
-
     strategy:
       matrix:
         flavor: ["", "debian"]
-
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: ghga-de/gh-action-ci@v2
-        with:
-          tag: ${{ github.event.release.tag_name }}
-          dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
-          dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
-          flavor: ${{ matrix.flavor }}
+    uses: ghga-de/gh-action-ci/.github/workflows/docker.yml@feature/reusable_workflow
+    with:
+      tag: ${{ github.event.release.tag_name }}
+      flavor: ${{ matrix.flavor }}
+    secrets: inherit
