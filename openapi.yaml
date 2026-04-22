@@ -247,6 +247,7 @@ components:
           title: Box Id
           type: string
         box_state:
+          description: The state of the upload box
           enum:
           - open
           - locked
@@ -258,6 +259,7 @@ components:
           title: Box Title
           type: string
         box_version:
+          description: The upload box version
           title: Box Version
           type: integer
         created:

@@ -195,8 +195,8 @@ class GrantWithBoxInfo(UploadGrant):
     box_description: str = Field(
         ..., description="Describes the upload box in more detail"
     )
-    box_state: UploadBoxState
-    box_version: int
+    box_state: UploadBoxState = Field(..., description="The state of the upload box")
+    box_version: int = Field(..., description="The upload box version")
 
 
 class BoxRetrievalResults(BaseModel):
