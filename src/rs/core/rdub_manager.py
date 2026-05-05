@@ -22,7 +22,7 @@ from ghga_service_commons.auth.ghga import AuthContext
 from ghga_service_commons.utils.utc_dates import UTCDatetime
 from hexkit.protocols.dao import NoHitsFoundError, ResourceNotFoundError
 from hexkit.utils import now_utc_ms_prec
-from pydantic import UUID4
+from pydantic import UUID4, PositiveInt
 
 from rs.constants import VALID_STATE_TRANSITIONS
 from rs.core.models import (
@@ -76,6 +76,7 @@ class RDUBManager(RDUBManagerPort):
         title: str,
         description: str,
         storage_alias: str,
+        max_size: PositiveInt,
         data_steward_id: UUID4,
     ) -> UUID4:
         """Create a new research data upload box.
@@ -93,7 +94,7 @@ class RDUBManager(RDUBManagerPort):
         """
         # Create FileUploadBox in external service
         file_upload_box_id = await self._file_upload_box_client.create_file_upload_box(
-            storage_alias=storage_alias
+            storage_alias=storage_alias, max_size=max_size
         )
 
         # Create ResearchDataUploadBox
@@ -108,6 +109,7 @@ class RDUBManager(RDUBManagerPort):
             file_upload_box_version=0,
             file_upload_box_state="open",
             storage_alias=storage_alias,
+            max_size=max_size,
         )
 
         # Store in repository & create audit record
@@ -115,15 +117,16 @@ class RDUBManager(RDUBManagerPort):
         await self._audit_repository.log_box_created(box=box, user_id=data_steward_id)
         return box.id
 
-    async def update_research_data_upload_box(  # noqa: PLR0913
+    async def update_research_data_upload_box(  # noqa: PLR0913, C901, PLR0915
         self,
         *,
         box_id: UUID4,
         version: int,
         title: str | None,
         description: str | None,
-        state: UploadBoxState | None,
         auth_context: AuthContext,
+        state: UploadBoxState | None = None,
+        max_size: PositiveInt | None = None,
     ) -> None:
         """Update a research data upload box.
 
@@ -135,11 +138,17 @@ class RDUBManager(RDUBManagerPort):
             StateChangeError: If the requested state transition is invalid.
             OperationError: If there's a problem updating the corresponding FileUploadBox.
             ArchivalPrereqsError: If trying to archive the box and prerequisites aren't met.
+            ValueError: If state and max_size are both specified.
         """
+        if state is not None and max_size is not None:
+            raise ValueError("Cannot specify both state and max_size in same call")
+
         # Get existing box if user has access to it
         box = await self.get_research_data_upload_box(
             box_id=box_id, auth_context=auth_context
         )
+
+        # TODO: Break this function up
 
         # Make sure the request is not based on outdated info
         if box.version != version:
@@ -158,6 +167,7 @@ class RDUBManager(RDUBManagerPort):
             "title": title,
             "description": description,
             "state": state,
+            "max_size": max_size,
         }
         changed_fields = {k: v for k, v in update.items() if v and getattr(box, k) != v}
         if not changed_fields:
@@ -180,12 +190,65 @@ class RDUBManager(RDUBManagerPort):
         updated_box.last_changed = now_utc_ms_prec()
         updated_box.version += 1
 
-        # If state is not changed, we can just update, emit audit log, and return
+        # If state is not changed, handle simple update or max_size resize
         if "state" not in changed_fields:
+            if "max_size" not in changed_fields:
+                await self._box_dao.update(updated_box)
+                await self._audit_repository.log_box_updated(
+                    box=updated_box, user_id=user_id
+                )
+                return
+
+            # max_size update requires calling UCS to resize the FUB
+            updated_box.file_upload_box_version += 1
             await self._box_dao.update(updated_box)
-            await self._audit_repository.log_box_updated(
-                box=updated_box, user_id=user_id
-            )
+            try:
+                await self._file_upload_box_client.resize_file_upload_box(
+                    box_id=box.file_upload_box_id,
+                    version=box.file_upload_box_version,
+                    max_size=updated_box.max_size,
+                )
+            except FileBoxClientPort.FUBVersionError as version_err:
+                log.error(
+                    "Can't resize FUB %s for RDUB %s because the FUB version is out of date.",
+                    box.file_upload_box_id,
+                    box_id,
+                    extra={
+                        "box_id": box_id,
+                        "file_upload_box_id": box.file_upload_box_id,
+                        "file_upload_box_version": box.file_upload_box_version,
+                    },
+                )
+                await self._box_dao.update(box)
+                raise self.VersionError(
+                    f"File Upload Box {box.file_upload_box_id} version is out of date."
+                ) from version_err
+            except FileBoxClientPort.FUBMaxSizeTooLowError as size_err:
+                log.error(
+                    "Can't resize FUB %s for RDUB %s because the new max_size is smaller"
+                    + " than the bytes already uploaded.",
+                    box.file_upload_box_id,
+                    box_id,
+                    extra={
+                        "box_id": box_id,
+                        "file_upload_box_id": box.file_upload_box_id,
+                        "max_size": updated_box.max_size,
+                    },
+                )
+                await self._box_dao.update(box)
+                raise self.BoxMaxSizeTooLowError(str(size_err)) from size_err
+            except Exception:
+                log.warning(
+                    "Failed to resize FUB %s, rolling back changes for RDUB %s",
+                    box.file_upload_box_id,
+                    box_id,
+                )
+                await self._box_dao.update(box)
+                raise
+            else:
+                await self._audit_repository.log_box_updated(
+                    box=updated_box, user_id=user_id
+                )
             return
 
         # Make sure the state change is valid, then update attributes and local DB copy
@@ -477,6 +540,7 @@ class RDUBManager(RDUBManagerPort):
                 "file_upload_box_state": file_upload_box.state,
                 "file_count": file_upload_box.file_count,
                 "size": file_upload_box.size,
+                "max_size": file_upload_box.max_size,
                 "storage_alias": file_upload_box.storage_alias,
             }
             updated_model = research_data_upload_box.model_copy(update=new)
