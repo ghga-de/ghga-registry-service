@@ -50,9 +50,9 @@ COPY --from=dep-builder /opt/runtime-bin/ /usr/local/bin/
 USER 1000
 
 # Please adapt to package name
-COPY --from=dep-builder /usr/bin/my-microservice /usr/local/bin/my-microservice
+COPY --from=dep-builder /usr/bin/rs /usr/local/bin/rs
 
 ENV PYTHONUNBUFFERED=1
 
 # Please adapt to package name:
-ENTRYPOINT ["my-microservice"]
+ENTRYPOINT ["rs"]
