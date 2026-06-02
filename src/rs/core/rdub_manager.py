@@ -705,6 +705,30 @@ class RDUBManager(RDUBManagerPort):
 
         return BoxRetrievalResults(count=count, boxes=boxes)
 
+    async def delete_file_upload(
+        self,
+        *,
+        box_id: UUID4,
+        file_id: UUID4,
+        auth_context: AuthContext,
+    ) -> None:
+        """Delete a FileUpload from an upload box.
+
+        Requires either the Data Steward role or upload access to the box.
+
+        Raises:
+            BoxNotFoundError: If the box doesn't exist.
+            BoxAccessError: If the user doesn't have access to the box.
+            OperationError: If there's a problem communicating with the file box service.
+        """
+        box = await self.get_research_data_upload_box(
+            box_id=box_id, auth_context=auth_context
+        )
+
+        await self._file_upload_box_client.delete_file_upload(
+            box_id=box.file_upload_box_id, file_id=file_id
+        )
+
     async def store_accession_map(
         self,
         *,

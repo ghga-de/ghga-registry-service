@@ -245,6 +245,25 @@ class RDUBManagerPort(ABC):
         ...
 
     @abstractmethod
+    async def delete_file_upload(
+        self,
+        *,
+        box_id: UUID4,
+        file_id: UUID4,
+        auth_context: AuthContext,
+    ) -> None:
+        """Delete a FileUpload from an upload box.
+
+        Requires either the Data Steward role or upload access to the box.
+
+        Raises:
+            BoxNotFoundError: If the box doesn't exist.
+            BoxAccessError: If the user doesn't have access to the box.
+            OperationError: If there's a problem communicating with the file box service.
+        """
+        ...
+
+    @abstractmethod
     async def store_accession_map(
         self,
         *,
