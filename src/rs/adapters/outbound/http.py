@@ -569,15 +569,43 @@ class FileBoxClient(FileBoxClientPort):
         if response.status_code == 204:
             return
 
+        extra: dict[str, Any] = {
+            "box_id": box_id,
+            "file_id": file_id,
+            "response_text": response.text,
+            "status_code": response.status_code,
+        }
+
+        if response.status_code == 404:
+            log.error(
+                "FileUploadBox %s not found in external service when attempting to"
+                + " delete FileUpload %s. The RDUB and FUB states may be out of sync.",
+                box_id,
+                file_id,
+                extra=extra,
+            )
+            raise self.OperationError(
+                f"FileUploadBox {box_id} was not found in the external service."
+            )
+
+        if response.status_code == 409:
+            exception_id = response.json().get("exception_id")
+            if exception_id == "boxStateError":
+                log.error(
+                    "Cannot delete FileUpload %s from FileUploadBox %s because the box"
+                    + " is locked. The RS and UCS box states may be out of sync.",
+                    file_id,
+                    box_id,
+                    extra=extra,
+                )
+                raise self.FUBLockedError(
+                    f"FileUploadBox {box_id} is locked and cannot be modified."
+                )
+
         log.error(
             "Error deleting FileUpload %s from FileUploadBox %s.",
             file_id,
             box_id,
-            extra={
-                "file_id": file_id,
-                "box_id": box_id,
-                "status_code": response.status_code,
-                "response_text": response.text,
-            },
+            extra=extra,
         )
         raise self.OperationError(f"Failed to delete file upload {file_id}.")
