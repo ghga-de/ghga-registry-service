@@ -30,6 +30,7 @@ from rs.core.models import (
     BaseWorkOrderToken,
     ChangeFileBoxWorkOrder,
     CreateFileBoxWorkOrder,
+    DeleteFileUploadWorkOrder,
     FileUploadWithAccession,
     GrantId,
     ResizeFileBoxWorkOrder,
@@ -551,3 +552,32 @@ class FileBoxClient(FileBoxClientPort):
             },
         )
         raise self.OperationError("Failed to resize FileUploadBox.")
+
+    async def delete_file_upload(self, *, box_id: UUID4, file_id: UUID4) -> None:
+        """Delete a FileUpload from a FileUploadBox in the owning service.
+
+        Raises:
+            OperationError if there's a problem with the operation.
+        """
+        wot = DeleteFileUploadWorkOrder(box_id=box_id, file_id=file_id)
+        headers = self._auth_header(wot)
+        response = await self._client.delete(
+            f"{self._ucs_url}/boxes/{box_id}/uploads/{file_id}",
+            headers=headers,
+            timeout=HTTPX_TIMEOUT,
+        )
+        if response.status_code == 204:
+            return
+
+        log.error(
+            "Error deleting FileUpload %s from FileUploadBox %s.",
+            file_id,
+            box_id,
+            extra={
+                "file_id": file_id,
+                "box_id": box_id,
+                "status_code": response.status_code,
+                "response_text": response.text,
+            },
+        )
+        raise self.OperationError(f"Failed to delete file upload {file_id}.")

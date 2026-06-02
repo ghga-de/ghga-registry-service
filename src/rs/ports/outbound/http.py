@@ -178,3 +178,12 @@ class FileBoxClientPort(ABC):
             OperationError if there's a problem with the operation.
         """
         ...
+
+    @abstractmethod
+    async def delete_file_upload(self, *, box_id: UUID4, file_id: UUID4) -> None:
+        """Delete a FileUpload from a FileUploadBox in the owning service.
+
+        Raises:
+            OperationError if there's a problem with the operation.
+        """
+        ...
