@@ -16,6 +16,7 @@
 """Logic for creating and managing ResearchDataUploadBoxes."""
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from ghga_service_commons.auth.ghga import AuthContext
@@ -719,15 +720,27 @@ class RDUBManager(RDUBManagerPort):
         Raises:
             BoxNotFoundError: If the box doesn't exist.
             BoxAccessError: If the user doesn't have access to the box.
+            BoxLockedError: If the box is locked.
             OperationError: If there's a problem communicating with the file box service.
         """
         box = await self.get_research_data_upload_box(
             box_id=box_id, auth_context=auth_context
         )
+        extra: dict[str, Any] = {"box_id": box_id, "file_id": file_id}
 
-        await self._file_upload_box_client.delete_file_upload(
-            box_id=box.file_upload_box_id, file_id=file_id
-        )
+        if box.state == "locked":
+            error = self.BoxLockedError()
+            log.error(error, extra=extra)
+            raise error
+
+        try:
+            await self._file_upload_box_client.delete_file_upload(
+                box_id=box.file_upload_box_id, file_id=file_id
+            )
+        except FileBoxClientPort.FUBLockedError as err:
+            error = self.BoxLockedError()
+            log.error(error, extra=extra)
+            raise error from err
 
     async def store_accession_map(
         self,
