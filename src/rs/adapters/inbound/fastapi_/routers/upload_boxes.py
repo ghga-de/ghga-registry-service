@@ -25,6 +25,7 @@ from pydantic import UUID4, NonNegativeInt
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.auth import StewardAuthContext, UserAuthContext
 from rs.adapters.inbound.fastapi_.http_exceptions import (
+    HttpAccessionMapError,
     HttpBoxNotFoundError,
     HttpInternalError,
     HttpNotAuthorizedError,
@@ -229,7 +230,13 @@ async def list_upload_box_files(
         401: {"description": "Not authenticated."},
         403: {"description": "Not authorized."},
         404: {"description": "Upload box not found."},
-        409: {"description": "The version of the requested box is out of date."},
+        409: {
+            "description": (
+                "The version of the requested box is out of date, or one or more"
+                " accessions in the map already have immutable mappings that conflict"
+                " with the new request."
+            )
+        },
         422: {"description": "Validation error in request body."},
     },
 )
@@ -249,7 +256,11 @@ async def submit_accession_map(
             study_id=request.study_id,
         )
     except RDUBManagerPort.AccessionMapError as err:
-        raise HTTPException(status_code=400, detail=str(err)) from err
+        raise HttpAccessionMapError(
+            error_type=err.error_type,
+            conflicting_accessions=err.conflicting_accessions,
+            affected_file_ids=err.affected_file_ids,
+        ) from err
     except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
     except RDUBManagerPort.VersionError as err:

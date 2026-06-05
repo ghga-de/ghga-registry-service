@@ -57,17 +57,29 @@ class RDUBManagerPort(ABC):
     class AccessionMapError(RuntimeError):
         """Raised when an operation fails for a reason directly related to the accession map.
 
-        When the failure is caused by conflicting immutable accession mappings,
-        `conflicting_accessions` is populated with the affected accession IDs.
+        `error_type` is always set and indicates the specific failure:
+        - "archived": box is already archived; no item lists populated.
+        - "duplicate_file_ids": a file ID appears more than once; `affected_file_ids`
+          contains the duplicated IDs.
+        - "unknown_file_ids": map references file IDs not present in the box;
+          `affected_file_ids` contains them.
+        - "unmapped_file_ids": active box files are absent from the map;
+          `affected_file_ids` contains them.
+        - "accession_conflict": accessions already mapped to different file IDs
+          (immutability violation); `conflicting_accessions` contains them.
         """
 
         def __init__(
             self,
             message: str = "",
             *,
+            error_type: str,
             conflicting_accessions: list[str] | None = None,
+            affected_file_ids: list[str] | None = None,
         ) -> None:
+            self.error_type = error_type
             self.conflicting_accessions = conflicting_accessions
+            self.affected_file_ids = affected_file_ids
             super().__init__(message)
 
     class ArchivalPrereqsError(RuntimeError):
@@ -313,12 +325,9 @@ class RDUBManagerPort(ABC):
         Raises:
             BoxNotFoundError: If the box doesn't exist
             VersionError: If the requested ResearchDataUploadBox version is outdated
-            AccessionMapError: If
-            - the box is already archived, or
-            - the accession map includes a file ID that doesn't exist in the box, or
-            - any files are specified more than once, or
-            - any files in the box are left unmapped, or
-            - any accessions in the map already exist in the DB with a different file ID
-              (immutability violation). In this case `conflicting_accessions` is set.
+            AccessionMapError: In all cases `error_type` is set. See the class
+            docstring for the full mapping of `error_type` values to populated fields.
+            Raised when the box is archived, any file IDs are duplicated, unknown, or
+            unmapped, or any accessions conflict with existing immutable mappings.
         """
         ...

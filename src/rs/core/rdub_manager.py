@@ -16,6 +16,7 @@
 """Logic for creating and managing ResearchDataUploadBoxes."""
 
 import logging
+from collections import Counter
 from typing import Any
 from uuid import UUID
 
@@ -802,23 +803,30 @@ class RDUBManager(RDUBManagerPort):
                 extra={"box_id": box_id},
             )
             raise self.AccessionMapError(
-                "Data already archived - accessions cannot be modified."
+                "Data already archived - accessions cannot be modified.",
+                error_type="archived",
             )
 
         # Make sure all file IDs are only specified once
-        unique_file_ids = set(accession_map.values())
-        if dupe_count := (len(accession_map) - len(unique_file_ids)):
+        duplicate_file_ids = [
+            str(file_id)
+            for file_id, count in Counter(accession_map.values()).items()
+            if count > 1
+        ]
+        if duplicate_file_ids:
             log.error(
                 "Duplicate file IDs in accession map for box %s.",
                 box_id,
                 extra={
                     "rdub_id": box_id,
                     "fub_id": box.file_upload_box_id,
-                    "duplicate_count": dupe_count,
+                    "duplicate_file_ids": duplicate_file_ids,
                 },
             )
             raise self.AccessionMapError(
-                f"Detected {dupe_count} file ID(s) specified more than once."
+                f"Detected {len(duplicate_file_ids)} file ID(s) specified more than once.",
+                error_type="duplicate_file_ids",
+                affected_file_ids=duplicate_file_ids,
             )
 
         # Get files list from File Box API
@@ -826,11 +834,13 @@ class RDUBManager(RDUBManagerPort):
             box_id=box.file_upload_box_id
         )
 
+        requested_file_ids = set(accession_map.values())
+
         # Make sure all specified file IDs are active uploads in the box
         file_ids_in_box = set(
             f.id for f in files if f.state not in ("cancelled", "failed")
         )
-        if invalid_ids := (unique_file_ids - file_ids_in_box):
+        if invalid_ids := (requested_file_ids - file_ids_in_box):
             log.error(
                 "Accession map for box %s included unknown file IDs.",
                 box_id,
@@ -842,11 +852,13 @@ class RDUBManager(RDUBManagerPort):
             )
             raise self.AccessionMapError(
                 "Invalid accession map. These file IDs are not in the box:"
-                + f" {', '.join(map(str, invalid_ids))}."
+                + f" {', '.join(map(str, invalid_ids))}.",
+                error_type="unknown_file_ids",
+                affected_file_ids=[str(fid) for fid in invalid_ids],
             )
 
         # Make sure all active files in the box are included in the mapping
-        if unmapped_ids := (file_ids_in_box - unique_file_ids):
+        if unmapped_ids := (file_ids_in_box - requested_file_ids):
             log.error(
                 "Accession map for box %s included unmapped file IDs.",
                 box_id,
@@ -858,7 +870,9 @@ class RDUBManager(RDUBManagerPort):
             )
             raise self.AccessionMapError(
                 "Invalid accession map. These file IDs still need to be mapped:"
-                f" {', '.join(map(str, unmapped_ids))}."
+                f" {', '.join(map(str, unmapped_ids))}.",
+                error_type="unmapped_file_ids",
+                affected_file_ids=[str(fid) for fid in unmapped_ids],
             )
 
         # Submit the accession map via the file controller
@@ -870,6 +884,7 @@ class RDUBManager(RDUBManagerPort):
             accessions = ", ".join(err.conflicting_accessions)
             raise self.AccessionMapError(
                 f"The following accessions already have immutable mappings: {accessions}",
+                error_type="accession_conflict",
                 conflicting_accessions=err.conflicting_accessions,
             ) from err
 

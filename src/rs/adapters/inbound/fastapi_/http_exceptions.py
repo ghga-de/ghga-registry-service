@@ -19,11 +19,49 @@ from ghga_service_commons.httpyexpect.server import HttpCustomExceptionBase
 from pydantic import UUID4, BaseModel
 
 __all__ = [
+    "HttpAccessionMapError",
     "HttpBoxNotFoundError",
     "HttpGrantNotFoundError",
     "HttpInternalError",
     "HttpNotAuthorizedError",
 ]
+
+
+class HttpAccessionMapError(HttpCustomExceptionBase):
+    """Thrown when an accession map submission fails for any map-related reason.
+
+    The `error_type` field in the response body identifies the specific failure.
+    See `RDUBManagerPort.AccessionMapError` for the full set of values and which
+    accompanying lists are populated for each.
+    """
+
+    exception_id = "accessionMapError"
+
+    class DataModel(BaseModel):
+        """Model for exception data"""
+
+        error_type: str
+        conflicting_accessions: list[str] = []
+        affected_file_ids: list[str] = []
+
+    def __init__(
+        self,
+        *,
+        error_type: str,
+        conflicting_accessions: list[str] | None = None,
+        affected_file_ids: list[str] | None = None,
+        status_code: int = 409,
+    ):
+        """Construct message and init the exception."""
+        super().__init__(
+            status_code=status_code,
+            description="Accession map submission failed.",
+            data={
+                "error_type": error_type,
+                "conflicting_accessions": conflicting_accessions or [],
+                "affected_file_ids": affected_file_ids or [],
+            },
+        )
 
 
 class HttpBoxNotFoundError(HttpCustomExceptionBase):
