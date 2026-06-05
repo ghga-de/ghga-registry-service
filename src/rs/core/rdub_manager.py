@@ -758,7 +758,7 @@ class RDUBManager(RDUBManagerPort):
         Check the specified ResearchDataUploadBox to verify it exists, that the version
         stated in the request is current, and that the box has not already been archived.
 
-        Next, checked the mapping to verify that every file ID is specified exactly
+        Next, check the mapping to verify that every file ID is specified exactly
         once (and thus mapping is 1:1).
 
         Then retrieve the latest list of files in the box from the File Box API to
@@ -862,9 +862,16 @@ class RDUBManager(RDUBManagerPort):
             )
 
         # Submit the accession map via the file controller
-        await self._file_controller.post_file_ids(
-            study_id=study_id, file_id_map=accession_map
-        )
+        try:
+            await self._file_controller.post_file_ids(
+                study_id=study_id, file_id_map=accession_map
+            )
+        except FileControllerPort.ConflictingAccessionError as err:
+            accessions = ", ".join(err.conflicting_accessions)
+            raise self.AccessionMapError(
+                f"The following accessions already have immutable mappings: {accessions}",
+                conflicting_accessions=err.conflicting_accessions,
+            ) from err
 
         # Bump the RDUB version number
         updated_box = box.model_copy(update={"version": box.version + 1})

@@ -55,7 +55,20 @@ class RDUBManagerPort(ABC):
             super().__init__(msg)
 
     class AccessionMapError(RuntimeError):
-        """Raised when an operation fails for a reason directly related to the accession map."""
+        """Raised when an operation fails for a reason directly related to the accession map.
+
+        When the failure is caused by conflicting immutable accession mappings,
+        `conflicting_accessions` is populated with the affected accession IDs.
+        """
+
+        def __init__(
+            self,
+            message: str = "",
+            *,
+            conflicting_accessions: list[str] | None = None,
+        ) -> None:
+            self.conflicting_accessions = conflicting_accessions
+            super().__init__(message)
 
     class ArchivalPrereqsError(RuntimeError):
         """Raised when the pre-requisites for box archival are not met."""
@@ -287,7 +300,7 @@ class RDUBManagerPort(ABC):
         Check the specified ResearchDataUploadBox to verify it exists, that the version
         stated in the request is current, and that the box has not already been archived.
 
-        Next, checked the mapping to verify that every file ID is specified exactly
+        Next, check the mapping to verify that every file ID is specified exactly
         once (and thus mapping is 1:1).
 
         Then retrieve the latest list of files in the box from the File Box API to
@@ -304,6 +317,8 @@ class RDUBManagerPort(ABC):
             - the box is already archived, or
             - the accession map includes a file ID that doesn't exist in the box, or
             - any files are specified more than once, or
-            - any files in the box are left unmapped.
+            - any files in the box are left unmapped, or
+            - any accessions in the map already exist in the DB with a different file ID
+              (immutability violation). In this case `conflicting_accessions` is set.
         """
         ...
