@@ -706,6 +706,8 @@ paths:
       responses:
         '204':
           description: Accession map successfully submitted.
+        '400':
+          description: One or more duplicate, absent, or unknown file IDs detected.
         '401':
           description: Not authenticated.
         '403':

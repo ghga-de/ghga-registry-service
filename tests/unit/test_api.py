@@ -754,7 +754,21 @@ async def test_submit_accession_map(
         )
         assert response.status_code == 204
 
-        # handle accession map error from core (e.g. archived box)
+        # Make sure file ID problems net us a 400 status code
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.store_accession_map.side_effect = (
+            RDUBManagerPort.AccessionMapError(
+                "duplicate", error_type="duplicate_file_ids"
+            )
+        )
+        response = await rest_client.post(
+            url, json=request_data, headers=ds_auth_headers
+        )
+        assert response.status_code == 400
+        assert response.json()["exception_id"] == "accessionMapError"
+        assert response.json()["data"]["error_type"] == "duplicate_file_ids"
+
+        # Make sure an archived box or accession conflict return a 409
         rdub_manager.reset_mock()
         rdub_manager.rdub_manager.store_accession_map.side_effect = (
             RDUBManagerPort.AccessionMapError("archived", error_type="archived")
@@ -878,8 +892,9 @@ async def test_accession_map_error_translation(
     error_kwargs,
     expected_data,
 ):
-    """Test that every AccessionMapError permutation translates to a 409 HttpAccessionMapError
-    with the correct exception_id and populated data fields.
+    """Test that every AccessionMapError permutation translates to an HttpAccessionMapError
+    with the correct status code (409 for conflict/archived, 400 for file ID errors),
+    the correct exception_id, and the correct populated data fields.
     """
     rdub_manager = AsyncMock()
     async with (
@@ -898,7 +913,11 @@ async def test_accession_map_error_translation(
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
-        assert response.status_code == 409
+        assert response.status_code == (
+            409
+            if error_kwargs["error_type"] in {"archived", "accession_conflict"}
+            else 400
+        )
         body = response.json()
         assert body["exception_id"] == "accessionMapError"
         assert body["data"] == expected_data

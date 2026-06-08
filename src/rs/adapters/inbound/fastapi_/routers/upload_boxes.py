@@ -229,6 +229,9 @@ async def list_upload_box_files(
     status_code=status.HTTP_204_NO_CONTENT,
     responses={
         204: {"description": "Accession map successfully submitted."},
+        400: {
+            "description": "One or more duplicate, absent, or unknown file IDs detected."
+        },
         401: {"description": "Not authenticated."},
         403: {"description": "Not authorized."},
         404: {"description": "Upload box not found."},
@@ -262,6 +265,9 @@ async def submit_accession_map(
             error_type=err.error_type,
             conflicting_accessions=err.conflicting_accessions,
             affected_file_ids=err.affected_file_ids,
+            status_code=409
+            if err.error_type in {"accession_conflict", "archived"}
+            else 400,
         ) from err
     except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
