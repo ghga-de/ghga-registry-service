@@ -21,6 +21,7 @@ from pydantic import UUID4, BaseModel
 __all__ = [
     "HttpAccessionMapError",
     "HttpBoxNotFoundError",
+    "HttpBoxVersionError",
     "HttpGrantNotFoundError",
     "HttpInternalError",
     "HttpNotAuthorizedError",
@@ -61,6 +62,20 @@ class HttpAccessionMapError(HttpCustomExceptionBase):
                 "conflicting_accessions": conflicting_accessions or [],
                 "affected_file_ids": affected_file_ids or [],
             },
+        )
+
+
+class HttpBoxVersionError(HttpCustomExceptionBase):
+    """Thrown when a request references an outdated resource version."""
+
+    exception_id = "boxVersionOutdated"
+
+    def __init__(self, *, status_code: int = 409):
+        """Construct message and init the exception."""
+        super().__init__(
+            status_code=status_code,
+            description="The resource version is out of date.",
+            data={},
         )
 
 

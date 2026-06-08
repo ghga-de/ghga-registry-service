@@ -27,6 +27,7 @@ from rs.adapters.inbound.fastapi_.auth import StewardAuthContext, UserAuthContex
 from rs.adapters.inbound.fastapi_.http_exceptions import (
     HttpAccessionMapError,
     HttpBoxNotFoundError,
+    HttpBoxVersionError,
     HttpInternalError,
     HttpNotAuthorizedError,
 )
@@ -132,9 +133,10 @@ async def update_research_data_upload_box(
         raise HttpNotAuthorizedError() from err
     except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
+    except RDUBManagerPort.BoxVersionError as err:
+        raise HttpBoxVersionError() from err
     except (
         RDUBManagerPort.ArchivalPrereqsError,
-        RDUBManagerPort.VersionError,
         RDUBManagerPort.StateChangeError,
         RDUBManagerPort.BoxMaxSizeTooLowError,
     ) as err:
@@ -263,8 +265,8 @@ async def submit_accession_map(
         ) from err
     except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
-    except RDUBManagerPort.VersionError as err:
-        raise HTTPException(status_code=409, detail=str(err)) from err
+    except RDUBManagerPort.BoxVersionError as err:
+        raise HttpBoxVersionError() from err
     except Exception as err:
         log.error(err, exc_info=True)
         raise HttpInternalError(message="Failed to update accession map") from err

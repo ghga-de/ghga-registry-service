@@ -39,7 +39,12 @@ class FileControllerPort(ABC):
     async def post_file_ids(
         self, *, study_id: str, file_id_map: dict[FileAccession, UUID4]
     ) -> None:
-        """Store file accession to internal file ID mappings."""
+        """Store file accession to internal file ID mappings.
+
+        Raises:
+            ConflictingAccessionError: If any accession in the map already exists in the
+                DB with a different file_id. All conflicts are collected before raising.
+        """
 
     @abstractmethod
     async def get_accessions_by_file_ids(

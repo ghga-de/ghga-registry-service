@@ -901,36 +901,82 @@ async def test_store_accession_map_filters_cancelled_and_failed(
     ]
 
 
-@pytest.mark.skip()
 async def test_store_accession_map_file_conflict(
     rig: JointRig, populated_boxes: list[UUID]
 ):
-    """Test when we submit an accession map with GHGA accessions that already exist in
-    the database and point to different file IDs.
+    """Test that submitting an accession map raises AccessionConflictError when one or
+    more accessions already exist in the database with a different file_id.
+
+    Verifies that:
+    - The error carries structured conflict data (accession, existing ID, requested ID)
+    - All conflicts are reported together, not just the first one
+    - No new mappings are written when any conflict is detected
     """
-    # Store an accession number with a file ID value
-    test_file_ids = [uuid4() for _ in range(4)]
-    models.FileUploadWithAccession(
-        id=test_file_ids[0],
-        box_id=TEST_FILE_UPLOAD_BOX_ID,
-        storage_alias="HD01",
-        bucket_id="inbox",
-        object_id=uuid4(),
-        alias="test0",
-        decrypted_sha256="checksum0",
-        decrypted_size=1000,
-        encrypted_size=1100,
-        part_size=100,
-        state="awaiting_archival",
-        state_updated=now_utc_ms_prec(),
+    box_id = populated_boxes[0]
+
+    # Two files in the box
+    file_id_a, file_id_b = uuid4(), uuid4()
+    test_file_uploads = [
+        models.FileUploadWithAccession(
+            id=file_id,
+            box_id=TEST_FILE_UPLOAD_BOX_ID,
+            storage_alias="HD01",
+            bucket_id="inbox",
+            object_id=uuid4(),
+            alias=f"test{i}",
+            decrypted_sha256=f"checksum{i}",
+            decrypted_size=1000,
+            encrypted_size=1100,
+            part_size=100,
+            state="awaiting_archival",
+            state_updated=now_utc_ms_prec(),
+        )
+        for i, file_id in enumerate([file_id_a, file_id_b])
+    ]
+    rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
+
+    # Pre-insert an existing accession mapping
+    pre_existing_file_id = uuid4()
+    conflicting_accession = "GHGAF0123456789"
+    await rig.file_accession_mapping_dao.insert(
+        FileAccessionMapping(
+            accession=conflicting_accession, file_id=pre_existing_file_id
+        )
     )
 
-    existing_file_id = uuid4()
-    existing_accession = "GHGAF0123456789"
-    existing_mapping = {"accession": existing_accession, "file_id": existing_file_id}
+    # Build a map that re-uses conflicting_accession but this time with file_id_a
+    conflicting_map = {
+        conflicting_accession: file_id_a,
+        "GHGAF9876543210": file_id_b,
+    }
+
+    box = await rig.box_dao.get_by_id(box_id)
+    with pytest.raises(rig.rdub_manager.AccessionMapError) as exc_info:
+        await rig.rdub_manager.store_accession_map(
+            box_id=box_id,
+            box_version=box.version,
+            accession_map=conflicting_map,
+            study_id=TEST_STUDY_ID,
+        )
+
+    assert exc_info.value.error_type == "accession_conflict"
+    assert exc_info.value.conflicting_accessions == [conflicting_accession]
+
+    # No new mappings should have been written, just the pre-inserted one
+    all_mappings = [
+        x async for x in rig.file_accession_mapping_dao.find_all(mapping={})
+    ]
+    assert len(all_mappings) == 1
+
+    # Make sure we can idempotently re-submit the same accession mappings
     await rig.file_controller.post_file_ids(
-        study_id=TEST_STUDY_ID, file_id_map=existing_mapping
+        study_id=TEST_STUDY_ID,
+        file_id_map={conflicting_accession: pre_existing_file_id},
     )
+    all_mappings = [
+        x async for x in rig.file_accession_mapping_dao.find_all(mapping={})
+    ]
+    assert len(all_mappings) == 1
 
 
 async def test_archive_research_data_upload_box_happy(
@@ -1015,7 +1061,7 @@ async def test_archive_via_update_box_not_found(rig: JointRig):
 
 
 async def test_update_box_outdated_version(rig: JointRig, populated_boxes: list[UUID]):
-    """Test that updating with outdated version info raises VersionError."""
+    """Test that updating with outdated version info raises BoxVersionError."""
     box_id = populated_boxes[0]
 
     # Update the box version in the database
@@ -1023,7 +1069,7 @@ async def test_update_box_outdated_version(rig: JointRig, populated_boxes: list[
     box.version = 5
     await rig.box_dao.update(box)
 
-    with pytest.raises(rig.rdub_manager.VersionError, match="has changed"):
+    with pytest.raises(rig.rdub_manager.BoxVersionError, match="has changed"):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             version=3,  # Outdated!
@@ -1114,7 +1160,7 @@ async def test_archive_box_missing_accessions(
 async def test_archive_box_file_upload_box_version_error(
     rig: JointRig, populated_boxes: list[UUID]
 ):
-    """Test that a FileUploadBox version error during archival raises VersionError and rolls back."""
+    """Test that a FileUploadBox version error during archival raises BoxVersionError and rolls back."""
     box_id = populated_boxes[0]
 
     # Lock the box
@@ -1153,7 +1199,7 @@ async def test_archive_box_file_upload_box_version_error(
         FileAccessionMapping(accession="GHGAF001", file_id=test_file_ids[0])
     )
 
-    with pytest.raises(rig.rdub_manager.VersionError, match="out of date"):
+    with pytest.raises(rig.rdub_manager.BoxVersionError, match="out of date"):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             version=box.version,
@@ -1226,7 +1272,7 @@ async def test_resize_box_fub_max_size_too_low(
 
 
 async def test_resize_box_fub_version_error(rig: JointRig, populated_boxes: list[UUID]):
-    """Test that FUBVersionError from UCS during resize is translated into VersionError
+    """Test that FUBVersionError from UCS during resize is translated into BoxVersionError
     and that the local box state is rolled back.
     """
     box_id = populated_boxes[0]
@@ -1237,7 +1283,7 @@ async def test_resize_box_fub_version_error(rig: JointRig, populated_boxes: list
         side_effect=FileBoxClientPort.FUBVersionError("Version mismatch")
     )
 
-    with pytest.raises(rig.rdub_manager.VersionError):
+    with pytest.raises(rig.rdub_manager.BoxVersionError):
         await rig.rdub_manager.update_research_data_upload_box(
             box_id=box_id,
             version=box.version,

@@ -135,7 +135,7 @@ class RDUBManager(RDUBManagerPort):
         Raises:
             BoxNotFoundError: If the research data upload box doesn't exist.
             BoxAccessError: If the user doesn't have access to the research data upload box.
-            VersionError: If the requested ResearchDataUploadBox version is outdated or
+            BoxVersionError: If the requested ResearchDataUploadBox version is outdated or
                 the FileUploadBox version is outdated when updating the FileUploadBox.
             StateChangeError: If the requested state transition is invalid.
             OperationError: If there's a problem updating the corresponding FileUploadBox.
@@ -161,7 +161,7 @@ class RDUBManager(RDUBManagerPort):
                     "requested_version": version,
                 },
             )
-            raise self.VersionError(f"Research Data Upload Box {box_id} has changed")
+            raise self.BoxVersionError(f"Research Data Upload Box {box_id} has changed")
 
         update = {
             "title": title,
@@ -253,7 +253,7 @@ class RDUBManager(RDUBManagerPort):
                             "request_file_upload_box_version": old_box.file_upload_box_version,
                         },
                     )
-                    raise self.VersionError(
+                    raise self.BoxVersionError(
                         f"File Upload Box {fub_id} version is out of date."
                     ) from version_err
             case _:
@@ -325,7 +325,7 @@ class RDUBManager(RDUBManagerPort):
         Rolls back the local DAO write and re-raises on any client error.
 
         Raises:
-            VersionError: FUB version is out of date.
+            BoxVersionError: FUB version is out of date.
             BoxMaxSizeTooLowError: New max_size is smaller than bytes already uploaded.
         """
         updated_box.file_upload_box_version += 1
@@ -348,7 +348,7 @@ class RDUBManager(RDUBManagerPort):
                 },
             )
             await self._box_dao.update(box)
-            raise self.VersionError(
+            raise self.BoxVersionError(
                 f"File Upload Box {box.file_upload_box_id} version is out of date."
             ) from version_err
         except FileBoxClientPort.FUBMaxSizeTooLowError as size_err:
@@ -391,7 +391,7 @@ class RDUBManager(RDUBManagerPort):
 
         Raises:
             StateChangeError: The requested transition is not in VALID_STATE_TRANSITIONS.
-            VersionError: FUB version is out of date.
+            BoxVersionError: FUB version is out of date.
             ArchivalPrereqsError: Archival prerequisites not met.
         """
         self._check_state_change_is_valid(
@@ -771,7 +771,7 @@ class RDUBManager(RDUBManagerPort):
 
         Raises:
             BoxNotFoundError: If the box doesn't exist
-            VersionError: If the requested ResearchDataUploadBox version is outdated
+            BoxVersionError: If the requested ResearchDataUploadBox version is outdated
             AccessionMapError: If
             - the box is already archived, or
             - the accession map includes a file ID that doesn't exist in the box, or
@@ -793,7 +793,7 @@ class RDUBManager(RDUBManagerPort):
                 box_id,
                 box.version,
             )
-            raise self.VersionError("Research Data Upload Box has changed.")
+            raise self.BoxVersionError("Research Data Upload Box has changed.")
 
         # Don't allow changes to archived boxes
         if box.state == "archived":

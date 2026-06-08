@@ -78,14 +78,14 @@ class RDUBManagerPort(ABC):
             affected_file_ids: list[str] | None = None,
         ) -> None:
             self.error_type = error_type
-            self.conflicting_accessions = conflicting_accessions
-            self.affected_file_ids = affected_file_ids
+            self.conflicting_accessions = conflicting_accessions or []
+            self.affected_file_ids = affected_file_ids or []
             super().__init__(message)
 
     class ArchivalPrereqsError(RuntimeError):
         """Raised when the pre-requisites for box archival are not met."""
 
-    class VersionError(RuntimeError):
+    class BoxVersionError(RuntimeError):
         """Raised when changes to a resource can't be made because the request
         references a version of the resource that is not current.
         """
@@ -153,7 +153,7 @@ class RDUBManagerPort(ABC):
         Raises:
             BoxNotFoundError: If the research data upload box doesn't exist.
             BoxAccessError: If the user doesn't have access to the research data upload box.
-            VersionError: If the requested ResearchDataUploadBox version is outdated or
+            BoxVersionError: If the requested ResearchDataUploadBox version is outdated or
                 the FileUploadBox version is outdated when updating the FileUploadBox.
             StateChangeError: If the requested state transition is invalid.
             OperationError: If there's a problem updating the corresponding FileUploadBox.
@@ -324,7 +324,7 @@ class RDUBManagerPort(ABC):
 
         Raises:
             BoxNotFoundError: If the box doesn't exist
-            VersionError: If the requested ResearchDataUploadBox version is outdated
+            BoxVersionError: If the requested ResearchDataUploadBox version is outdated
             AccessionMapError: In all cases `error_type` is set. See the class
             docstring for the full mapping of `error_type` values to populated fields.
             Raised when the box is archived, any file IDs are duplicated, unknown, or
