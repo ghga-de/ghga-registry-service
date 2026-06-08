@@ -776,35 +776,74 @@ async def test_store_accession_map_invalid_or_unmapped_file_ids(
     # Mock the file box client
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
 
+    # Duplicate file IDs are caught before the FUB call
+    duplicate_id = test_file_ids[0]
+    with pytest.raises(rig.rdub_manager.AccessionMapError) as exc_info:
+        await rig.rdub_manager.store_accession_map(
+            box_id=box_id,
+            box_version=0,
+            accession_map={"GHGAF001": duplicate_id, "GHGAF002": duplicate_id},
+            study_id=TEST_STUDY_ID,
+        )
+    assert exc_info.value.error_type == "duplicate_file_ids"
+    assert exc_info.value.affected_file_ids == [str(duplicate_id)]
+    rig.file_upload_box_client.get_file_upload_list.assert_not_called()  # type: ignore
+
     # Create an accession map with a file ID that doesn't exist in the box
     invalid_file_id = uuid4()
     mapping = {"GHGAF001": test_file_ids[0], "GHGAF002": invalid_file_id}
 
-    # Should raise AccessionMapError
-    with pytest.raises(rig.rdub_manager.AccessionMapError, match="not in the box"):
+    with pytest.raises(
+        rig.rdub_manager.AccessionMapError, match="not in the box"
+    ) as exc_info:
         await rig.rdub_manager.store_accession_map(
             box_id=box_id,
             box_version=0,
             accession_map=mapping,
             study_id=TEST_STUDY_ID,
         )
+    assert exc_info.value.error_type == "unknown_file_ids"
+    assert exc_info.value.affected_file_ids == [str(invalid_file_id)]
 
-    # Verify file box client was called
+    # Verify file box client was called (only for the unknown_file_ids case)
     rig.file_upload_box_client.get_file_upload_list.assert_called_once()  # type: ignore
 
     # Create an accession map that omits a file
     mapping = {"GHGAF001": test_file_ids[0]}
 
-    # Should raise AccessionMapError
     with pytest.raises(
         rig.rdub_manager.AccessionMapError, match="still need to be mapped"
-    ):
+    ) as exc_info:
         await rig.rdub_manager.store_accession_map(
             box_id=box_id,
             box_version=0,
             accession_map=mapping,
             study_id=TEST_STUDY_ID,
         )
+    assert exc_info.value.error_type == "unmapped_file_ids"
+    assert exc_info.value.affected_file_ids == [str(test_file_ids[1])]
+
+
+async def test_store_accession_map_archived_box(
+    rig: JointRig, populated_boxes: list[UUID]
+):
+    """Test that submitting an accession map for an archived box raises AccessionMapError
+    with error_type 'archived'.
+    """
+    box_id = populated_boxes[0]
+    box = await rig.box_dao.get_by_id(box_id)
+    await rig.box_dao.upsert(box.model_copy(update={"state": "archived"}))
+
+    with pytest.raises(rig.rdub_manager.AccessionMapError) as exc_info:
+        await rig.rdub_manager.store_accession_map(
+            box_id=box_id,
+            box_version=box.version,
+            accession_map={"GHGAF001": uuid4()},
+            study_id=TEST_STUDY_ID,
+        )
+    assert exc_info.value.error_type == "archived"
+    assert exc_info.value.affected_file_ids == []
+    assert exc_info.value.conflicting_accessions == []
 
 
 async def test_store_accession_map_filters_cancelled_and_failed(
@@ -977,6 +1016,32 @@ async def test_store_accession_map_file_conflict(
         x async for x in rig.file_accession_mapping_dao.find_all(mapping={})
     ]
     assert len(all_mappings) == 1
+
+    # Multiple conflicts are all reported together in a single error
+    second_conflicting_accession = "GHGAF9876543210"
+    second_pre_existing_file_id = uuid4()
+    await rig.file_accession_mapping_dao.insert(
+        FileAccessionMapping(
+            accession=second_conflicting_accession, file_id=second_pre_existing_file_id
+        )
+    )
+    multi_conflict_map = {
+        conflicting_accession: file_id_a,
+        second_conflicting_accession: file_id_b,
+    }
+    box = await rig.box_dao.get_by_id(box_id)
+    with pytest.raises(rig.rdub_manager.AccessionMapError) as exc_info:
+        await rig.rdub_manager.store_accession_map(
+            box_id=box_id,
+            box_version=box.version,
+            accession_map=multi_conflict_map,
+            study_id=TEST_STUDY_ID,
+        )
+    assert exc_info.value.error_type == "accession_conflict"
+    assert set(exc_info.value.conflicting_accessions) == {
+        conflicting_accession,
+        second_conflicting_accession,
+    }
 
 
 async def test_archive_research_data_upload_box_happy(
