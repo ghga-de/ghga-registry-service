@@ -84,7 +84,7 @@ def rig(config: Config) -> JointRig:
     access_client_mock = AsyncMock()
     file_accession_mapping_dao = InMemFileAccessionMappingDao()
     file_controller = FileController(
-        file_accession_mapping_dao=file_accession_mapping_dao
+        file_accession_mapping_dao=file_accession_mapping_dao  # type: ignore
     )
 
     rdub_manager = RDUBManager(
