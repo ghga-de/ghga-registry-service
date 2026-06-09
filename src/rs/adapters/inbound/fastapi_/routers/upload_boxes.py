@@ -238,7 +238,7 @@ async def list_upload_box_files(
         409: {
             "description": (
                 "The version of the requested box is out of date, or one or more"
-                " accessions in the map already have immutable mappings that conflict"
+                " accessions in the map already have mappings that conflict"
                 " with the new request."
             )
         },

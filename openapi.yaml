@@ -716,8 +716,8 @@ paths:
           description: Upload box not found.
         '409':
           description: The version of the requested box is out of date, or one or
-            more accessions in the map already have immutable mappings that conflict
-            with the new request.
+            more accessions in the map already have mappings that conflict with the
+            new request.
         '422':
           description: Validation error in request body.
       security:

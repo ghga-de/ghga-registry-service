@@ -313,7 +313,9 @@ class RDUBManagerPort(ABC):
         stated in the request is current, and that the box has not already been archived.
 
         Next, check the mapping to verify that every file ID is specified exactly
-        once (and thus mapping is 1:1).
+        once (and thus mapping is 1:1). This does not mean that the mapping contains
+        all accessions in the study, just all the accessions associated with the upload
+        box.
 
         Then retrieve the latest list of files in the box from the File Box API to
         verify that:
