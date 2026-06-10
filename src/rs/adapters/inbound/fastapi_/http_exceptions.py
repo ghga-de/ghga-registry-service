@@ -217,7 +217,7 @@ class HttpIncompleteUploadsError(HttpCustomExceptionBase):
         super().__init__(
             status_code=status_code,
             description="Cannot lock box: some files still have incomplete uploads.",
-            data={"incomplete_uploads": incomplete_uploads},
+            data={"incomplete_uploads": [str(fid) for fid in incomplete_uploads]},
         )
 
 

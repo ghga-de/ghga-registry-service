@@ -350,7 +350,11 @@ class FileBoxClient(FileBoxClientPort):
         )
         if response.status_code == 409:
             response_json = response.json()
-            exception_id = response_json.get("exception_id", "")
+            exception_id = (
+                response_json.get("exception_id", "")
+                if isinstance(response_json, dict)
+                else ""
+            )
             if exception_id == "incompleteUploads":
                 raw = response_json.get("data", {}).get("incomplete_uploads", [])
                 incomplete_file_ids = [UUID(item[0]) for item in raw]
