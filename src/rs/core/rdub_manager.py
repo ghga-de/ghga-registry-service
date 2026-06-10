@@ -238,9 +238,16 @@ class RDUBManager(RDUBManagerPort):
         fub_id = updated_box.file_upload_box_id
         match (old_box.state, updated_box.state):
             case ("open", "locked"):  # lock the box
-                await self._file_upload_box_client.lock_file_upload_box(
-                    box_id=fub_id, version=old_box.file_upload_box_version, force=force
-                )
+                try:
+                    await self._file_upload_box_client.lock_file_upload_box(
+                        box_id=fub_id,
+                        version=old_box.file_upload_box_version,
+                        force=force,
+                    )
+                except FileBoxClientPort.FUBIncompleteUploadsError as incomplete_err:
+                    raise self.BoxIncompleteUploadsError(
+                        incomplete_file_ids=incomplete_err.incomplete_file_ids
+                    ) from incomplete_err
             case ("locked", "open"):  # unlock the box
                 if force:
                     log.debug(

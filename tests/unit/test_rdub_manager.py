@@ -179,7 +179,7 @@ async def test_update_research_data_upload_box_happy(
 
     # Make sure the correct FUB version was sent to the UCS
     rig.file_upload_box_client.lock_file_upload_box.assert_called_with(  # type: ignore
-        box_id=box.file_upload_box_id, version=box.version
+        box_id=box.file_upload_box_id, version=box.version, force=False
     )
 
     # Verify access client was not used because user is a Data Steward

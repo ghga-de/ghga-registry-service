@@ -26,6 +26,7 @@ __all__ = [
     "HttpBoxTitleExistsError",
     "HttpBoxVersionError",
     "HttpGrantNotFoundError",
+    "HttpIncompleteUploadsError",
     "HttpInternalError",
     "HttpNotAuthorizedError",
     "HttpStateChangeError",
@@ -193,6 +194,30 @@ class HttpNotAuthorizedError(HttpCustomExceptionBase):
             status_code=status_code,
             description="Not authorized",
             data={},
+        )
+
+
+class HttpIncompleteUploadsError(HttpCustomExceptionBase):
+    """Thrown when locking a box is rejected because files still have incomplete uploads."""
+
+    exception_id = "incompleteUploads"
+
+    class DataModel(BaseModel):
+        """Model for exception data"""
+
+        incomplete_uploads: list[UUID4]
+
+    def __init__(
+        self,
+        *,
+        incomplete_uploads: list[UUID4],
+        status_code: int = 409,
+    ):
+        """Construct message and init the exception."""
+        super().__init__(
+            status_code=status_code,
+            description="Cannot lock box: some files still have incomplete uploads.",
+            data={"incomplete_uploads": incomplete_uploads},
         )
 
 

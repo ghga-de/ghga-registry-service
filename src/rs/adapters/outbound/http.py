@@ -349,8 +349,22 @@ class FileBoxClient(FileBoxClientPort):
             timeout=HTTPX_TIMEOUT,
         )
         if response.status_code == 409:
+            response_json = response.json()
+            exception_id = response_json.get("exception_id", "")
+            if exception_id == "incompleteUploads":
+                raw = response_json.get("data", {}).get("incomplete_uploads", [])
+                incomplete_file_ids = [UUID(item[0]) for item in raw]
+                log.error(
+                    "Failed to lock FileUploadBox %s: %d file(s) have incomplete uploads.",
+                    box_id,
+                    len(incomplete_file_ids),
+                    extra={"box_id": box_id, "incomplete_uploads": incomplete_file_ids},
+                )
+                raise self.FUBIncompleteUploadsError(
+                    incomplete_file_ids=incomplete_file_ids
+                )
             log.error(
-                "Failed to archive FileUploadBox %s because the version specified"
+                "Failed to lock FileUploadBox %s because the version specified"
                 + " in the request is out of date.",
                 box_id,
                 extra={
