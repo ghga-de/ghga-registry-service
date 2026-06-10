@@ -129,7 +129,9 @@ class FileBoxClientPort(ABC):
         ...
 
     @abstractmethod
-    async def lock_file_upload_box(self, *, box_id: UUID4, version: int) -> None:
+    async def lock_file_upload_box(
+        self, *, box_id: UUID4, version: int, force: bool = False
+    ) -> None:
         """Lock a FileUploadBox in the owning service.
 
         Raises:

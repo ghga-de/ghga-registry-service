@@ -140,6 +140,7 @@ class RDUBManager(RDUBManagerPort):
         auth_context: AuthContext,
         state: UploadBoxState | None = None,
         max_size: PositiveInt | None = None,
+        force: bool = False,
     ) -> None:
         """Update a research data upload box.
 
@@ -203,7 +204,7 @@ class RDUBManager(RDUBManagerPort):
 
         if "state" in changed_fields:
             await self._apply_state_update(
-                box=box, updated_box=updated_box, user_id=user_id
+                box=box, updated_box=updated_box, user_id=user_id, force=force
             )
         elif "max_size" in changed_fields:
             await self._apply_max_size_update(
@@ -228,6 +229,7 @@ class RDUBManager(RDUBManagerPort):
         *,
         old_box: ResearchDataUploadBox,
         updated_box: ResearchDataUploadBox,
+        force: bool = False,
     ) -> None:
         """Handle state change for a Research Data Upload Box and the corresponding
         FileUploadBox.
@@ -237,13 +239,23 @@ class RDUBManager(RDUBManagerPort):
         match (old_box.state, updated_box.state):
             case ("open", "locked"):  # lock the box
                 await self._file_upload_box_client.lock_file_upload_box(
-                    box_id=fub_id, version=old_box.file_upload_box_version
+                    box_id=fub_id, version=old_box.file_upload_box_version, force=force
                 )
             case ("locked", "open"):  # unlock the box
+                if force:
+                    log.debug(
+                        "force=True is ignored for locked->open state changes on RDUB %s",
+                        rdub_id,
+                    )
                 await self._file_upload_box_client.unlock_file_upload_box(
                     box_id=fub_id, version=old_box.file_upload_box_version
                 )
             case ("locked", "archived"):  # archive the box
+                if force:
+                    log.debug(
+                        "force=True is ignored for locked->archived state changes on RDUB %s",
+                        rdub_id,
+                    )
                 # Check prerequisites using old version number for logging purposes
                 await self._check_archival_prerequisites(box=old_box)
 
@@ -395,6 +407,7 @@ class RDUBManager(RDUBManagerPort):
         box: ResearchDataUploadBox,
         updated_box: ResearchDataUploadBox,
         user_id: UUID,
+        force: bool = False,
     ) -> None:
         """Validate the state transition, persist, dispatch _handle_state_change, and audit.
 
@@ -412,7 +425,9 @@ class RDUBManager(RDUBManagerPort):
         updated_box.file_upload_box_version += 1
         await self._box_dao.update(updated_box)
         try:
-            await self._handle_state_change(old_box=box, updated_box=updated_box)
+            await self._handle_state_change(
+                old_box=box, updated_box=updated_box, force=force
+            )
         except Exception:
             log.warning(
                 "Failed to update FUB %s, rolling back changes for RDUB %s",

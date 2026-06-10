@@ -330,7 +330,9 @@ class FileBoxClient(FileBoxClientPort):
             log.error(msg, exc_info=True)
             raise self.OperationError(msg) from err
 
-    async def lock_file_upload_box(self, *, box_id: UUID4, version: int) -> None:
+    async def lock_file_upload_box(
+        self, *, box_id: UUID4, version: int, force: bool = False
+    ) -> None:
         """Lock a FileUploadBox in the owning service.
 
         Raises:
@@ -339,7 +341,7 @@ class FileBoxClient(FileBoxClientPort):
         """
         wot = ChangeFileBoxWorkOrder(work_type="lock", box_id=box_id)
         headers = self._auth_header(wot)
-        body = {"version": version, "state": "locked"}
+        body = {"version": version, "state": "locked", "force": force}
         response = await self._client.patch(
             f"{self._ucs_url}/boxes/{box_id}",
             headers=headers,

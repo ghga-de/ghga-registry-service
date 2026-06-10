@@ -131,6 +131,7 @@ async def update_research_data_upload_box(
             description=request.description,
             state=request.state,
             max_size=request.max_size,
+            force=request.force,
             auth_context=auth_context,
         )
     except RDUBManagerPort.BoxAccessError as err:

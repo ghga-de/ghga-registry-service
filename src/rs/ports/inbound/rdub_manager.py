@@ -151,6 +151,7 @@ class RDUBManagerPort(ABC):
         auth_context: AuthContext,
         state: UploadBoxState | None = None,
         max_size: PositiveInt | None = None,
+        force: bool = False,
     ) -> None:
         """Update a research data upload box.
 
