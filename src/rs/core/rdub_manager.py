@@ -716,10 +716,21 @@ class RDUBManager(RDUBManagerPort):
                 user_id=user_id
             )
 
-            # Generally very few boxes per user, so make distinct call for each
-            boxes = [
-                await self._box_dao.get_by_id(box_id) for box_id in accessible_box_ids
-            ]
+            # Generally very few boxes per user, so make distinct call for each. A grant
+            # may reference a box that has since been deleted (e.g. a race with deletion
+            # or a not-yet-revoked grant). Suppress the error and opt for a warning log.
+            boxes = []
+            for box_id in accessible_box_ids:
+                try:
+                    boxes.append(await self._box_dao.get_by_id(box_id))
+                except ResourceNotFoundError:
+                    log.warning(
+                        "User %s has access to box %s, but it doesn't exist in RS."
+                        + " Skipping it.",
+                        user_id,
+                        box_id,
+                        extra={"user_id": user_id, "box_id": box_id},
+                    )
             if state is not None:
                 boxes = [x for x in boxes if x.state == state]
 
