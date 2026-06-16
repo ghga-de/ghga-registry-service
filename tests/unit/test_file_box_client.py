@@ -298,3 +298,59 @@ async def test_delete_file_upload(
             await file_upload_box_client.delete_file_upload(
                 box_id=TEST_BOX_ID, file_id=test_file_id
             )
+
+
+async def test_delete_file_upload_box(
+    config: Config,
+    httpx_mock: HTTPXMock,
+    httpx_client: httpx.AsyncClient,
+    work_order_jwk: JWK,
+):
+    """Test the delete_file_upload_box function"""
+    file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
+
+    # Set the UCS response to be 204
+    httpx_mock.add_response(204)
+    await file_upload_box_client.delete_file_upload_box(box_id=TEST_BOX_ID, version=0)
+    request = httpx_mock.get_requests()[0]
+
+    # Verify basic request details
+    assert request.method == "DELETE"
+    assert request.url.path.endswith(f"/boxes/{TEST_BOX_ID}")
+
+    # Verify that the FUB version is set as a query parameter
+    assert request.url.params["version"] == "0"
+
+    # Inspect/verify the WOT details
+    raw_token = request.headers["authorization"].removeprefix("Bearer ")
+    wot_claims = decode_and_validate_token(raw_token, work_order_jwk)
+    assert wot_claims["work_type"] == "delete_box"
+    assert wot_claims["box_id"] == str(TEST_BOX_ID)
+    assert "file_id" not in wot_claims
+
+    # Verify that 404 (boxNotFound) is treated as success so retries are idempotent
+    httpx_mock.add_response(404, json={"exception_id": "boxNotFound"})
+    await file_upload_box_client.delete_file_upload_box(box_id=TEST_BOX_ID, version=0)
+
+    # Verify that 409 "boxVersionOutdated" is translated to an FUBVersionError
+    httpx_mock.add_response(409, json={"exception_id": "boxVersionOutdated"})
+    with pytest.raises(FileBoxClient.FUBVersionError):
+        await file_upload_box_client.delete_file_upload_box(
+            box_id=TEST_BOX_ID, version=0
+        )
+
+    # A non-version 409 "boxStateError" is converted to an OperationError because this
+    #  is a problem with the state between RS and UCS, not with the DS's request
+    httpx_mock.add_response(409, json={"exception_id": "boxStateError"})
+    with pytest.raises(FileBoxClient.OperationError):
+        await file_upload_box_client.delete_file_upload_box(
+            box_id=TEST_BOX_ID, version=0
+        )
+
+    # Make sure other status codes result in an OperationError
+    for status_code in (400, 500):
+        httpx_mock.add_response(status_code, json="Some error occurred.")
+        with pytest.raises(FileBoxClient.OperationError):
+            await file_upload_box_client.delete_file_upload_box(
+                box_id=TEST_BOX_ID, version=0
+            )
