@@ -201,3 +201,16 @@ class FileBoxClientPort(ABC):
             OperationError if there's any other problem with the operation.
         """
         ...
+
+    @abstractmethod
+    async def delete_file_upload_box(self, *, box_id: UUID4, version: int) -> None:
+        """Delete a FileUploadBox and all its FileUploads in the owning service.
+
+        A 404 (box not found) is treated as success so that retries after a partial
+        deletion are idempotent.
+
+        Raises:
+            FUBVersionError if the remote box version differs from `version`.
+            OperationError if there's any other problem with the operation.
+        """
+        ...
