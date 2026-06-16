@@ -24,7 +24,6 @@ from pydantic import UUID4, PositiveInt
 from rs.core.models import (
     PID,
     BoxRetrievalResults,
-    FileAccession,
     FileUploadBox,
     FileUploadWithAccession,
     GrantId,
@@ -313,7 +312,7 @@ class RDUBManagerPort(ABC):
         *,
         box_id: UUID4,
         box_version: int,
-        accession_map: dict[FileAccession, UUID4],
+        accession_map: dict[PID, UUID4],
         study_id: PID,
     ) -> None:
         """Update the file accession map for a given box and publish an outbox event.

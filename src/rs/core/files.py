@@ -17,12 +17,12 @@
 
 import logging
 
-from ghga_event_schemas.pydantic_ import FileAccessionMapping
+from hexkit.utils import now_utc_ms_prec
 from pydantic import UUID4
 
-from rs.core.models import FileAccession
+from rs.core.models import PID, FileAccession
 from rs.ports.inbound.files import FileControllerPort
-from rs.ports.outbound.dao import FileAccessionMappingDao
+from rs.ports.outbound.dao import FileAccessionDao
 
 log = logging.getLogger(__name__)
 
@@ -30,11 +30,11 @@ log = logging.getLogger(__name__)
 class FileController(FileControllerPort):
     """Core implementation of file accession mapping and related operations."""
 
-    def __init__(self, *, file_accession_mapping_dao: FileAccessionMappingDao):
-        self._file_accession_mapping_dao = file_accession_mapping_dao
+    def __init__(self, *, file_accession_dao: FileAccessionDao):
+        self._file_accession_dao = file_accession_dao
 
     async def post_file_ids(
-        self, *, study_id: str, file_id_map: dict[FileAccession, UUID4]
+        self, *, study_id: str, file_id_map: dict[PID, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings.
 
@@ -44,9 +44,9 @@ class FileController(FileControllerPort):
                 so callers receive the full picture in a single error.
         """
         existing_mappings = {
-            record.accession: record.file_id
-            async for record in self._file_accession_mapping_dao.find_all(
-                mapping={"accession": {"$in": list(file_id_map)}}
+            record.pid: record.file_id
+            async for record in self._file_accession_dao.find_all(
+                mapping={"pid": {"$in": list(file_id_map)}}
             )
         }
         conflicting_accessions = [
@@ -61,8 +61,13 @@ class FileController(FileControllerPort):
             )
 
         for accession, file_id in file_id_map.items():
-            mapping = FileAccessionMapping(file_id=file_id, accession=accession)
-            await self._file_accession_mapping_dao.upsert(mapping)
+            file_accession = FileAccession(
+                pid=accession,
+                file_id=file_id,
+                study_id=study_id,
+                mapped=now_utc_ms_prec(),
+            )
+            await self._file_accession_dao.upsert(file_accession)
             log.info(
                 "Upserted file accession mapping for file ID %s pointing to"
                 " accession %s for study %s.",
@@ -74,12 +79,14 @@ class FileController(FileControllerPort):
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]
     ) -> dict[UUID4, str]:
-        """Query FileAccessionMapping records for the given file IDs.
+        """Query FileAccession records for the given file IDs.
         Returns a dict mapping file_id (UUID4) to accession (str).
         """
         result = {}
-        async for record in self._file_accession_mapping_dao.find_all(
+        async for record in self._file_accession_dao.find_all(
             mapping={"file_id": {"$in": list(file_ids)}}
         ):
-            result[record.file_id] = record.accession
+            # The query only matches mapped records, so file_id is always set.
+            if record.file_id is not None:
+                result[record.file_id] = record.pid
         return result

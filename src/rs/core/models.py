@@ -24,6 +24,7 @@ from ghga_event_schemas.pydantic_ import (
     UploadBoxState,
 )
 from ghga_service_commons.utils.utc_dates import UTCDatetime
+from hexkit.utils import now_utc_ms_prec
 from pydantic import (
     UUID4,
     AfterValidator,
@@ -75,7 +76,29 @@ PID = Annotated[
     str, StringConstraints(min_length=1, max_length=256), AfterValidator(_ascii_only)
 ]
 
-FileAccession = Annotated[str, StringConstraints(pattern=r"^GHGAF.+")]
+
+class FileAccession(BaseModel):
+    """A file accession, optionally mapped to an internal file ID and study.
+
+    Persisted via the outbox DAO. Records may exist before a file ID is known
+    (unmapped), in which case no outbox event is published.
+    """
+
+    pid: PID = Field(..., description="The primary file accession number (primary key)")
+    file_id: UUID4 | None = Field(
+        default=None,
+        description="The corresponding internal file ID, if the accession is mapped",
+    )
+    study_id: str | None = Field(
+        default=None, description="The corresponding study ID, if known"
+    )
+    created: UTCDatetime = Field(
+        default_factory=now_utc_ms_prec,
+        description="When the file accession was created",
+    )
+    mapped: UTCDatetime | None = Field(
+        default=None, description="When the file accession was mapped"
+    )
 
 
 class BaseWorkOrderToken(BaseModel):
@@ -257,7 +280,7 @@ class AccessionMapRequest(BaseModel):
     box_version: int = Field(
         default=..., description="A counter indicating research data upload box version"
     )
-    mapping: dict[FileAccession, UUID4] = Field(
+    mapping: dict[PID, UUID4] = Field(
         default=..., description="Map of accessions to file IDs"
     )
     study_id: PID = Field(
@@ -269,6 +292,6 @@ class AccessionMapRequest(BaseModel):
 class FileUploadWithAccession(FileUpload):
     """A FileUpload with its accession"""
 
-    accession: FileAccession | None = Field(
+    accession: PID | None = Field(
         default=None, description="The accession number assigned to this file."
     )

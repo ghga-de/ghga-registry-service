@@ -18,11 +18,14 @@
 from uuid import uuid4
 
 import pytest
+from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 from hexkit.utils import now_utc_ms_prec
 from pytest_httpx import HTTPXMock
 
+from rs.adapters.outbound.dao import get_file_accession_dao
 from rs.core.models import (
     AccessionMapRequest,
+    FileAccession,
     FileUploadWithAccession,
 )
 from tests.fixtures import utils
@@ -123,3 +126,45 @@ async def test_submission(
     assert event1.payload["file_id"] == str(file_id1)
     assert event2.payload["accession"] == accession2
     assert event2.payload["file_id"] == str(file_id2)
+
+
+async def test_unmapped_accession_publishes_no_event(joint_fixture: JointFixture):
+    """An unmapped FileAccession (no file_id) is stored but publishes no outbox event.
+
+    Once the same accession is mapped to a file ID, an outbox event conforming to
+    FileAccessionMapping is published.
+    """
+    accession = "GHGAF999"
+    async with MongoKafkaDaoPublisherFactory.construct(
+        config=joint_fixture.config
+    ) as dao_publisher_factory:
+        dao = await get_file_accession_dao(
+            config=joint_fixture.config,
+            dao_publisher_factory=dao_publisher_factory,
+        )
+
+        # Storing an unmapped accession must not publish an event
+        async with joint_fixture.kafka.record_events(
+            in_topic=joint_fixture.config.accession_map_topic
+        ) as recorder:
+            await dao.upsert(FileAccession(pid=accession))
+        assert recorder.recorded_events == []
+
+        # The record is persisted as unmapped
+        stored = await dao.get_by_id(accession)
+        assert stored.file_id is None
+        assert stored.mapped is None
+
+        # Mapping the accession to a file ID publishes a single event
+        file_id = uuid4()
+        async with joint_fixture.kafka.record_events(
+            in_topic=joint_fixture.config.accession_map_topic
+        ) as recorder:
+            await dao.upsert(
+                FileAccession(pid=accession, file_id=file_id, mapped=now_utc_ms_prec())
+            )
+        assert len(recorder.recorded_events) == 1
+        event = recorder.recorded_events[0]
+        assert event.key == accession
+        assert event.payload["accession"] == accession
+        assert event.payload["file_id"] == str(file_id)

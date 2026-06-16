@@ -8,11 +8,13 @@ components:
           title: Box Version
           type: integer
         mapping:
+          additionalProperties:
+            format: uuid4
+            type: string
           description: Map of accessions to file IDs
-          patternProperties:
-            ^GHGAF.+:
-              format: uuid4
-              type: string
+          propertyNames:
+            maxLength: 256
+            minLength: 1
           title: Mapping
           type: object
         study_id:
@@ -79,7 +81,8 @@ components:
       properties:
         accession:
           anyOf:
-          - pattern: ^GHGAF.+
+          - maxLength: 256
+            minLength: 1
             type: string
           - type: 'null'
           description: The accession number assigned to this file.

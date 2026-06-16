@@ -20,9 +20,9 @@ cors_allowed_methods: null
 cors_allowed_origins: null
 cors_exposed_headers: null
 db_name: rs
+db_version_collection: rsDbVersions
 docs_url: /docs
 enable_opentelemetry: false
-file_accession_mappings_collection: fileAccessionMappings
 file_upload_box_topic: file-upload-boxes
 generate_correlation_id: true
 host: 127.0.0.1
@@ -42,6 +42,8 @@ kafka_ssl_password: ''
 log_format: null
 log_level: INFO
 log_traceback: true
+migration_max_wait_sec: null
+migration_wait_sec: 5
 mongo_dsn: '**********'
 mongo_timeout: 300
 openapi_url: /openapi.json

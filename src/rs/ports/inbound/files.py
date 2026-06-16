@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import UUID4
 
-from rs.core.models import FileAccession
+from rs.core.models import PID
 
 
 class FileControllerPort(ABC):
@@ -37,7 +37,7 @@ class FileControllerPort(ABC):
 
     @abstractmethod
     async def post_file_ids(
-        self, *, study_id: str, file_id_map: dict[FileAccession, UUID4]
+        self, *, study_id: str, file_id_map: dict[PID, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings.
 
@@ -50,6 +50,6 @@ class FileControllerPort(ABC):
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]
     ) -> dict[UUID4, str]:
-        """Query FileAccessionMapping records for the given file IDs.
+        """Query FileAccession records for the given file IDs.
         Returns a dict mapping file_id (UUID4) to accession (str).
         """

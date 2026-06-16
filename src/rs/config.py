@@ -20,6 +20,7 @@ from ghga_service_commons.auth.ghga import AuthConfig
 from hexkit.config import config_from_yaml
 from hexkit.log import LoggingConfig
 from hexkit.opentelemetry import OpenTelemetryConfig
+from hexkit.providers.mongodb.migrations import MigrationConfig
 from hexkit.providers.mongokafka import MongoKafkaConfig
 from pydantic import Field
 
@@ -39,6 +40,7 @@ class Config(
     LoggingConfig,
     OpenTelemetryConfig,
     MongoKafkaConfig,
+    MigrationConfig,
     AccessApiConfig,
     FileBoxClientConfig,
     EventPubConfig,
@@ -49,10 +51,6 @@ class Config(
 
     service_name: str = Field(
         default=SERVICE_NAME, description="Short name of this service"
-    )
-    file_accession_mappings_collection: str = Field(
-        default="fileAccessionMappings",
-        description="MongoDB collection name for file accession mappings",
     )
 
 

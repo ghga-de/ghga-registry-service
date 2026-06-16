@@ -23,11 +23,11 @@ from ghga_event_schemas.pydantic_ import FileAccessionMapping
 from hexkit.providers.mongodb import MongoDbIndex
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
-from rs.constants import BOX_COLLECTION
-from rs.core.models import ResearchDataUploadBox
-from rs.ports.outbound.dao import BoxDao, FileAccessionMappingDao
+from rs.constants import BOX_COLLECTION, FILE_ACCESSION_COLLECTION
+from rs.core.models import FileAccession, ResearchDataUploadBox
+from rs.ports.outbound.dao import BoxDao, FileAccessionDao
 
-__all__ = ["OutboxPubConfig", "get_box_dao", "get_file_accession_mapping_dao"]
+__all__ = ["OutboxPubConfig", "get_box_dao", "get_file_accession_dao"]
 
 
 class OutboxPubConfig(
@@ -36,17 +36,30 @@ class OutboxPubConfig(
     """Config needed to publish outbox events"""
 
 
-async def get_file_accession_mapping_dao(
+def _file_accession_to_event(dto: FileAccession):
+    """Translate a FileAccession into a FileAccessionMapping outbox event.
+
+    Only mapped accessions (those with a file ID) are published; unmapped
+    accessions return None, which suppresses the outbox event.
+    """
+    if dto.file_id is None:
+        return None
+    return FileAccessionMapping(accession=dto.pid, file_id=dto.file_id).model_dump(
+        mode="json"
+    )
+
+
+async def get_file_accession_dao(
     *,
     config,
     dao_publisher_factory: MongoKafkaDaoPublisherFactory,
-) -> FileAccessionMappingDao:
-    """Construct a FileAccessionMapping DAO from the shared factory."""
+) -> FileAccessionDao:
+    """Construct a FileAccession DAO from the shared factory."""
     return await dao_publisher_factory.get_dao(
-        name=config.file_accession_mappings_collection,
-        dto_model=FileAccessionMapping,
-        id_field="accession",
-        dto_to_event=lambda event: event.model_dump(mode="json"),
+        name=FILE_ACCESSION_COLLECTION,
+        dto_model=FileAccession,
+        id_field="pid",
+        dto_to_event=_file_accession_to_event,
         event_topic=config.accession_map_topic,
         autopublish=True,
     )

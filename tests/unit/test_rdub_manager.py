@@ -23,7 +23,6 @@ from uuid import UUID, uuid4
 
 import pytest
 import pytest_asyncio
-from ghga_event_schemas.pydantic_ import FileAccessionMapping
 from ghga_service_commons.auth.context import AuthContext
 from hexkit.providers.testing.dao import BaseInMemDao, new_mock_dao_class
 from hexkit.utils import now_utc_ms_prec
@@ -53,8 +52,8 @@ USER1_AUTH_CONTEXT.id = str(TEST_USER_ID1)
 USER1_AUTH_CONTEXT.roles = []
 
 InMemBoxDao = new_mock_dao_class(dto_model=models.ResearchDataUploadBox, id_field="id")
-InMemFileAccessionMappingDao = new_mock_dao_class(
-    dto_model=FileAccessionMapping, id_field="accession"
+InMemFileAccessionDao = new_mock_dao_class(
+    dto_model=models.FileAccession, id_field="pid"
 )
 
 
@@ -67,7 +66,7 @@ class JointRig:
     file_upload_box_client: FileBoxClientPort
     access_client: AccessClientPort
     file_controller: FileControllerPort
-    file_accession_mapping_dao: BaseInMemDao[FileAccessionMapping]
+    file_accession_dao: BaseInMemDao[models.FileAccession]
     rdub_manager: RDUBManager
 
 
@@ -82,9 +81,9 @@ def rig(config: Config) -> JointRig:
     file_box_client_mock = AsyncMock()
     file_box_client_mock.create_file_upload_box = file_upload_box_id_generator
     access_client_mock = AsyncMock()
-    file_accession_mapping_dao = InMemFileAccessionMappingDao()
+    file_accession_dao = InMemFileAccessionDao()
     file_controller = FileController(
-        file_accession_mapping_dao=file_accession_mapping_dao  # type: ignore
+        file_accession_dao=file_accession_dao  # type: ignore
     )
 
     rdub_manager = RDUBManager(
@@ -99,7 +98,7 @@ def rig(config: Config) -> JointRig:
         config=config,
         box_dao=box_dao,
         file_controller=file_controller,
-        file_accession_mapping_dao=file_accession_mapping_dao,
+        file_accession_dao=file_accession_dao,
         file_upload_box_client=file_box_client_mock,
         access_client=access_client_mock,
         rdub_manager=rdub_manager,
@@ -802,7 +801,7 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
         )
 
     # Verify that the FileController's method was not called
-    assert [x async for x in rig.file_accession_mapping_dao.find_all(mapping={})] == []
+    assert [x async for x in rig.file_accession_dao.find_all(mapping={})] == []
 
     # Verify file box client was not called
     rig.file_upload_box_client.get_file_upload_list.assert_not_called()  # type: ignore
@@ -822,7 +821,7 @@ async def test_store_accession_map_happy(rig: JointRig, populated_boxes: list[UU
 
     # Verify that the FileController stored the mapping
     for accession, file_id in mapping.items():
-        file_accession_map = await rig.file_accession_mapping_dao.get_by_id(accession)
+        file_accession_map = await rig.file_accession_dao.get_by_id(accession)
         assert file_accession_map.file_id == file_id
 
     # Verify file box client was called
@@ -1012,16 +1011,17 @@ async def test_store_accession_map_filters_cancelled_and_failed(
     )
 
     # Verify the accession map was stored by checking the FileController mock
-    file_accession_maps = [
-        x.model_dump()
-        async for x in rig.file_accession_mapping_dao.find_all(mapping={})
+    file_accessions = [x async for x in rig.file_accession_dao.find_all(mapping={})]
+    assert len(file_accessions) == 2
+    file_accessions.sort(key=lambda x: x.pid)
+    assert [(fa.pid, fa.file_id) for fa in file_accessions] == [
+        ("GHGAF001", test_file_ids[0]),
+        ("GHGAF004", test_file_ids[3]),
     ]
-    assert len(file_accession_maps) == 2
-    file_accession_maps.sort(key=lambda x: x["accession"])
-    assert file_accession_maps == [
-        {"accession": "GHGAF001", "file_id": test_file_ids[0]},
-        {"accession": "GHGAF004", "file_id": test_file_ids[3]},
-    ]
+    # The records are mapped (file_id and study_id set, mapped timestamp present)
+    for fa in file_accessions:
+        assert fa.study_id == TEST_STUDY_ID
+        assert fa.mapped is not None
 
 
 async def test_store_accession_map_file_conflict(
@@ -1061,10 +1061,8 @@ async def test_store_accession_map_file_conflict(
     # Pre-insert an existing accession mapping
     pre_existing_file_id = uuid4()
     conflicting_accession = "GHGAF0123456789"
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(
-            accession=conflicting_accession, file_id=pre_existing_file_id
-        )
+    await rig.file_accession_dao.insert(
+        models.FileAccession(pid=conflicting_accession, file_id=pre_existing_file_id)
     )
 
     # Build a map that re-uses conflicting_accession but this time with file_id_a
@@ -1086,9 +1084,7 @@ async def test_store_accession_map_file_conflict(
     assert exc_info.value.conflicting_accessions == [conflicting_accession]
 
     # No new mappings should have been written, just the pre-inserted one
-    all_mappings = [
-        x async for x in rig.file_accession_mapping_dao.find_all(mapping={})
-    ]
+    all_mappings = [x async for x in rig.file_accession_dao.find_all(mapping={})]
     assert len(all_mappings) == 1
 
     # Make sure we can idempotently re-submit the same accession mappings
@@ -1096,17 +1092,15 @@ async def test_store_accession_map_file_conflict(
         study_id=TEST_STUDY_ID,
         file_id_map={conflicting_accession: pre_existing_file_id},
     )
-    all_mappings = [
-        x async for x in rig.file_accession_mapping_dao.find_all(mapping={})
-    ]
+    all_mappings = [x async for x in rig.file_accession_dao.find_all(mapping={})]
     assert len(all_mappings) == 1
 
     # Multiple conflicts are all reported together in a single error
     second_conflicting_accession = "GHGAF9876543210"
     second_pre_existing_file_id = uuid4()
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(
-            accession=second_conflicting_accession, file_id=second_pre_existing_file_id
+    await rig.file_accession_dao.insert(
+        models.FileAccession(
+            pid=second_conflicting_accession, file_id=second_pre_existing_file_id
         )
     )
     multi_conflict_map = {
@@ -1165,11 +1159,11 @@ async def test_archive_research_data_upload_box_happy(
     rig.file_upload_box_client.archive_file_upload_box = AsyncMock()  # type: ignore
 
     # Insert predetermined file accession mappings
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(accession="GHGAF001", file_id=test_file_ids[0])
+    await rig.file_accession_dao.insert(
+        models.FileAccession(pid="GHGAF001", file_id=test_file_ids[0])
     )
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(accession="GHGAF002", file_id=test_file_ids[1]),
+    await rig.file_accession_dao.insert(
+        models.FileAccession(pid="GHGAF002", file_id=test_file_ids[1]),
     )
 
     await rig.rdub_manager.update_research_data_upload_box(
@@ -1286,11 +1280,11 @@ async def test_archive_box_missing_accessions(
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
 
     # Insert predetermined file accession mappings
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(accession="GHGAF001", file_id=test_file_ids[0])
+    await rig.file_accession_dao.insert(
+        models.FileAccession(pid="GHGAF001", file_id=test_file_ids[0])
     )
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(accession="GHGAF002", file_id=test_file_ids[1]),
+    await rig.file_accession_dao.insert(
+        models.FileAccession(pid="GHGAF002", file_id=test_file_ids[1]),
     )
 
     with pytest.raises(
@@ -1344,8 +1338,8 @@ async def test_archive_box_file_upload_box_version_error(
     )
 
     # Insert predetermined file accession map
-    await rig.file_accession_mapping_dao.insert(
-        FileAccessionMapping(accession="GHGAF001", file_id=test_file_ids[0])
+    await rig.file_accession_dao.insert(
+        models.FileAccession(pid="GHGAF001", file_id=test_file_ids[0])
     )
 
     with pytest.raises(rig.rdub_manager.BoxVersionError, match="out of date"):

@@ -280,6 +280,50 @@ The service requires the following configuration parameters:
   null
   ```
 
+- <a id="properties/db_version_collection"></a>**`db_version_collection`** *(string, required)*: The name of the collection containing DB version information for this service.
+
+  Examples:
+  ```json
+  "ifrsDbVersions"
+  ```
+
+- <a id="properties/migration_wait_sec"></a>**`migration_wait_sec`** *(integer, required)*: The number of seconds to wait before checking the DB version again.
+
+  Examples:
+  ```json
+  5
+  ```
+
+  ```json
+  30
+  ```
+
+  ```json
+  180
+  ```
+
+- <a id="properties/migration_max_wait_sec"></a>**`migration_max_wait_sec`**: The maximum number of seconds to wait for migrations to complete before raising an error. Default: `null`.
+  - **Any of**
+    - <a id="properties/migration_max_wait_sec/anyOf/0"></a>*integer*
+    - <a id="properties/migration_max_wait_sec/anyOf/1"></a>*null*
+
+  Examples:
+  ```json
+  null
+  ```
+
+  ```json
+  300
+  ```
+
+  ```json
+  600
+  ```
+
+  ```json
+  3600
+  ```
+
 - <a id="properties/enable_opentelemetry"></a>**`enable_opentelemetry`** *(boolean)*: If set to true, this will run necessary setup code.If set to false, environment variables are set that should also effectively disable autoinstrumentation. Default: `false`.
 - <a id="properties/otel_trace_sampling_rate"></a>**`otel_trace_sampling_rate`** *(number)*: Determines which proportion of spans should be sampled. A value of 1.0 means all and is equivalent to the previous behaviour. Setting this to 0 will result in no spans being sampled, but this does not automatically set `enable_opentelemetry` to False. Minimum: `0`. Maximum: `1`. Default: `1.0`.
 - <a id="properties/log_level"></a>**`log_level`** *(string)*: The minimum log level to capture. Must be one of: "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", or "TRACE". Default: `"INFO"`.
@@ -393,8 +437,6 @@ The service requires the following configuration parameters:
   ```json
   []
   ```
-
-- <a id="properties/file_accession_mappings_collection"></a>**`file_accession_mappings_collection`** *(string)*: MongoDB collection name for file accession mappings. Default: `"fileAccessionMappings"`.
 
 ### Usage:
 

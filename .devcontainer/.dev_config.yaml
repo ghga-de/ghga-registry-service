@@ -3,7 +3,8 @@ kafka_servers: ["kafka:9092"]
 mongo_dsn: mongodb://localhost:27017
 db_name: rs
 mongo_timeout: 300
-file_accession_mappings_collection: fileAccessionMappings
+db_version_collection: rsDbVersions
+migration_wait_sec: 5
 accession_map_topic: file-accession-mappings
 auth_key: "{}"
 access_url: http://127.0.0.1/access

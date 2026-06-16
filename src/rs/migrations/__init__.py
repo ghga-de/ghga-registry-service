@@ -13,19 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Service-wide constants"""
+"""Database migrations for the rs service."""
 
-from opentelemetry import trace
+from .definitions import V2Migration
+from .entry import run_db_migrations
 
-SERVICE_NAME: str = "rs"
-TRACER = trace.get_tracer_provider().get_tracer(SERVICE_NAME)
-BOX_COLLECTION = "boxes"
-AUDIT_COLLECTION = "auditLogs"
-WORK_ORDER_TOKEN_VALID_SECONDS = 30
-FILE_ACCESSION_COLLECTION = "fileAccessions"
-HTTPX_TIMEOUT = 60
-VALID_STATE_TRANSITIONS = [
-    ("open", "locked"),
-    ("locked", "open"),
-    ("locked", "archived"),
-]
+__all__ = ["V2Migration", "run_db_migrations"]
