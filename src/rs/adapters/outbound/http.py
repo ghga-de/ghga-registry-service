@@ -485,6 +485,8 @@ class FileBoxClient(FileBoxClientPort):
     ) -> list[FileUploadWithAccession]:
         """Get list of file uploads in a FileUploadBox.
 
+        If the FileUploadBox does not exist, this method will return an empty list.
+
         Raises:
             OperationError if there's a problem with the operation.
         """
@@ -495,7 +497,15 @@ class FileBoxClient(FileBoxClientPort):
             headers=headers,
             timeout=HTTPX_TIMEOUT,
         )
-        if response.status_code != 200:
+        if response.status_code == 404:
+            log.warning(
+                "Receive a 404 when getting files list for FileUploadBox %s."
+                + " It is likely that conflicting state exists between RS and UCS."
+                + " Returning an empty list to continue processing.",
+                box_id,
+            )
+            return []
+        elif response.status_code != 200:
             log.error(
                 "Error getting file list for FileUploadBox %s.",
                 box_id,

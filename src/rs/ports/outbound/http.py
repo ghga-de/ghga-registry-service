@@ -168,6 +168,8 @@ class FileBoxClientPort(ABC):
     ) -> list[FileUploadWithAccession]:
         """Get list of file uploads in a FileUploadBox.
 
+        If the FileUploadBox does not exist, this method will return an empty list.
+
         Raises:
             OperationError if there's a problem with the operation.
         """

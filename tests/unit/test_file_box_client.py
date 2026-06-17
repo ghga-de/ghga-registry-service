@@ -218,6 +218,11 @@ async def test_get_file_upload_list(
     file_list = await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
     assert file_list == []
 
+    # Verify that 404 is softened to an empty list
+    httpx_mock.add_response(404, json={"exception_id": "boxNotFound"})
+    file_list = await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
+    assert file_list == []
+
 
 async def test_archive_file_upload_box(
     config: Config, httpx_mock: HTTPXMock, httpx_client: httpx.AsyncClient
