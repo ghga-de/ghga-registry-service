@@ -131,8 +131,6 @@ async def delete_research_data_upload_box(
             version=version,
             user_id=UUID(auth_context.id),
         )
-    except RDUBManagerPort.BoxAccessError as err:
-        raise HttpNotAuthorizedError() from err
     except RDUBManagerPort.BoxNotFoundError as err:
         raise HttpBoxNotFoundError(box_id=box_id) from err
     except RDUBManagerPort.BoxVersionError as err:

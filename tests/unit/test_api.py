@@ -1188,7 +1188,6 @@ async def test_delete_research_data_upload_box(
 @pytest.mark.parametrize(
     "core_error, status_code, exception_id",
     [
-        (RDUBManagerPort.BoxAccessError(), 403, None),
         (RDUBManagerPort.BoxNotFoundError(box_id=TEST_BOX_ID), 404, None),
         (RDUBManagerPort.BoxVersionError(), 409, "boxVersionOutdated"),
         (
@@ -1198,6 +1197,7 @@ async def test_delete_research_data_upload_box(
         ),
         (TypeError(), 500, None),
     ],
+    ids=["BoxNotFoundError", "BoxVersionError", "BoxStateError", "RandomError"],
 )
 async def test_delete_research_data_upload_box_error_translation(
     config: Config,
