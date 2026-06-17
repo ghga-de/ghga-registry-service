@@ -865,13 +865,12 @@ class RDUBManager(RDUBManagerPort):
             log.error("Can't delete RDUB %s because it is archived.", box_id)
             raise self.BoxStateError(operation="delete the box", state="archived")
 
-        # Revoke all upload-access grants
-        await self._revoke_all_grants_for_box(box_id=box_id)
+        # Get a list of the FileUploads tied to this box
+        fub_id = box.file_upload_box_id
+        files = await self._file_upload_box_client.get_file_upload_list(box_id=fub_id)
 
         # Delete accession mappings for the box's files. Must happen before the FUB
         # is deleted, since afterwards the file list is gone.
-        fub_id = box.file_upload_box_id
-        files = await self._file_upload_box_client.get_file_upload_list(box_id=fub_id)
         await self._file_controller.delete_mappings_for_file_ids(
             file_ids={f.id for f in files}
         )
@@ -895,6 +894,9 @@ class RDUBManager(RDUBManagerPort):
             raise self.BoxVersionError(
                 f"File Upload Box {fub_id} version is out of date."
             ) from version_err
+
+        # Revoke all upload-access grants
+        await self._revoke_all_grants_for_box(box_id=box_id)
 
         # Delete the local RDUB and publish the audit record.
         try:
