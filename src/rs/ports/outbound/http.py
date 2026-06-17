@@ -164,11 +164,12 @@ class FileBoxClientPort(ABC):
 
     @abstractmethod
     async def get_file_upload_list(
-        self, *, box_id: UUID4
+        self, *, box_id: UUID4, missing_box_ok: bool = False
     ) -> list[FileUploadWithAccession]:
         """Get list of file uploads in a FileUploadBox.
 
-        If the FileUploadBox does not exist, this method will return an empty list.
+        If the FileUploadBox does not exist and missing_box_ok is set to True, this
+        method will return an empty list. Otherwise it will raise an OperationError.
 
         Raises:
             OperationError if there's a problem with the operation.

@@ -401,7 +401,7 @@ async def test_get_upload_box_files_access_error(
 
 
 async def test_get_upload_box_files_box_not_found(rig: JointRig):
-    """Test the case where getting box files fails because the box doesn't exist."""
+    """Test the case where getting box files fails because the RDUB doesn't exist."""
     # Try to get files from a non-existent box ID
     non_existent_box_id = uuid4()
 

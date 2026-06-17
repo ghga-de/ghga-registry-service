@@ -481,11 +481,12 @@ class FileBoxClient(FileBoxClientPort):
             raise self.OperationError("Failed to unlock FileUploadBox.")
 
     async def get_file_upload_list(
-        self, *, box_id: UUID4
+        self, *, box_id: UUID4, missing_box_ok: bool = False
     ) -> list[FileUploadWithAccession]:
         """Get list of file uploads in a FileUploadBox.
 
-        If the FileUploadBox does not exist, this method will return an empty list.
+        If the FileUploadBox does not exist and missing_box_ok is set to True, this
+        method will return an empty list. Otherwise it will raise an OperationError.
 
         Raises:
             OperationError if there's a problem with the operation.
@@ -497,15 +498,15 @@ class FileBoxClient(FileBoxClientPort):
             headers=headers,
             timeout=HTTPX_TIMEOUT,
         )
-        if response.status_code == 404:
-            log.warning(
-                "Received a 404 when getting files list for FileUploadBox %s."
-                + " It is likely that conflicting state exists between RS and UCS."
-                + " Returning an empty list to continue processing.",
-                box_id,
-            )
-            return []
-        elif response.status_code != 200:
+        if response.status_code != 200:
+            if response.status_code == 404 and missing_box_ok:
+                log.warning(
+                    "Received a 404 when getting files list for FileUploadBox %s."
+                    + " It is likely that conflicting state exists between RS and UCS."
+                    + " Returning an empty list to continue processing.",
+                    box_id,
+                )
+                return []
             log.error(
                 "Error getting file list for FileUploadBox %s.",
                 box_id,

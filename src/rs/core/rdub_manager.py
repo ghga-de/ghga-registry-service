@@ -868,7 +868,9 @@ class RDUBManager(RDUBManagerPort):
 
         # Get a list of the FileUploads tied to this box
         fub_id = box.file_upload_box_id
-        files = await self._file_upload_box_client.get_file_upload_list(box_id=fub_id)
+        files = await self._file_upload_box_client.get_file_upload_list(
+            box_id=fub_id, missing_box_ok=True
+        )
 
         # Delete accession mappings for the box's files. Must happen before the FUB
         # is deleted, since afterwards the file list is gone.

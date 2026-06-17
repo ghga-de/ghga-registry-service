@@ -218,10 +218,17 @@ async def test_get_file_upload_list(
     file_list = await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
     assert file_list == []
 
-    # Verify that 404 is softened to an empty list
+    # Verify that 404 is softened to an empty list if missing_box_ok is set to True
     httpx_mock.add_response(404, json={"exception_id": "boxNotFound"})
-    file_list = await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
+    file_list = await file_upload_box_client.get_file_upload_list(
+        box_id=TEST_BOX_ID, missing_box_ok=True
+    )
     assert file_list == []
+
+    # Verify that 404 results in OperationError if missing_box_ok is set to False (default)
+    httpx_mock.add_response(404, json={"exception_id": "boxNotFound"})
+    with pytest.raises(FileBoxClient.OperationError):
+        await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
 
 
 async def test_archive_file_upload_box(
