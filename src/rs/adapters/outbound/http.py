@@ -499,7 +499,7 @@ class FileBoxClient(FileBoxClientPort):
         )
         if response.status_code == 404:
             log.warning(
-                "Receive a 404 when getting files list for FileUploadBox %s."
+                "Received a 404 when getting files list for FileUploadBox %s."
                 + " It is likely that conflicting state exists between RS and UCS."
                 + " Returning an empty list to continue processing.",
                 box_id,
