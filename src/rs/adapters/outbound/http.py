@@ -368,7 +368,7 @@ class FileBoxClient(FileBoxClientPort):
             log.error(msg, extra=extra)
             raise self.FUBStateError(msg)
         msg = (
-            f"Failed to lock FileUploadBox {box_id} because the response status"
+            f"Failed to {operation} FileUploadBox {box_id} because the response status"
             + f" code was 409 but the exception ID ({exception_id}) was missing or"
             + " unrecognized."
         )
