@@ -828,7 +828,7 @@ class RDUBManager(RDUBManagerPort):
         The version must match what is in the database.
 
         First, the file list is retrieved from UCS. Then any corresponding file
-        accession mappings are deleted from UCS. Then the FileUploadBox and associated
+        accession mappings are deleted. Then the FileUploadBox and associated
         FileUploads are deleted, followed by any valid upload grants, and finally the
         ResearchDataUploadBox.
 
