@@ -91,19 +91,21 @@ async def test_lock_file_upload_box(
 
     # 409 "boxVersionOutdated" -> FUBVersionError
     httpx_mock.add_response(409, json={"exception_id": "boxVersionOutdated"})
-    with pytest.raises(FileBoxClient.FUBVersionError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBVersionError) as fub_version_err:
         await file_upload_box_client.lock_file_upload_box(box_id=TEST_BOX_ID, version=0)
-    assert str(exc_info.value) == str(FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID))
+    assert str(fub_version_err.value) == str(
+        FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID)
+    )
 
     # Verify that 409 "boxStateError" is translated to an FUBStateError
     httpx_mock.add_response(409, json={"exception_id": "boxStateError"})
-    with pytest.raises(FileBoxClient.FUBStateError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBStateError) as fub_state_err:
         await file_upload_box_client.lock_file_upload_box(box_id=TEST_BOX_ID, version=0)
     fub_state_err_msg = (
         f"Cannot lock FileUploadBox {TEST_BOX_ID} because the box's state"
         + " prevents it. The RS and UCS box states might be out of sync."
     )
-    assert str(exc_info.value) == fub_state_err_msg
+    assert str(fub_state_err.value) == fub_state_err_msg
 
     # 409 "incompleteUploads" -> FUBIncompleteUploadsError with list of file IDs
     incomplete_file_ids = [uuid4(), uuid4()]
@@ -119,9 +121,9 @@ async def test_lock_file_upload_box(
             },
         },
     )
-    with pytest.raises(FileBoxClient.FUBIncompleteUploadsError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBIncompleteUploadsError) as fub_uploads_err:
         await file_upload_box_client.lock_file_upload_box(box_id=TEST_BOX_ID, version=0)
-    assert exc_info.value.incomplete_file_ids == incomplete_file_ids
+    assert fub_uploads_err.value.incomplete_file_ids == incomplete_file_ids
 
     # Non-409, non-204 -> OperationError
     httpx_mock.add_response(500, json="Some error occurred.")
@@ -145,15 +147,17 @@ async def test_unlock_file_upload_box(
 
     # Verify that 409 "boxVersionOutdated" is translated to an FUBVersionError
     httpx_mock.add_response(409, json={"exception_id": "boxVersionOutdated"})
-    with pytest.raises(FileBoxClient.FUBVersionError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBVersionError) as fub_version_err:
         await file_upload_box_client.unlock_file_upload_box(
             box_id=TEST_BOX_ID, version=0
         )
-    assert str(exc_info.value) == str(FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID))
+    assert str(fub_version_err.value) == str(
+        FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID)
+    )
 
     # Verify that 409 "boxStateError" is translated to an FUBStateError
     httpx_mock.add_response(409, json={"exception_id": "boxStateError"})
-    with pytest.raises(FileBoxClient.FUBStateError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBStateError) as fub_state_err:
         await file_upload_box_client.unlock_file_upload_box(
             box_id=TEST_BOX_ID, version=0
         )
@@ -161,7 +165,7 @@ async def test_unlock_file_upload_box(
         f"Cannot unlock FileUploadBox {TEST_BOX_ID} because the box's state"
         + " prevents it. The RS and UCS box states might be out of sync."
     )
-    assert str(exc_info.value) == fub_state_err_msg
+    assert str(fub_state_err.value) == fub_state_err_msg
 
     # Check off-normal status code
     httpx_mock.add_response(500, json="Some error occurred.")
@@ -231,15 +235,17 @@ async def test_archive_file_upload_box(
 
     # Verify that 409 "boxVersionOutdated" is translated to an FUBVersionError
     httpx_mock.add_response(409, json={"exception_id": "boxVersionOutdated"})
-    with pytest.raises(FileBoxClient.FUBVersionError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBVersionError) as fub_version_err:
         await file_upload_box_client.archive_file_upload_box(
             box_id=TEST_BOX_ID, version=0
         )
-    assert str(exc_info.value) == str(FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID))
+    assert str(fub_version_err.value) == str(
+        FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID)
+    )
 
     # Verify that 409 "boxStateError" is translated to an FUBStateError
     httpx_mock.add_response(409, json={"exception_id": "boxStateError"})
-    with pytest.raises(FileBoxClient.FUBStateError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBStateError) as fub_state_err:
         await file_upload_box_client.archive_file_upload_box(
             box_id=TEST_BOX_ID, version=0
         )
@@ -247,7 +253,7 @@ async def test_archive_file_upload_box(
         f"Cannot archive FileUploadBox {TEST_BOX_ID} because the box's state"
         + " prevents it. The RS and UCS box states might be out of sync."
     )
-    assert str(exc_info.value) == fub_state_err_msg
+    assert str(fub_state_err.value) == fub_state_err_msg
 
     # Check off-normal status code
     httpx_mock.add_response(500, json="Some error occurred.")
@@ -281,11 +287,13 @@ async def test_resize_file_upload_box(
 
     # Make sure 409 "boxVersionOutdated" is translated as FUBVersionError
     httpx_mock.add_response(409, json={"exception_id": "boxVersionOutdated"})
-    with pytest.raises(FileBoxClient.FUBVersionError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBVersionError) as fub_version_err:
         await file_upload_box_client.resize_file_upload_box(
             box_id=TEST_BOX_ID, version=0, max_size=TEST_MAX_SIZE
         )
-    assert str(exc_info.value) == str(FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID))
+    assert str(fub_version_err.value) == str(
+        FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID)
+    )
 
     # Make sure 409 "boxMaxSizeTooLow" is translated as FUBMaxSizeTooLowError
     httpx_mock.add_response(409, json={"exception_id": "boxMaxSizeTooLow"})
@@ -326,7 +334,7 @@ async def test_delete_file_upload(
 
     # Make sure 409/boxStateError is translated as FUBStateError
     httpx_mock.add_response(409, json={"exception_id": "boxStateError"})
-    with pytest.raises(FileBoxClient.FUBStateError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBStateError) as fub_state_err:
         await file_upload_box_client.delete_file_upload(
             box_id=TEST_BOX_ID, file_id=test_file_id
         )
@@ -334,7 +342,7 @@ async def test_delete_file_upload(
         f"Cannot delete file from FileUploadBox {TEST_BOX_ID} because the box's state"
         + " prevents it. The RS and UCS box states might be out of sync."
     )
-    assert str(exc_info.value) == fub_state_err_msg
+    assert str(fub_state_err.value) == fub_state_err_msg
 
     # Make sure 400, 404, and 500 are translated as OperationError
     for status_code in (400, 404, 500):
@@ -379,15 +387,17 @@ async def test_delete_file_upload_box(
 
     # Verify that 409 "boxVersionOutdated" is translated to an FUBVersionError
     httpx_mock.add_response(409, json={"exception_id": "boxVersionOutdated"})
-    with pytest.raises(FileBoxClient.FUBVersionError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBVersionError) as fub_version_err:
         await file_upload_box_client.delete_file_upload_box(
             box_id=TEST_BOX_ID, version=0
         )
-    assert str(exc_info.value) == str(FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID))
+    assert str(fub_version_err.value) == str(
+        FileBoxClient.FUBVersionError(box_id=TEST_BOX_ID)
+    )
 
     # Verify that 409 "boxStateError" is translated to an FUBStateError
     httpx_mock.add_response(409, json={"exception_id": "boxStateError"})
-    with pytest.raises(FileBoxClient.FUBStateError) as exc_info:
+    with pytest.raises(FileBoxClient.FUBStateError) as fub_state_err:
         await file_upload_box_client.delete_file_upload_box(
             box_id=TEST_BOX_ID, version=0
         )
@@ -395,7 +405,7 @@ async def test_delete_file_upload_box(
         f"Cannot delete FileUploadBox {TEST_BOX_ID} because the box's state"
         + " prevents it. The RS and UCS box states might be out of sync."
     )
-    assert str(exc_info.value) == fub_state_err_msg
+    assert str(fub_state_err.value) == fub_state_err_msg
 
     # Make sure other status codes result in an OperationError
     for status_code in (400, 500):
