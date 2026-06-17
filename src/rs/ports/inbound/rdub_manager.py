@@ -323,9 +323,10 @@ class RDUBManagerPort(ABC):
         The RDUB (and FUB) must be not be in the 'archived' state.
         The version must match what is in the database.
 
-        First, the FileUploadBox and associated FileUploads are deleted, then any valid
-        upload grants, and finally the ResearchDataUploadBox. Any 404 along the way is
-        treated as success in order to achieve idempotence.
+        First, the file list is retrieved from UCS. Then any corresponding file
+        accession mappings are deleted from UCS. Then the FileUploadBox and associated
+        FileUploads are deleted, followed by any valid upload grants, and finally the
+        ResearchDataUploadBox.
 
         Raises:
             BoxNotFoundError: If the box doesn't exist.
