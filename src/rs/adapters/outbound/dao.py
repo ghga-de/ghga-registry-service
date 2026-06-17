@@ -23,7 +23,7 @@ from ghga_event_schemas.pydantic_ import FileAccessionMapping
 from hexkit.providers.mongodb import MongoDbIndex
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
-from rs.constants import BOX_COLLECTION, FILE_ACCESSION_COLLECTION
+from rs.constants import FILE_ACCESSION_COLLECTION, RESEARCH_DATA_UPLOAD_BOX_COLLECTION
 from rs.core.models import FileAccession, ResearchDataUploadBox
 from rs.ports.outbound.dao import BoxDao, FileAccessionDao
 
@@ -73,7 +73,7 @@ async def get_box_dao(
         raise RuntimeError("No DAO Factory and no override provided for BoxDao")
 
     return await dao_publisher_factory.get_dao(
-        name=BOX_COLLECTION,
+        name=RESEARCH_DATA_UPLOAD_BOX_COLLECTION,
         dto_model=ResearchDataUploadBox,
         id_field="id",
         autopublish=True,

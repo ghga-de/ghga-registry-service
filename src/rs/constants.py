@@ -19,7 +19,7 @@ from opentelemetry import trace
 
 SERVICE_NAME: str = "rs"
 TRACER = trace.get_tracer_provider().get_tracer(SERVICE_NAME)
-BOX_COLLECTION = "boxes"
+RESEARCH_DATA_UPLOAD_BOX_COLLECTION = "researchDataUploadBoxes"
 AUDIT_COLLECTION = "auditLogs"
 WORK_ORDER_TOKEN_VALID_SECONDS = 30
 FILE_ACCESSION_COLLECTION = "fileAccessions"
