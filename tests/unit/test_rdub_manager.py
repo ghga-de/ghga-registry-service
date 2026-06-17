@@ -1362,7 +1362,7 @@ async def test_archive_box_file_upload_box_version_error(
     # Mock the file box client
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
     rig.file_upload_box_client.archive_file_upload_box = AsyncMock(  # type: ignore
-        side_effect=FileBoxClientPort.FUBVersionError("Version mismatch")
+        side_effect=FileBoxClientPort.FUBVersionError(box_id=box_id)
     )
 
     # Insert predetermined file accession map
@@ -1451,7 +1451,7 @@ async def test_resize_box_fub_version_error(rig: JointRig, populated_boxes: list
     original_version = box.version
 
     rig.file_upload_box_client.resize_file_upload_box = AsyncMock(  # type: ignore
-        side_effect=FileBoxClientPort.FUBVersionError("Version mismatch")
+        side_effect=FileBoxClientPort.FUBVersionError(box_id=box_id)
     )
 
     with pytest.raises(rig.rdub_manager.BoxVersionError):
@@ -1515,9 +1515,9 @@ async def test_delete_file_error_handling(rig: JointRig, populated_boxes: list[U
     box_id = populated_boxes[0]
     test_file_id = uuid4()
 
-    # FUBLockedError should be translated to BoxStateError
+    # FUBStateError should be translated to BoxStateError
     rig.file_upload_box_client.delete_file_upload = AsyncMock(  # type: ignore
-        side_effect=FileBoxClientPort.FUBLockedError("Box is locked")
+        side_effect=FileBoxClientPort.FUBStateError("Box is locked")
     )
     with pytest.raises(rig.rdub_manager.BoxStateError):
         await rig.rdub_manager.delete_file_upload(
@@ -1754,7 +1754,10 @@ async def test_delete_box_grant_revocation_tolerates_missing(
     "client_error, raised_error",
     [
         (FileBoxClientPort.OperationError("test"), FileBoxClientPort.OperationError),
-        (FileBoxClientPort.FUBVersionError("test"), RDUBManager.BoxVersionError),
+        (
+            FileBoxClientPort.FUBVersionError(box_id=TEST_FILE_UPLOAD_BOX_ID),
+            RDUBManager.BoxVersionError,
+        ),
     ],
 )
 async def test_delete_box_fub_operation_error_leaves_rdub(

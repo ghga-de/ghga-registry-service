@@ -786,7 +786,7 @@ class RDUBManager(RDUBManagerPort):
             await self._file_upload_box_client.delete_file_upload(
                 box_id=box.file_upload_box_id, file_id=file_id
             )
-        except FileBoxClientPort.FUBLockedError as err:
+        except FileBoxClientPort.FUBStateError as err:
             # error text is more specific here to differentiate the two errors
             error = self.BoxStateError(
                 operation=f"delete FileUpload {file_id}", state="locked"

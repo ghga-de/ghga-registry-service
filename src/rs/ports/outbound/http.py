@@ -111,6 +111,10 @@ class FileBoxClientPort(ABC):
     class FUBVersionError(RuntimeError):
         """Raised when the requested version of a FileUploadBox is out of date."""
 
+        def __init__(self, *, box_id: UUID4):
+            msg = f"Requested version of FileUploadBox {box_id} is out of date."
+            super().__init__(msg)
+
     class FUBMaxSizeTooLowError(RuntimeError):
         """Raised when the new max_size is smaller than the bytes already uploaded."""
 
@@ -121,7 +125,7 @@ class FileBoxClientPort(ABC):
             self.incomplete_file_ids = incomplete_file_ids
             super().__init__(f"{len(incomplete_file_ids)} file(s) are incomplete.")
 
-    class FUBLockedError(RuntimeError):
+    class FUBStateError(RuntimeError):
         """Raised when the FileUploadBox is locked and the operation cannot proceed."""
 
     @abstractmethod
@@ -197,7 +201,7 @@ class FileBoxClientPort(ABC):
         """Delete a FileUpload from a FileUploadBox in the owning service.
 
         Raises:
-            FUBLockedError if the FileUploadBox is locked.
+            FUBStateError if the FileUploadBox is locked.
             OperationError if there's any other problem with the operation.
         """
         ...
