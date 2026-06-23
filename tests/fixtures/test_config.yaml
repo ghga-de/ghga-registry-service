@@ -16,3 +16,6 @@ file_upload_box_topic: "file-upload-boxes"
 research_data_upload_box_topic: "research-data-upload-boxes"
 accession_map_topic: file-accession-mappings
 study_topic: "studies"
+resource_change_topic: "searchable-resources"
+resource_upsertion_type: "searchable_resource_upserted"
+resource_deletion_type: "searchable_resource_deleted"

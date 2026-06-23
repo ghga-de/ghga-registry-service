@@ -24,7 +24,7 @@ from hexkit.providers.mongodb.migrations import MigrationConfig
 from hexkit.providers.mongokafka import MongoKafkaConfig
 from pydantic import Field
 
-from rs.adapters.inbound.event_sub import OutboxSubConfig
+from rs.adapters.inbound.event_sub import OutboxSubConfig, ResourceSubConfig
 from rs.adapters.outbound.dao import OutboxPubConfig
 from rs.adapters.outbound.event_pub import EventPubConfig
 from rs.adapters.outbound.http import AccessApiConfig, FileBoxClientConfig
@@ -45,6 +45,9 @@ class Config(
     FileBoxClientConfig,
     EventPubConfig,
     OutboxSubConfig,
+    # LEGACY: config for consuming searchable resources from metldata.
+    # Remove once this service owns studies and experimental metadata.
+    ResourceSubConfig,
     OutboxPubConfig,
 ):
     """Config parameters and their defaults."""

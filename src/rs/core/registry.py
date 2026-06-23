@@ -14,6 +14,7 @@
 # limitations under the License.
 """GHGA Registry implementation"""
 
+from rs.ports.inbound.legacy_resources import LegacyResourceManagerPort
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
 from rs.ports.inbound.registry import RegistryPort
 from rs.ports.outbound.dao import StudyDao
@@ -26,9 +27,13 @@ class Registry(RegistryPort):
         self,
         *,
         rdub_manager: RDUBManagerPort,
+        legacy_resource_manager: LegacyResourceManagerPort,
         study_dao: StudyDao,
     ) -> None:
         self._rdub_manager = rdub_manager
+        # LEGACY: see LegacyResourceManager. Remove once this service owns studies and
+        # experimental metadata and no longer needs to fetch legacy searchable resources.
+        self._legacy_resource_manager = legacy_resource_manager
         # Kept private for internal use by future study operations (e.g. listing
         # studies); intentionally not exposed on the RegistryPort.
         self._study_dao = study_dao
@@ -37,3 +42,8 @@ class Registry(RegistryPort):
     def rdub_manager(self) -> RDUBManagerPort:
         """The RDUBManager component."""
         return self._rdub_manager
+
+    @property
+    def legacy_resource_manager(self) -> LegacyResourceManagerPort:
+        """The LegacyResourceManager component."""
+        return self._legacy_resource_manager

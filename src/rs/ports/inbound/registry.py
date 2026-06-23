@@ -17,6 +17,7 @@
 
 from abc import ABC, abstractmethod
 
+from rs.ports.inbound.legacy_resources import LegacyResourceManagerPort
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
 
 
@@ -27,4 +28,14 @@ class RegistryPort(ABC):
     @abstractmethod
     def rdub_manager(self) -> RDUBManagerPort:
         """The RDUBManager component."""
+        ...
+
+    @property
+    @abstractmethod
+    def legacy_resource_manager(self) -> LegacyResourceManagerPort:
+        """The LegacyResourceManager component.
+
+        LEGACY: Exists only to fetch searchable resources from the metldata producer.
+        Remove once this service owns studies and experimental metadata.
+        """
         ...

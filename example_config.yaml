@@ -50,6 +50,9 @@ openapi_url: /openapi.json
 otel_trace_sampling_rate: 1.0
 port: 8080
 research_data_upload_box_topic: research-data-upload-boxes
+resource_change_topic: searchable-resources
+resource_deletion_type: searchable_resource_deleted
+resource_upsertion_type: searchable_resource_upserted
 service_instance_id: '1'
 service_name: rs
 study_topic: studies

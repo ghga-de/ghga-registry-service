@@ -32,7 +32,7 @@ from hexkit.providers.mongokafka import (
     PersistentKafkaPublisher,
 )
 
-from rs.adapters.inbound.event_sub import OutboxSubTranslator
+from rs.adapters.inbound.event_sub import OutboxSubTranslator, ResourceSubTranslator
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.configure import get_configured_app
 from rs.adapters.outbound.audit import AuditRepository
@@ -46,6 +46,7 @@ from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
 from rs.constants import SERVICE_NAME
 from rs.core.files import FileController
+from rs.core.legacy_resources import LegacyResourceManager
 from rs.core.rdub_manager import RDUBManager
 from rs.core.registry import Registry
 from rs.ports.inbound.registry import RegistryPort
@@ -108,6 +109,10 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
         study_dao = await get_study_dao(
             config=config, dao_publisher_factory=dao_publisher_factory
         )
+        # LEGACY: manager (currently a stub) that consumes searchable resources from the
+        # metldata producer and will extract studies into the existing study DAO.
+        # Remove once this service owns studies and experimental metadata itself.
+        legacy_resource_manager = LegacyResourceManager(study_dao=study_dao)
         access_client = AccessClient(config=config, httpx_client=httpx_client)
         file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
 
@@ -119,7 +124,11 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
             file_upload_box_client=file_upload_box_client,
         )
 
-        yield Registry(rdub_manager=rdub_manager, study_dao=study_dao)
+        yield Registry(
+            rdub_manager=rdub_manager,
+            legacy_resource_manager=legacy_resource_manager,
+            study_dao=study_dao,
+        )
 
 
 def prepare_core_with_override(
@@ -178,7 +187,12 @@ async def prepare_event_subscriber(
         KafkaEventPublisher.construct(config=config) as dlq_publisher,
     ):
         outbox_translator = OutboxSubTranslator(config=config, registry=registry)
-        translator = ComboTranslator(translators=[outbox_translator])
+        # LEGACY: also consume searchable resource events from the metldata producer.
+        # Remove this translator once this service owns studies and EM.
+        resource_translator = ResourceSubTranslator(config=config, registry=registry)
+        translator = ComboTranslator(
+            translators=[outbox_translator, resource_translator]
+        )
 
         async with KafkaEventSubscriber.construct(
             config=config, translator=translator, dlq_publisher=dlq_publisher

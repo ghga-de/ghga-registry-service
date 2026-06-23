@@ -74,6 +74,27 @@ The service requires the following configuration parameters:
   "research-data-upload-boxes"
   ```
 
+- <a id="properties/resource_change_topic"></a>**`resource_change_topic`** *(string, required)*: Name of the topic used for events informing other services about resource changes, i.e. deletion or insertion.
+
+  Examples:
+  ```json
+  "searchable_resources"
+  ```
+
+- <a id="properties/resource_deletion_type"></a>**`resource_deletion_type`** *(string, required)*: Type used for events indicating the deletion of a previously existing resource.
+
+  Examples:
+  ```json
+  "searchable_resource_deleted"
+  ```
+
+- <a id="properties/resource_upsertion_type"></a>**`resource_upsertion_type`** *(string, required)*: Type used for events indicating the upsert of a resource.
+
+  Examples:
+  ```json
+  "searchable_resource_upserted"
+  ```
+
 - <a id="properties/file_upload_box_topic"></a>**`file_upload_box_topic`** *(string, required)*: Topic containing published FileUploadBox outbox events.
 
   Examples:
