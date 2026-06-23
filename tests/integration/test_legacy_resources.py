@@ -21,13 +21,15 @@ into the study DAO. Remove together with the consumer once this service owns stu
 and experimental metadata itself.
 """
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
+from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
 
-from rs.constants import STUDY_COLLECTION
+from rs.adapters.outbound.dao import get_file_accession_dao
+from rs.constants import FILE_ACCESSION_COLLECTION, STUDY_COLLECTION
 from rs.core.legacy_resources import _LEGACY_CREATED_BY
-from rs.core.models import StudyStatus
+from rs.core.models import FileAccession, StudyStatus
 from tests.fixtures.joint import JointFixture
 
 pytestmark = pytest.mark.asyncio
@@ -44,27 +46,58 @@ def _study_count(joint_fixture: JointFixture) -> int:
     return _study_collection(joint_fixture).count_documents({})
 
 
-def _embedded_dataset_payload(study_accession: str = "GHGAS78925948359890") -> dict:
-    """Build a searchable-resource payload embedding a study (as metldata emits)."""
+def _file_accession_collection(joint_fixture: JointFixture):
+    """Return the MongoDB collection backing the file accession DAO."""
+    db = joint_fixture.mongodb.client[joint_fixture.config.db_name]
+    return db[FILE_ACCESSION_COLLECTION]
+
+
+def _embedded_dataset_payload(study_accession: str = "GHGAS1") -> dict:
+    """Build a searchable-resource payload embedding a study (as metldata emits).
+
+    The ``files`` key aggregates all file accessions of the resource as a flat list of
+    accession strings; that is the only source of tracked file accessions. The
+    ``research_data_files`` key (a list of file objects) is included to confirm that
+    such per-category lists are *not* consulted.
+
+    The payload deliberately carries properties we do not consume - both at the content
+    level (``accession``, ``title``, ``description``, ``research_data_files``) and inside
+    the embedded study (``alias``, ``ega_accession``, ``description_html``) - to confirm
+    that extra properties do not make validation of the consumed subschema fail.
+    """
     return {
-        "accession": "GHGAD64952591994356",
+        "accession": "GHGAD1",
         "class_name": "EmbeddedDataset",
         "content": {
-            "accession": "GHGAD64952591994356",
+            # Content-level properties we do not consume.
+            "accession": "GHGAD1",
             "title": "DS dataset",
+            "description": "A dataset embedding a study",
+            # Per-category file list - we ignore these in favor of the aggregated list.
+            "research_data_files": [
+                {"accession": "GHGAF9", "name": "file1.fastq.gz"},
+            ],
+            # Only the aggregation of all file accessions are tracked.
+            "files": ["GHGAF1", "GHGAF2", "GHGAF3", "GHGAF4"],
+            # The study is tracked as well.
             "study": {
                 "accession": study_accession,
-                "alias": "STUDY_bRFg_B",
-                "title": "The bRFg_B Study",
-                "description": "The study with alias STUDY_bRFg_B",
+                "title": "A test study",
+                "description": "This is a study used for testing",
                 "types": ["WHOLE_GENOME_SEQUENCING"],
-                "ega_accession": "EGASTUDY12346",
                 "affiliations": ["Some Institute"],
-                "datasets": ["GHGAD64952591994356"],
+                "datasets": ["GHGAD1"],
                 "publications": [],
+                # Non-consumed properties below.
+                "alias": "TEST_STUDY",
+                "ega_accession": "EGAS1",
             },
         },
     }
+
+
+# The aggregated file accessions carried by the ``files`` key in the payload above.
+_PAYLOAD_FILE_ACCESSIONS = {"GHGAF1", "GHGAF2", "GHGAF3", "GHGAF4"}
 
 
 async def test_searchable_resource_upsertion_stores_study(joint_fixture: JointFixture):
@@ -75,14 +108,14 @@ async def test_searchable_resource_upsertion_stores_study(joint_fixture: JointFi
         payload=_embedded_dataset_payload(),
         type_=config.resource_upsertion_type,
         topic=config.resource_change_topic,
-        key="dataset_embedded_GHGAD64952591994356",
+        key="dataset_embedded_GHGAD1",
     )
     await joint_fixture.event_subscriber.run(forever=False)
 
     assert _study_count(joint_fixture) == 1
-    stored = _study_collection(joint_fixture).find_one({"_id": "GHGAS78925948359890"})
+    stored = _study_collection(joint_fixture).find_one({"_id": "GHGAS1"})
     assert stored is not None
-    assert stored["title"] == "The bRFg_B Study"
+    assert stored["title"] == "A test study"
     assert stored["types"] == ["WHOLE_GENOME_SEQUENCING"]
     assert stored["affiliations"] == ["Some Institute"]
     assert stored["status"] == StudyStatus.ARCHIVED
@@ -104,12 +137,10 @@ async def test_existing_study_is_not_updated(joint_fixture: JointFixture):
         payload=_embedded_dataset_payload(),
         type_=config.resource_upsertion_type,
         topic=config.resource_change_topic,
-        key="dataset_embedded_GHGAD64952591994356",
+        key="dataset_embedded_GHGAD1",
     )
     await joint_fixture.event_subscriber.run(forever=False)
-    stored_first = _study_collection(joint_fixture).find_one(
-        {"_id": "GHGAS78925948359890"}
-    )
+    stored_first = _study_collection(joint_fixture).find_one({"_id": "GHGAS1"})
     assert stored_first is not None
 
     # A second event carrying the same study id but a different title must not update it.
@@ -119,29 +150,44 @@ async def test_existing_study_is_not_updated(joint_fixture: JointFixture):
         payload=changed,
         type_=config.resource_upsertion_type,
         topic=config.resource_change_topic,
-        key="dataset_embedded_GHGAD64952591994356",
+        key="dataset_embedded_GHGAD1",
     )
     await joint_fixture.event_subscriber.run(forever=False)
 
     assert _study_count(joint_fixture) == 1
-    stored_second = _study_collection(joint_fixture).find_one(
-        {"_id": "GHGAS78925948359890"}
-    )
+    stored_second = _study_collection(joint_fixture).find_one({"_id": "GHGAS1"})
     assert stored_second == stored_first
-    assert stored_second["title"] == "The bRFg_B Study"
+    assert stored_second["title"] == "A test study"
 
 
-async def test_searchable_resource_without_study_is_ignored(
-    joint_fixture: JointFixture,
+@pytest.mark.parametrize(
+    "content",
+    [
+        pytest.param({"title": "Some resource"}, id="no_study"),
+        pytest.param({"study": None, "files": []}, id="null_study"),
+        pytest.param(
+            {"study": {"title": "No accession"}, "files": []},
+            id="study_without_accession",
+        ),
+        pytest.param({"study": {"accession": "GHGAS1"}}, id="no_files_list"),
+    ],
+)
+async def test_resource_not_matching_expected_schema_is_ignored(
+    joint_fixture: JointFixture, content: dict
 ):
-    """A resource whose content has no embedded study persists nothing."""
+    """A resource that does not match the expected schema persists nothing.
+
+    The resource must carry content with a non-null study that has an accession plus a
+    files list; if any of that is missing, the whole event is ignored (with a warning),
+    so neither a study nor any file accessions are stored.
+    """
     config = joint_fixture.config
 
     await joint_fixture.kafka.publish_event(
         payload={
             "accession": "GHGA:RESOURCE1",
             "class_name": "ExperimentMethod",
-            "content": {"title": "Some resource", "nested": {"value": 1}},
+            "content": content,
         },
         type_=config.resource_upsertion_type,
         topic=config.resource_change_topic,
@@ -150,6 +196,90 @@ async def test_searchable_resource_without_study_is_ignored(
     await joint_fixture.event_subscriber.run(forever=False)
 
     assert _study_count(joint_fixture) == 0
+    assert _file_accession_collection(joint_fixture).count_documents({}) == 0
+
+
+async def test_upsertion_tracks_file_accessions(joint_fixture: JointFixture):
+    """An upsertion event tracks the file accessions found under the ``files`` key.
+
+    Each accession in the aggregated ``files`` list is stored as an unmapped
+    FileAccession (no file ID) carrying the embedded study's accession as its study ID.
+    Accessions that appear only in per-category ``*_files`` lists must not be tracked.
+    """
+    config = joint_fixture.config
+
+    await joint_fixture.kafka.publish_event(
+        payload=_embedded_dataset_payload(),
+        type_=config.resource_upsertion_type,
+        topic=config.resource_change_topic,
+        key="dataset_embedded_GHGAD1",
+    )
+    await joint_fixture.event_subscriber.run(forever=False)
+
+    collection = _file_accession_collection(joint_fixture)
+    stored = {doc["_id"]: doc for doc in collection.find({})}
+    assert set(stored) == _PAYLOAD_FILE_ACCESSIONS
+    # An accession only present in a per-category file list must not have been tracked.
+    assert "GHGAF_IGNORED" not in stored
+    for doc in stored.values():
+        assert doc["study_id"] == "GHGAS1"
+        assert doc["file_id"] is None
+        assert doc["mapped"] is None
+        assert doc["created"] is not None
+
+
+async def test_existing_file_accession_study_is_updated(joint_fixture: JointFixture):
+    """Study IDs are set on unmapped file accessions whose study differs.
+
+    An accession already mapped to a file ID (and study) must be left untouched, while
+    an unmapped accession gets its study ID set whether it had none yet or a different
+    one. An unmapped accession that already carries the same study ID stays as is.
+    """
+    config = joint_fixture.config
+
+    mapped_file_id = uuid4()
+    async with MongoKafkaDaoPublisherFactory.construct(
+        config=config
+    ) as dao_publisher_factory:
+        dao = await get_file_accession_dao(
+            config=config, dao_publisher_factory=dao_publisher_factory
+        )
+        # Already known and mapped to a different study - must not change.
+        await dao.upsert(
+            FileAccession(pid="GHGAF1", file_id=mapped_file_id, study_id="OTHER_STUDY")
+        )
+        # Already known but without a study ID yet - must get the study ID set.
+        await dao.upsert(FileAccession(pid="GHGAF2"))
+        # Unmapped but tracked under a different study - must be updated.
+        await dao.upsert(FileAccession(pid="GHGAF4", study_id="OTHER_STUDY"))
+
+    await joint_fixture.kafka.publish_event(
+        payload=_embedded_dataset_payload(),
+        type_=config.resource_upsertion_type,
+        topic=config.resource_change_topic,
+        key="dataset_embedded_GHGAD1",
+    )
+    await joint_fixture.event_subscriber.run(forever=False)
+
+    collection = _file_accession_collection(joint_fixture)
+    stored = {doc["_id"]: doc for doc in collection.find({})}
+    assert set(stored) == _PAYLOAD_FILE_ACCESSIONS
+
+    # The pre-existing mapped accession keeps its original study and file ID.
+    assert stored["GHGAF1"]["study_id"] == "OTHER_STUDY"
+    assert UUID(str(stored["GHGAF1"]["file_id"])) == mapped_file_id
+
+    # The previously unmapped accession without a study got it set, still no file ID.
+    assert stored["GHGAF2"]["study_id"] == "GHGAS1"
+    assert stored["GHGAF2"]["file_id"] is None
+
+    # The unmapped accession tracked under a different study was updated, still no file ID.
+    assert stored["GHGAF4"]["study_id"] == "GHGAS1"
+    assert stored["GHGAF4"]["file_id"] is None
+
+    # Newly seen accessions were created with the study ID.
+    assert stored["GHGAF3"]["study_id"] == "GHGAS1"
+    assert stored["GHGAF3"]["file_id"] is None
 
 
 async def test_searchable_resource_deletion_is_consumed(joint_fixture: JointFixture):

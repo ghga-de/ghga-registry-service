@@ -47,6 +47,17 @@ class FileControllerPort(ABC):
         """
 
     @abstractmethod
+    async def register_unmapped_accessions(
+        self, *, study_id: str, accessions: set[PID]
+    ) -> None:
+        """Ensure a FileAccession entry exists for each of the given accessions.
+
+        Creates a new unmapped entry (no file ID) for unknown accessions and backfills
+        the study ID onto existing entries that do not have one yet. Used to track file
+        accessions discovered in legacy searchable resources.
+        """
+
+    @abstractmethod
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]
     ) -> dict[UUID4, str]:

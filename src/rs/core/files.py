@@ -17,6 +17,7 @@
 
 import logging
 
+from hexkit.protocols.dao import ResourceNotFoundError
 from hexkit.utils import now_utc_ms_prec
 from pydantic import UUID4
 
@@ -75,6 +76,46 @@ class FileController(FileControllerPort):
                 accession,
                 study_id,
             )
+
+    async def register_unmapped_accessions(
+        self, *, study_id: str, accessions: set[PID]
+    ) -> None:
+        """Ensure a FileAccession entry exists for each of the given accessions.
+
+        Used to track file accessions discovered in legacy searchable resources before
+        they have been mapped to internal file IDs. For each accession:
+
+        - if no entry exists yet, a new unmapped entry (no file ID) is created, carrying
+          the study ID;
+        - if an unmapped entry already exists but carries a different study ID (including
+          none yet), the study ID is updated.
+
+        Entries that are already mapped to a file ID, or that already carry the same study
+        ID, are left untouched. Since only unmapped entries (no file ID) are written, none
+        of these writes publish an outbox event.
+        """
+        for accession in accessions:
+            try:
+                record = await self._file_accession_dao.get_by_id(accession)
+            except ResourceNotFoundError:
+                await self._file_accession_dao.insert(
+                    FileAccession(pid=accession, study_id=study_id)
+                )
+                log.info(
+                    "Created unmapped file accession %s for study %s.",
+                    accession,
+                    study_id,
+                )
+                continue
+            if record.file_id is None and record.study_id != study_id:
+                await self._file_accession_dao.upsert(
+                    record.model_copy(update={"study_id": study_id})
+                )
+                log.info(
+                    "Updated file accession %s to study %s.",
+                    accession,
+                    study_id,
+                )
 
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]

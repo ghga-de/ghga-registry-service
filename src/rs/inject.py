@@ -112,7 +112,9 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
         # LEGACY: manager (currently a stub) that consumes searchable resources from the
         # metldata producer and will extract studies into the existing study DAO.
         # Remove once this service owns studies and experimental metadata itself.
-        legacy_resource_manager = LegacyResourceManager(study_dao=study_dao)
+        legacy_resource_manager = LegacyResourceManager(
+            study_dao=study_dao, file_controller=file_controller
+        )
         access_client = AccessClient(config=config, httpx_client=httpx_client)
         file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
 
