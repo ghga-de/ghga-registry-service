@@ -1049,9 +1049,16 @@ class RDUBManager(RDUBManagerPort):
 
         # Submit the accession map via the file controller
         try:
-            await self._file_controller.post_file_ids(
+            await self._file_controller.map_accessions_to_file_ids(
                 study_id=study_id, file_id_map=accession_map
             )
+        except FileControllerPort.UnknownAccessionError as err:
+            accessions = ", ".join(err.unknown_accessions)
+            raise self.AccessionMapError(
+                f"The following accessions are not registered yet: {accessions}",
+                error_type="unknown_accessions",
+                unknown_accessions=err.unknown_accessions,
+            ) from err
         except FileControllerPort.ConflictingAccessionError as err:
             accessions = ", ".join(err.conflicting_accessions)
             raise self.AccessionMapError(

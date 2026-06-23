@@ -34,39 +34,59 @@ class FileController(FileControllerPort):
     def __init__(self, *, file_accession_dao: FileAccessionDao):
         self._file_accession_dao = file_accession_dao
 
-    async def post_file_ids(
+    async def map_accessions_to_file_ids(
         self, *, study_id: str, file_id_map: dict[PID, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings.
 
+        Each accession must already exist as an unmapped entry (no file ID) that was
+        registered while tracking legacy searchable resources. Such entries are updated
+        with the file ID, preserving their creation time. No new entries are created
+        here: an accession with no entry yet is unknown. An accession that is already
+        mapped to a different file ID, or that is attributed to a different study, is a
+        conflict. Offending accessions are left untouched.
+
         Raises:
+            UnknownAccessionError: If any accession in the map has no entry yet.
             ConflictingAccessionError: If any accession in the map already exists in the
-                DB with a different file_id. All conflicts are collected before raising
-                so callers receive the full picture in a single error.
+                DB mapped to a different file ID or attributed to a different study.
+            All offending accessions are collected before raising so callers receive
+            the full picture in a single error.
         """
-        existing_mappings = {
-            record.pid: record.file_id
+        existing_records = {
+            record.pid: record
             async for record in self._file_accession_dao.find_all(
                 mapping={"pid": {"$in": list(file_id_map)}}
             )
         }
+        unknown_accessions = [
+            accession for accession in file_id_map if accession not in existing_records
+        ]
+        if unknown_accessions:
+            raise self.UnknownAccessionError(unknown_accessions=unknown_accessions)
+
         conflicting_accessions = [
             accession
             for accession, requested_file_id in file_id_map.items()
-            if existing_mappings.get(accession, requested_file_id) != requested_file_id
+            if (
+                (record := existing_records[accession]).file_id is not None
+                and record.file_id != requested_file_id
+            )
+            or (record.study_id is not None and record.study_id != study_id)
         ]
-
         if conflicting_accessions:
             raise self.ConflictingAccessionError(
                 conflicting_accessions=conflicting_accessions
             )
 
         for accession, file_id in file_id_map.items():
-            file_accession = FileAccession(
-                pid=accession,
-                file_id=file_id,
-                study_id=study_id,
-                mapped=now_utc_ms_prec(),
+            # Update the existing unmapped entry, keeping its created time.
+            file_accession = existing_records[accession].model_copy(
+                update={
+                    "file_id": file_id,
+                    "study_id": study_id,
+                    "mapped": now_utc_ms_prec(),
+                }
             )
             await self._file_accession_dao.upsert(file_accession)
             log.info(

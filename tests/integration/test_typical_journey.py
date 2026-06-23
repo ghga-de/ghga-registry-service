@@ -20,6 +20,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from ghga_event_schemas.pydantic_ import SearchableResource
 from ghga_service_commons.auth.ghga import AuthContext
 from hexkit.utils import now_utc_ms_prec
 from pytest_httpx import HTTPXMock
@@ -281,6 +282,25 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
                 "state_updated": now_utc_ms_prec().isoformat(),
             },
         ],
+    )
+
+    # The accessions must first be tracked as unmapped via a legacy searchable
+    # resource before they can be mapped to internal file IDs.
+    await joint_fixture.registry.legacy_resource_manager.upsert_resource(
+        resource=SearchableResource(
+            accession="GHGA-DATASET-001",
+            class_name="EmbeddedDataset",
+            content={
+                "study": {
+                    "accession": "GHGA-STUDY-001",
+                    "title": "Test study",
+                    "description": "A study used in the typical journey test.",
+                    "types": ["genomics"],
+                    "affiliations": ["GHGA"],
+                },
+                "files": ["GHGAF001", "GHGAF002", "GHGAF003"],
+            },
+        )
     )
 
     # Update the accession map and check that the outbox event was published

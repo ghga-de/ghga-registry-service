@@ -50,6 +50,7 @@ class HttpAccessionMapError(HttpCustomExceptionBase):
 
         error_type: str
         conflicting_accessions: list[str] = []
+        unknown_accessions: list[str] = []
         affected_file_ids: list[str] = []
 
     def __init__(
@@ -57,6 +58,7 @@ class HttpAccessionMapError(HttpCustomExceptionBase):
         *,
         error_type: str,
         conflicting_accessions: list[str] | None = None,
+        unknown_accessions: list[str] | None = None,
         affected_file_ids: list[str] | None = None,
         status_code: int = 409,
     ):
@@ -67,6 +69,7 @@ class HttpAccessionMapError(HttpCustomExceptionBase):
             data={
                 "error_type": error_type,
                 "conflicting_accessions": conflicting_accessions or [],
+                "unknown_accessions": unknown_accessions or [],
                 "affected_file_ids": affected_file_ids or [],
             },
         )

@@ -961,6 +961,7 @@ async def test_submit_accession_map(
             {
                 "error_type": "archived",
                 "conflicting_accessions": [],
+                "unknown_accessions": [],
                 "affected_file_ids": [],
             },
         ),
@@ -972,6 +973,7 @@ async def test_submit_accession_map(
             {
                 "error_type": "duplicate_file_ids",
                 "conflicting_accessions": [],
+                "unknown_accessions": [],
                 "affected_file_ids": ["file-1", "file-2"],
             },
         ),
@@ -983,6 +985,7 @@ async def test_submit_accession_map(
             {
                 "error_type": "unknown_file_ids",
                 "conflicting_accessions": [],
+                "unknown_accessions": [],
                 "affected_file_ids": ["file-3"],
             },
         ),
@@ -994,6 +997,7 @@ async def test_submit_accession_map(
             {
                 "error_type": "unmapped_file_ids",
                 "conflicting_accessions": [],
+                "unknown_accessions": [],
                 "affected_file_ids": ["file-4", "file-5"],
             },
         ),
@@ -1005,6 +1009,19 @@ async def test_submit_accession_map(
             {
                 "error_type": "accession_conflict",
                 "conflicting_accessions": ["GHGAF001", "GHGAF002"],
+                "unknown_accessions": [],
+                "affected_file_ids": [],
+            },
+        ),
+        (
+            {
+                "error_type": "unknown_accessions",
+                "unknown_accessions": ["GHGAF001", "GHGAF002"],
+            },
+            {
+                "error_type": "unknown_accessions",
+                "conflicting_accessions": [],
+                "unknown_accessions": ["GHGAF001", "GHGAF002"],
                 "affected_file_ids": [],
             },
         ),

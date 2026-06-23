@@ -323,6 +323,7 @@ async def submit_accession_map(
         raise HttpAccessionMapError(
             error_type=err.error_type,
             conflicting_accessions=err.conflicting_accessions,
+            unknown_accessions=err.unknown_accessions,
             affected_file_ids=err.affected_file_ids,
             status_code=409
             if err.error_type in {"accession_conflict", "archived"}

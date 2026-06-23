@@ -64,8 +64,10 @@ class RDUBManagerPort(ABC):
           `affected_file_ids` contains them.
         - "unmapped_file_ids": active box files are absent from the map;
           `affected_file_ids` contains them.
-        - "accession_conflict": accessions already mapped to different file IDs
-          (immutability violation); `conflicting_accessions` contains them.
+        - "accession_conflict": accessions already mapped to different file IDs or
+          attributed to a different study; `conflicting_accessions` contains them.
+        - "unknown_accessions": accessions not registered yet (no unmapped entry);
+          `unknown_accessions` contains them.
         """
 
         def __init__(
@@ -74,10 +76,12 @@ class RDUBManagerPort(ABC):
             *,
             error_type: str,
             conflicting_accessions: list[str] | None = None,
+            unknown_accessions: list[str] | None = None,
             affected_file_ids: list[str] | None = None,
         ) -> None:
             self.error_type = error_type
             self.conflicting_accessions = conflicting_accessions or []
+            self.unknown_accessions = unknown_accessions or []
             self.affected_file_ids = affected_file_ids or []
             super().__init__(message)
 

@@ -103,6 +103,17 @@ async def test_submission(
     body = mapping_request.model_dump(mode="json")
     url = f"/upload-boxes/{box_id}/file-ids"
 
+    # The accessions must first be tracked as unmapped entries before they can be mapped
+    async with MongoKafkaDaoPublisherFactory.construct(
+        config=joint_fixture.config
+    ) as dao_publisher_factory:
+        dao = await get_file_accession_dao(
+            config=joint_fixture.config,
+            dao_publisher_factory=dao_publisher_factory,
+        )
+        for accession in (accession1, accession2):
+            await dao.upsert(FileAccession(pid=accession, study_id="test-study-1"))
+
     # Submit the map to the endpoint and capture the events (Should be 2)
     async with joint_fixture.kafka.record_events(
         in_topic=joint_fixture.config.accession_map_topic

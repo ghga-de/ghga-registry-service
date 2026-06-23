@@ -35,15 +35,33 @@ class FileControllerPort(ABC):
             accessions = ", ".join(conflicting_accessions)
             super().__init__(f"Conflicting accession mappings: {accessions}")
 
+    class UnknownAccessionError(RuntimeError):
+        """Raised when a request maps accessions that have no (unmapped) entry yet.
+
+        Accessions must first be registered (as unmapped entries) from the searchable
+        resources before they can be mapped to a file ID.
+        """
+
+        def __init__(self, *, unknown_accessions: list[str]) -> None:
+            self.unknown_accessions = unknown_accessions
+            accessions = ", ".join(unknown_accessions)
+            super().__init__(f"Unknown accessions: {accessions}")
+
     @abstractmethod
-    async def post_file_ids(
+    async def map_accessions_to_file_ids(
         self, *, study_id: str, file_id_map: dict[PID, UUID4]
     ) -> None:
         """Store file accession to internal file ID mappings.
 
+        Each accession must already exist as an unmapped entry (registered while
+        tracking legacy searchable resources); that entry is updated with the file ID.
+        No new accession entries are created here.
+
         Raises:
             ConflictingAccessionError: If any accession in the map already exists in the
-                DB with a different file_id. All conflicts are collected before raising.
+                DB mapped to a different file ID or attributed to a different study.
+            UnknownAccessionError: If any accession in the map has no entry yet.
+            All offending accessions are collected before raising.
         """
 
     @abstractmethod
