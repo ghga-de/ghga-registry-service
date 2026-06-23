@@ -29,9 +29,12 @@ from rs.core.models import (
     GrantId,
     GrantWithBoxInfo,
     ResearchDataUploadBox,
+    Study,
+    StudyStatus,
 )
 from rs.inject import prepare_rest_app
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
+from rs.ports.inbound.registry import RegistryPort
 from rs.ports.outbound.http import FileBoxClientPort
 from tests.fixtures.utils import TEST_BOX_ID, TEST_DS_ID, TEST_MAX_SIZE
 
@@ -1264,4 +1267,114 @@ async def test_delete_file_upload_error_translation(config: Config, user_auth_he
         rdub_manager.reset_mock()
         rdub_manager.rdub_manager.delete_file_upload.side_effect = TypeError()
         response = await rest_client.delete(url, headers=user_auth_headers)
+        assert response.status_code == 500
+
+
+def _make_study(study_id: str) -> Study:
+    """Build a Study for use in the studies endpoint tests."""
+    return Study(
+        id=study_id,
+        title=f"Title of {study_id}",
+        description=f"Description of {study_id}",
+        types=["genomics"],
+        affiliations=["EMBL"],
+        status=StudyStatus.ARCHIVED,
+        created_by=TEST_DS_ID,
+    )
+
+
+async def test_get_study(
+    config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
+):
+    """Test the GET /studies/{study_id} endpoint (data steward only)."""
+    registry = AsyncMock()
+    async with (
+        prepare_rest_app(config=config, registry_override=registry) as app,
+        AsyncTestClient(app=app) as rest_client,
+    ):
+        url = "/studies/GHGAS_test"
+
+        # unauthenticated
+        response = await rest_client.get(url)
+        assert response.status_code == 401
+
+        # bad credentials
+        response = await rest_client.get(url, headers=bad_auth_headers)
+        assert response.status_code == 401
+
+        # a non-steward user is not authorized
+        response = await rest_client.get(url, headers=user_auth_headers)
+        assert response.status_code == 403
+        registry.get_study.assert_not_called()
+
+        # normal response for a data steward
+        study = _make_study("GHGAS_test")
+        registry.get_study.return_value = study
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 200
+        assert response.json() == study.model_dump(mode="json")
+        registry.get_study.assert_awaited_once_with("GHGAS_test")
+
+        # study not found is translated to a 404
+        registry.reset_mock()
+        registry.get_study.side_effect = RegistryPort.StudyNotFoundError(
+            study_id="GHGAS_test"
+        )
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 404
+
+        # unexpected errors are translated to a 500
+        registry.reset_mock()
+        registry.get_study.side_effect = TypeError()
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 500
+
+
+async def test_get_studies(
+    config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
+):
+    """Test the GET /studies endpoint, including the with_unmapped_files filter."""
+    registry = AsyncMock()
+    async with (
+        prepare_rest_app(config=config, registry_override=registry) as app,
+        AsyncTestClient(app=app) as rest_client,
+    ):
+        url = "/studies"
+
+        # unauthenticated
+        response = await rest_client.get(url)
+        assert response.status_code == 401
+
+        # bad credentials
+        response = await rest_client.get(url, headers=bad_auth_headers)
+        assert response.status_code == 401
+
+        # a non-steward user is not authorized
+        response = await rest_client.get(url, headers=user_auth_headers)
+        assert response.status_code == 403
+        registry.get_studies.assert_not_called()
+
+        # normal response for a data steward (no filter -> with_unmapped_files False)
+        studies = [_make_study("GHGAS_a"), _make_study("GHGAS_b")]
+        studies_json = [study.model_dump(mode="json") for study in studies]
+        registry.get_studies.return_value = studies
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 200
+        assert response.json() == studies_json
+        registry.get_studies.assert_awaited_once_with(with_unmapped_files=False)
+
+        # the with_unmapped_files filter is forwarded to the core
+        registry.reset_mock()
+        registry.get_studies.return_value = studies[:1]
+        response = await rest_client.get(
+            url, headers=ds_auth_headers, params={"with_unmapped_files": "true"}
+        )
+        assert response.status_code == 200
+        assert response.json() == studies_json[:1]
+        registry.get_studies.assert_awaited_once_with(with_unmapped_files=True)
+
+        # unexpected errors are translated to a 500
+        registry.reset_mock()
+        registry.get_studies.side_effect = TypeError()
+        response = await rest_client.get(url, headers=ds_auth_headers)
         assert response.status_code == 500

@@ -30,6 +30,7 @@ from rs.adapters.outbound.dao import get_file_accession_dao
 from rs.constants import FILE_ACCESSION_COLLECTION, STUDY_COLLECTION
 from rs.core.legacy_resources import _LEGACY_CREATED_BY
 from rs.core.models import FileAccession, StudyStatus
+from rs.ports.inbound.registry import RegistryPort
 from tests.fixtures.joint import JointFixture
 
 pytestmark = pytest.mark.asyncio
@@ -280,6 +281,59 @@ async def test_existing_file_accession_study_is_updated(joint_fixture: JointFixt
     # Newly seen accessions were created with the study ID.
     assert stored["GHGAF3"]["study_id"] == "GHGAS1"
     assert stored["GHGAF3"]["file_id"] is None
+
+
+async def test_registry_study_queries(joint_fixture: JointFixture):
+    """The registry can look up a single study and list studies with an unmapped filter.
+
+    After consuming a resource that stores a study and tracks its (unmapped) file
+    accessions, the study is retrievable by ID and appears in the listing. It is included
+    by the ``with_unmapped_files`` filter while any of its accessions lack a file ID, and
+    drops out of that filtered listing once all of them have been mapped.
+    """
+    config = joint_fixture.config
+    registry = joint_fixture.registry
+
+    await joint_fixture.kafka.publish_event(
+        payload=_embedded_dataset_payload(),
+        type_=config.resource_upsertion_type,
+        topic=config.resource_change_topic,
+        key="dataset_embedded_GHGAD1",
+    )
+    await joint_fixture.event_subscriber.run(forever=False)
+
+    # A single study can be looked up by its ID.
+    study = await registry.get_study("GHGAS1")
+    assert study.id == "GHGAS1"
+    assert study.title == "A test study"
+
+    # An unknown study ID raises a StudyNotFoundError.
+    with pytest.raises(RegistryPort.StudyNotFoundError):
+        await registry.get_study("DOES_NOT_EXIST")
+
+    # The unfiltered listing returns the study.
+    assert [study.id for study in await registry.get_studies()] == ["GHGAS1"]
+
+    # The study has unmapped file accessions, so it matches the filter.
+    filtered = await registry.get_studies(with_unmapped_files=True)
+    assert [study.id for study in filtered] == ["GHGAS1"]
+
+    # Map all of the study's file accessions to internal file IDs.
+    async with MongoKafkaDaoPublisherFactory.construct(
+        config=config
+    ) as dao_publisher_factory:
+        dao = await get_file_accession_dao(
+            config=config, dao_publisher_factory=dao_publisher_factory
+        )
+        for accession in _PAYLOAD_FILE_ACCESSIONS:
+            await dao.upsert(
+                FileAccession(pid=accession, file_id=uuid4(), study_id="GHGAS1")
+            )
+
+    # With no unmapped accessions left, the study drops out of the filtered listing,
+    # but is still returned by the unfiltered one.
+    assert await registry.get_studies(with_unmapped_files=True) == []
+    assert [study.id for study in await registry.get_studies()] == ["GHGAS1"]
 
 
 async def test_searchable_resource_deletion_is_consumed(joint_fixture: JointFixture):

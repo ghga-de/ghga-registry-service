@@ -17,12 +17,20 @@
 
 from abc import ABC, abstractmethod
 
+from rs.core.models import Study
 from rs.ports.inbound.legacy_resources import LegacyResourceManagerPort
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
 
 
 class RegistryPort(ABC):
     """Inbound port defining all operations of the GHGA Registry Service."""
+
+    class StudyNotFoundError(RuntimeError):
+        """Raised when a study with the given ID could not be found."""
+
+        def __init__(self, *, study_id: str) -> None:
+            self.study_id = study_id
+            super().__init__(f"Study with ID {study_id} not found.")
 
     @property
     @abstractmethod
@@ -37,5 +45,25 @@ class RegistryPort(ABC):
 
         LEGACY: Exists only to fetch searchable resources from the metldata producer.
         Remove once this service owns studies and experimental metadata.
+        """
+        ...
+
+    @abstractmethod
+    async def get_study(self, study_id: str) -> Study:
+        """Get a single study by its ID.
+
+        Raises:
+            StudyNotFoundError: If no study with the given ID exists.
+        """
+        ...
+
+    @abstractmethod
+    async def get_studies(self, *, with_unmapped_files: bool = False) -> list[Study]:
+        """Get the list of all studies, sorted by study ID.
+
+        Args:
+            with_unmapped_files:
+                If True, only return studies that have at least one associated file
+                accession that has not been mapped to an internal file ID yet.
         """
         ...

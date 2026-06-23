@@ -117,6 +117,20 @@ class FileController(FileControllerPort):
                     study_id,
                 )
 
+    async def get_study_ids_with_unmapped_accessions(self) -> set[str]:
+        """Return the IDs of all studies that have at least one unmapped file accession.
+
+        Queries the FileAccession records that have no file ID yet and collects the
+        study IDs they are attributed to. Accessions without a study ID are skipped.
+        """
+        study_ids: set[str] = set()
+        async for record in self._file_accession_dao.find_all(
+            mapping={"file_id": None}
+        ):
+            if record.study_id is not None:
+                study_ids.add(record.study_id)
+        return study_ids
+
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]
     ) -> dict[UUID4, str]:

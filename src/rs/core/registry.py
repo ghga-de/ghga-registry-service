@@ -14,6 +14,10 @@
 # limitations under the License.
 """GHGA Registry implementation"""
 
+from hexkit.protocols.dao import ResourceNotFoundError
+
+from rs.core.models import Study
+from rs.ports.inbound.files import FileControllerPort
 from rs.ports.inbound.legacy_resources import LegacyResourceManagerPort
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
 from rs.ports.inbound.registry import RegistryPort
@@ -29,14 +33,15 @@ class Registry(RegistryPort):
         rdub_manager: RDUBManagerPort,
         legacy_resource_manager: LegacyResourceManagerPort,
         study_dao: StudyDao,
+        file_controller: FileControllerPort,
     ) -> None:
         self._rdub_manager = rdub_manager
         # LEGACY: see LegacyResourceManager. Remove once this service owns studies and
         # experimental metadata and no longer needs to fetch legacy searchable resources.
         self._legacy_resource_manager = legacy_resource_manager
-        # Kept private for internal use by future study operations (e.g. listing
-        # studies); intentionally not exposed on the RegistryPort.
         self._study_dao = study_dao
+        # Used to resolve which studies still have unmapped file accessions.
+        self._file_controller = file_controller
 
     @property
     def rdub_manager(self) -> RDUBManagerPort:
@@ -47,3 +52,25 @@ class Registry(RegistryPort):
     def legacy_resource_manager(self) -> LegacyResourceManagerPort:
         """The LegacyResourceManager component."""
         return self._legacy_resource_manager
+
+    async def get_study(self, study_id: str) -> Study:
+        """Get a single study by its ID."""
+        try:
+            return await self._study_dao.get_by_id(study_id)
+        except ResourceNotFoundError as err:
+            raise self.StudyNotFoundError(study_id=study_id) from err
+
+    async def get_studies(self, *, with_unmapped_files: bool = False) -> list[Study]:
+        """Get the list of all studies, sorted by study ID."""
+        mapping: dict = {}
+        if with_unmapped_files:
+            study_ids = (
+                await self._file_controller.get_study_ids_with_unmapped_accessions()
+            )
+            if not study_ids:
+                return []
+            mapping = {"id": {"$in": list(study_ids)}}
+        return [
+            study
+            async for study in self._study_dao.find_all(mapping=mapping, sort=["id"])
+        ]

@@ -130,6 +130,7 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
             rdub_manager=rdub_manager,
             legacy_resource_manager=legacy_resource_manager,
             study_dao=study_dao,
+            file_controller=file_controller,
         )
 
 
