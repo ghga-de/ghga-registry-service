@@ -21,7 +21,7 @@ from ghga_event_schemas.configs import FileUploadBoxEventsConfig
 from hexkit.protocols.daosub import DaoSubscriberProtocol
 
 from rs.core.models import FileUploadBox
-from rs.ports.inbound.ghga_registry import GHGARegistryPort
+from rs.ports.inbound.registry import RegistryPort
 
 log = logging.getLogger(__name__)
 
@@ -36,16 +36,14 @@ class OutboxSubTranslator(DaoSubscriberProtocol):
     event_topic: str
     dto_model = FileUploadBox
 
-    def __init__(self, *, config: OutboxSubConfig, ghga_registry: GHGARegistryPort):
+    def __init__(self, *, config: OutboxSubConfig, registry: RegistryPort):
         """Configure the class instance"""
         self.event_topic = config.file_upload_box_topic
-        self._ghga_registry = ghga_registry
+        self._registry = registry
 
     async def changed(self, resource_id: str, update: FileUploadBox) -> None:
         """Consume an upserted FileUploadBox and update its parent ResearchDataUploadBox"""
-        await self._ghga_registry.rdub_manager.upsert_file_upload_box(
-            file_upload_box=update
-        )
+        await self._registry.rdub_manager.upsert_file_upload_box(file_upload_box=update)
 
     async def deleted(self, resource_id: str) -> None:
         """Consume a FileUploadBox deletion event.

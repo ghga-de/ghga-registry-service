@@ -41,7 +41,7 @@ pytestmark = pytest.mark.asyncio
 async def test_health(config: Config):
     """Test the health endpoint returns a 200"""
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=AsyncMock()) as app,
+        prepare_rest_app(config=config, registry_override=AsyncMock()) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         response = await rest_client.get("/health")
@@ -52,9 +52,9 @@ async def test_get_research_data_upload_box(
     config: Config, user_auth_headers, bad_auth_headers
 ):
     """Test the GET /upload-boxes/{box_id} endpoint."""
-    ghga_registry = AsyncMock()
+    registry = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=ghga_registry) as app,
+        prepare_rest_app(config=config, registry_override=registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         # unauthenticated
@@ -81,32 +81,30 @@ async def test_get_research_data_upload_box(
             storage_alias="HD",
             max_size=TEST_MAX_SIZE,
         )
-        ghga_registry.rdub_manager.get_research_data_upload_box.return_value = box
+        registry.rdub_manager.get_research_data_upload_box.return_value = box
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 200
         assert response.json() == box.model_dump(mode="json")
 
         # handle box access error from core -- we obscure this with 404 for security
-        ghga_registry.reset_mock()
-        ghga_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+        registry.reset_mock()
+        registry.rdub_manager.get_research_data_upload_box.side_effect = (
             RDUBManagerPort.BoxAccessError()
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle box not found error from core
-        ghga_registry.reset_mock()
-        ghga_registry.rdub_manager.get_research_data_upload_box.side_effect = (
+        registry.reset_mock()
+        registry.rdub_manager.get_research_data_upload_box.side_effect = (
             RDUBManagerPort.BoxNotFoundError(box_id=box.id)
         )
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 404
 
         # handle other exception
-        ghga_registry.reset_mock()
-        ghga_registry.rdub_manager.get_research_data_upload_box.side_effect = (
-            TypeError()
-        )
+        registry.reset_mock()
+        registry.rdub_manager.get_research_data_upload_box.side_effect = TypeError()
         response = await rest_client.get(url, headers=user_auth_headers)
         assert response.status_code == 500
 
@@ -115,9 +113,9 @@ async def test_create_research_data_upload_box(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
     """Test the POST /upload-boxes endpoint"""
-    ghga_registry = AsyncMock()
+    registry = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=ghga_registry) as app,
+        prepare_rest_app(config=config, registry_override=registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -147,9 +145,7 @@ async def test_create_research_data_upload_box(
         # normal response with data steward role
         # Mock the rdub_manager to return a box ID
         test_box_id = uuid4()
-        ghga_registry.rdub_manager.create_research_data_upload_box.return_value = (
-            test_box_id
-        )
+        registry.rdub_manager.create_research_data_upload_box.return_value = test_box_id
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
@@ -157,8 +153,8 @@ async def test_create_research_data_upload_box(
         assert response.json() == str(test_box_id)
 
         # handle title collision / 409
-        ghga_registry.reset_mock()
-        ghga_registry.rdub_manager.create_research_data_upload_box.side_effect = (
+        registry.reset_mock()
+        registry.rdub_manager.create_research_data_upload_box.side_effect = (
             RDUBManagerPort.BoxTitleExistsError()
         )
         response = await rest_client.post(
@@ -170,8 +166,8 @@ async def test_create_research_data_upload_box(
         )
 
         # handle file box service error from core
-        ghga_registry.reset_mock()
-        ghga_registry.rdub_manager.create_research_data_upload_box.side_effect = (
+        registry.reset_mock()
+        registry.rdub_manager.create_research_data_upload_box.side_effect = (
             FileBoxClientPort.OperationError()
         )
         response = await rest_client.post(
@@ -180,10 +176,8 @@ async def test_create_research_data_upload_box(
         assert response.status_code == 500
 
         # handle other exception
-        ghga_registry.reset_mock()
-        ghga_registry.rdub_manager.create_research_data_upload_box.side_effect = (
-            TypeError()
-        )
+        registry.reset_mock()
+        registry.rdub_manager.create_research_data_upload_box.side_effect = TypeError()
         response = await rest_client.post(
             url, json=request_data, headers=ds_auth_headers
         )
@@ -196,7 +190,7 @@ async def test_update_research_data_upload_box(
     """Test the PATCH /upload-boxes/{box_id} endpoint."""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -342,7 +336,7 @@ async def test_grant_upload_access(
     """Test the POST /upload-grants endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -396,7 +390,7 @@ async def test_list_upload_box_files(
     """Test the GET /upload-boxes/{box_id}/uploads endpoint."""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/uploads"
@@ -470,7 +464,7 @@ async def test_revoke_upload_access_grant(
     test_grant_id = uuid4()
 
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-grants/{test_grant_id}"
@@ -511,7 +505,7 @@ async def test_get_upload_access_grants_auth_guard(config: Config, bad_auth_head
     """Test auth guarding for GET /upload-grants."""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -531,7 +525,7 @@ async def test_get_upload_access_grants_user_implicit_own(
     rdub_manager.rdub_manager.get_upload_access_grants.return_value = []
 
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -553,7 +547,7 @@ async def test_get_upload_access_grants_user_explicit_own(
     rdub_manager.rdub_manager.get_upload_access_grants.return_value = []
 
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -577,7 +571,7 @@ async def test_get_upload_access_grants_user_other_user_forbidden(
     """Test that regular users cannot fetch grants belonging to other users."""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -616,7 +610,7 @@ async def test_get_upload_access_grants_steward_can_query_all_and_filtered(
     rdub_manager.rdub_manager.get_upload_access_grants.return_value = test_grants
 
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -643,7 +637,7 @@ async def test_get_upload_access_grants_maps_unexpected_errors_to_500(
     rdub_manager.rdub_manager.get_upload_access_grants.side_effect = TypeError()
 
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-grants"
@@ -692,7 +686,7 @@ async def test_get_boxes(
     ]
 
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -773,7 +767,7 @@ async def test_get_boxes_bad_parameters(config: Config, ds_auth_headers, params)
     """Test the GET /upload-boxes endpoint with bad parameters but valid auth context"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = "/upload-boxes"
@@ -787,7 +781,7 @@ async def test_archive_via_update_endpoint(
     """Test archiving a box through the PATCH /upload-boxes/{box_id} endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -848,7 +842,7 @@ async def test_submit_accession_map(
     """Test the POST /upload-boxes/{box_id}/accessions endpoint"""
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/file-ids"
@@ -1025,7 +1019,7 @@ async def test_accession_map_error_translation(
     """
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/file-ids"
@@ -1068,7 +1062,7 @@ async def test_create_box_rejects_blank_fields(
     }
     request_data = {**base_data, blank_field: "   "}
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=AsyncMock()) as app,
+        prepare_rest_app(config=config, registry_override=AsyncMock()) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         response = await rest_client.post(
@@ -1094,7 +1088,7 @@ async def test_update_box_invalid_request_body(
     and max_size must be a positive integer when provided.
     """
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=AsyncMock()) as app,
+        prepare_rest_app(config=config, registry_override=AsyncMock()) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -1113,7 +1107,7 @@ async def test_delete_file_upload(
     rdub_manager = AsyncMock()
     test_file_id = uuid4()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/uploads/{test_file_id}"
@@ -1148,7 +1142,7 @@ async def test_delete_research_data_upload_box(
     """
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -1211,7 +1205,7 @@ async def test_delete_research_data_upload_box_error_translation(
     """
     rdub_manager = AsyncMock()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}"
@@ -1238,7 +1232,7 @@ async def test_delete_file_upload_error_translation(config: Config, user_auth_he
     rdub_manager = AsyncMock()
     test_file_id = uuid4()
     async with (
-        prepare_rest_app(config=config, ghga_registry_override=rdub_manager) as app,
+        prepare_rest_app(config=config, registry_override=rdub_manager) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
         url = f"/upload-boxes/{TEST_BOX_ID}/uploads/{test_file_id}"

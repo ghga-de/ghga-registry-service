@@ -55,7 +55,7 @@ async def test_typical_journey(joint_fixture: JointFixture, httpx_mock: HTTPXMoc
     research_box_topic = joint_fixture.config.research_data_upload_box_topic
 
     # Shorthand reference to the rdub_manager
-    rdub_manager = joint_fixture.ghga_registry.rdub_manager
+    rdub_manager = joint_fixture.registry.rdub_manager
 
     # Create auth contexts
     iat = now_utc_ms_prec() - timedelta(hours=1)
@@ -355,7 +355,7 @@ async def test_duplicate_box_title(joint_fixture: JointFixture, httpx_mock: HTTP
     already exists.
     """
     config = joint_fixture.config
-    rdub_manager = joint_fixture.ghga_registry.rdub_manager
+    rdub_manager = joint_fixture.registry.rdub_manager
     ds_user_id = uuid4()
 
     # Create a box (requires data steward)

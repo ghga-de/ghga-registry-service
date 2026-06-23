@@ -56,7 +56,7 @@ async def test_submission(
     )
 
     # Create an RDUB
-    rdub_manager = joint_fixture.ghga_registry.rdub_manager
+    rdub_manager = joint_fixture.registry.rdub_manager
     box_id = await rdub_manager.create_research_data_upload_box(
         title="Box A",
         description="Description of Box A",

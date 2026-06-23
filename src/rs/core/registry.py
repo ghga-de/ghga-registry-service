@@ -12,19 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Defines the main GHGA Registry Service inbound port."""
-
-from abc import ABC, abstractmethod
+"""GHGA Registry implementation"""
 
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
+from rs.ports.inbound.registry import RegistryPort
 
 
-class GHGARegistryPort(ABC):
-    """Inbound port defining all operations of the GHGA Registry Service."""
+class Registry(RegistryPort):
+    """Top-level class linking all constituent registry operations"""
+
+    def __init__(
+        self,
+        *,
+        rdub_manager: RDUBManagerPort,
+    ) -> None:
+        self._rdub_manager = rdub_manager
 
     @property
-    @abstractmethod
     def rdub_manager(self) -> RDUBManagerPort:
         """The RDUBManager component."""
-        ...
+        return self._rdub_manager
