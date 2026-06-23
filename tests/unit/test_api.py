@@ -1395,3 +1395,61 @@ async def test_get_studies(
         registry.get_studies.side_effect = TypeError()
         response = await rest_client.get(url, headers=ds_auth_headers)
         assert response.status_code == 500
+
+
+async def test_get_accession_map(
+    config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
+):
+    """Test the GET /studies/{study_id}/file-ids endpoint (data steward only)."""
+    registry = AsyncMock()
+    async with (
+        prepare_rest_app(config=config, registry_override=registry) as app,
+        AsyncTestClient(app=app) as rest_client,
+    ):
+        url = "/studies/GHGAS_test/file-ids"
+
+        # unauthenticated
+        response = await rest_client.get(url)
+        assert response.status_code == 401
+
+        # bad credentials
+        response = await rest_client.get(url, headers=bad_auth_headers)
+        assert response.status_code == 401
+
+        # a non-steward user is not authorized
+        response = await rest_client.get(url, headers=user_auth_headers)
+        assert response.status_code == 403
+        registry.file_controller.get_accession_map.assert_not_called()
+
+        # normal response for a data steward, with mapped and unmapped accessions
+        file_id = uuid4()
+        registry.get_study.return_value = _make_study("GHGAS_test")
+        registry.file_controller.get_accession_map.return_value = {
+            "GHGAF_mapped": file_id,
+            "GHGAF_unmapped": None,
+        }
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 200
+        assert response.json() == {
+            "GHGAF_mapped": str(file_id),
+            "GHGAF_unmapped": None,
+        }
+        registry.get_study.assert_awaited_once_with("GHGAS_test")
+        registry.file_controller.get_accession_map.assert_awaited_once_with(
+            study_id="GHGAS_test"
+        )
+
+        # a missing study is translated to a 404 and the map is not fetched
+        registry.reset_mock()
+        registry.get_study.side_effect = RegistryPort.StudyNotFoundError(
+            study_id="GHGAS_test"
+        )
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 404
+        registry.file_controller.get_accession_map.assert_not_called()
+
+        # unexpected errors are translated to a 500
+        registry.reset_mock()
+        registry.get_study.side_effect = TypeError()
+        response = await rest_client.get(url, headers=ds_auth_headers)
+        assert response.status_code == 500

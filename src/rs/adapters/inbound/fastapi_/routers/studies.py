@@ -19,6 +19,7 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Query
+from pydantic import UUID4
 
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.auth import StewardAuthContext
@@ -103,3 +104,37 @@ async def get_studies(
     except Exception as err:
         log.error(err, exc_info=True)
         raise HttpInternalError(message="Failed to get studies") from err
+
+
+@study_router.get(
+    "/{study_id}/file-ids",
+    summary="Get the accession to file ID map for a study",
+    description=(
+        "Returns the map of file accessions to internal file IDs for the given study."
+        " Accessions that have not been mapped to a file ID yet have a null value, which"
+        " lets the mapping tool filter out already mapped files."
+    ),
+    response_model=dict[str, UUID4 | None],
+    responses={
+        200: {"description": "Accession map successfully retrieved."},
+        401: {"description": "Not authenticated."},
+        403: {"description": "Not authorized."},
+        404: {"description": "Study not found."},
+    },
+)
+@TRACER.start_as_current_span("routes.get_accession_map")
+async def get_accession_map(
+    study_id: str,
+    registry: dummies.RegistryDummy,
+    auth_context: StewardAuthContext,
+) -> dict[str, UUID4 | None]:
+    """Get the accession to file ID map for a single study by its ID."""
+    try:
+        # Ensure the study exists so an empty map is unambiguous.
+        await registry.get_study(study_id)
+        return await registry.file_controller.get_accession_map(study_id=study_id)
+    except RegistryPort.StudyNotFoundError as err:
+        raise HttpStudyNotFoundError(study_id=study_id) from err
+    except Exception as err:
+        log.error(err, exc_info=True)
+        raise HttpInternalError(message="Failed to get accession map") from err

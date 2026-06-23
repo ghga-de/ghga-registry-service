@@ -151,6 +151,20 @@ class FileController(FileControllerPort):
                 study_ids.add(record.study_id)
         return study_ids
 
+    async def get_accession_map(self, *, study_id: str) -> dict[str, UUID4 | None]:
+        """Return the accession to file ID map for a study.
+
+        Queries all FileAccession records attributed to the given study and returns a
+        dict mapping each accession (str) to its internal file ID (UUID4), or None if
+        the accession has not been mapped yet.
+        """
+        return {
+            record.pid: record.file_id
+            async for record in self._file_accession_dao.find_all(
+                mapping={"study_id": study_id}
+            )
+        }
+
     async def get_accessions_by_file_ids(
         self, *, file_ids: set[UUID4]
     ) -> dict[UUID4, str]:

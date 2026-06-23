@@ -697,6 +697,49 @@ paths:
       summary: Get study details
       tags:
       - Studies
+  /studies/{study_id}/file-ids:
+    get:
+      description: Returns the map of file accessions to internal file IDs for the
+        given study. Accessions that have not been mapped to a file ID yet have a
+        null value, which lets the mapping tool filter out already mapped files.
+      operationId: get_accession_map_studies__study_id__file_ids_get
+      parameters:
+      - in: path
+        name: study_id
+        required: true
+        schema:
+          title: Study Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  anyOf:
+                  - format: uuid4
+                    type: string
+                  - type: 'null'
+                title: Response Get Accession Map Studies  Study Id  File Ids Get
+                type: object
+          description: Accession map successfully retrieved.
+        '401':
+          description: Not authenticated.
+        '403':
+          description: Not authorized.
+        '404':
+          description: Study not found.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      security:
+      - HTTPBearer: []
+      summary: Get the accession to file ID map for a study
+      tags:
+      - Studies
   /upload-boxes:
     get:
       description: Returns a list of research data upload boxes. Results are sorted

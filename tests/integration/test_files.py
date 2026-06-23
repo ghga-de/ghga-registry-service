@@ -179,3 +179,46 @@ async def test_unmapped_accession_publishes_no_event(joint_fixture: JointFixture
         assert event.key == accession
         assert event.payload["accession"] == accession
         assert event.payload["file_id"] == str(file_id)
+
+
+async def test_get_accession_map(joint_fixture: JointFixture):
+    """get_accession_map returns a study's accessions mapped to file IDs or None."""
+    study_id = "test-study-1"
+    other_study_id = "test-study-2"
+    mapped_file_id = uuid4()
+
+    async with MongoKafkaDaoPublisherFactory.construct(
+        config=joint_fixture.config
+    ) as dao_publisher_factory:
+        dao = await get_file_accession_dao(
+            config=joint_fixture.config,
+            dao_publisher_factory=dao_publisher_factory,
+        )
+        # A mapped and an unmapped accession for the study under test ...
+        await dao.upsert(
+            FileAccession(
+                pid="GHGAF_mapped",
+                study_id=study_id,
+                file_id=mapped_file_id,
+                mapped=now_utc_ms_prec(),
+            )
+        )
+        await dao.upsert(FileAccession(pid="GHGAF_unmapped", study_id=study_id))
+        # ... plus an accession of another study that must not leak in.
+        await dao.upsert(FileAccession(pid="GHGAF_other", study_id=other_study_id))
+
+    accession_map = await joint_fixture.registry.file_controller.get_accession_map(
+        study_id=study_id
+    )
+    assert accession_map == {
+        "GHGAF_mapped": mapped_file_id,
+        "GHGAF_unmapped": None,
+    }
+
+    # An unknown study simply yields an empty map.
+    assert (
+        await joint_fixture.registry.file_controller.get_accession_map(
+            study_id="does-not-exist"
+        )
+        == {}
+    )

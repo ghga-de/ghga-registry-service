@@ -40,7 +40,8 @@ class Registry(RegistryPort):
         # experimental metadata and no longer needs to fetch legacy searchable resources.
         self._legacy_resource_manager = legacy_resource_manager
         self._study_dao = study_dao
-        # Used to resolve which studies still have unmapped file accessions.
+        # Owns file accession / file ID mappings; exposed via the file_controller property
+        # and used to resolve which studies still have unmapped file accessions.
         self._file_controller = file_controller
 
     @property
@@ -52,6 +53,11 @@ class Registry(RegistryPort):
     def legacy_resource_manager(self) -> LegacyResourceManagerPort:
         """The LegacyResourceManager component."""
         return self._legacy_resource_manager
+
+    @property
+    def file_controller(self) -> FileControllerPort:
+        """The FileController component."""
+        return self._file_controller
 
     async def get_study(self, study_id: str) -> Study:
         """Get a single study by its ID."""
