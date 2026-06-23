@@ -2,6 +2,14 @@
   "additionalProperties": false,
   "description": "Modifies the original Settings class provided by the user",
   "properties": {
+    "study_topic": {
+      "description": "Name of the event topic containing study events",
+      "examples": [
+        "studies"
+      ],
+      "title": "Study Topic",
+      "type": "string"
+    },
     "accession_map_topic": {
       "description": "The name of the topic used for file accession map events",
       "examples": [
@@ -554,6 +562,7 @@
     }
   },
   "required": [
+    "study_topic",
     "accession_map_topic",
     "research_data_upload_box_topic",
     "file_upload_box_topic",

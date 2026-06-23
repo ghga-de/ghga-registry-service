@@ -49,6 +49,13 @@ rs --help
 ### Parameters
 
 The service requires the following configuration parameters:
+- <a id="properties/study_topic"></a>**`study_topic`** *(string, required)*: Name of the event topic containing study events.
+
+  Examples:
+  ```json
+  "studies"
+  ```
+
 - <a id="properties/accession_map_topic"></a>**`accession_map_topic`** *(string, required)*: The name of the topic used for file accession map events.
 
   Examples:

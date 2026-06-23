@@ -36,7 +36,11 @@ from rs.adapters.inbound.event_sub import OutboxSubTranslator
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.configure import get_configured_app
 from rs.adapters.outbound.audit import AuditRepository
-from rs.adapters.outbound.dao import get_box_dao, get_file_accession_dao
+from rs.adapters.outbound.dao import (
+    get_box_dao,
+    get_file_accession_dao,
+    get_study_dao,
+)
 from rs.adapters.outbound.event_pub import EventPubTranslator
 from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
@@ -101,6 +105,9 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
         box_dao = await get_box_dao(
             config=config, dao_publisher_factory=dao_publisher_factory
         )
+        study_dao = await get_study_dao(
+            config=config, dao_publisher_factory=dao_publisher_factory
+        )
         access_client = AccessClient(config=config, httpx_client=httpx_client)
         file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
 
@@ -112,7 +119,7 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
             file_upload_box_client=file_upload_box_client,
         )
 
-        yield Registry(rdub_manager=rdub_manager)
+        yield Registry(rdub_manager=rdub_manager, study_dao=study_dao)
 
 
 def prepare_core_with_override(

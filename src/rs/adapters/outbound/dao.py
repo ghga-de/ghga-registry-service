@@ -22,16 +22,44 @@ from ghga_event_schemas.configs import (
 from ghga_event_schemas.pydantic_ import FileAccessionMapping
 from hexkit.providers.mongodb import MongoDbIndex
 from hexkit.providers.mongokafka import MongoKafkaDaoPublisherFactory
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
-from rs.constants import FILE_ACCESSION_COLLECTION, RESEARCH_DATA_UPLOAD_BOX_COLLECTION
-from rs.core.models import FileAccession, ResearchDataUploadBox
-from rs.ports.outbound.dao import BoxDao, FileAccessionDao
+from rs.constants import (
+    FILE_ACCESSION_COLLECTION,
+    RESEARCH_DATA_UPLOAD_BOX_COLLECTION,
+    STUDY_COLLECTION,
+)
+from rs.core.models import FileAccession, ResearchDataUploadBox, Study
+from rs.ports.outbound.dao import BoxDao, FileAccessionDao, StudyDao
 
-__all__ = ["OutboxPubConfig", "get_box_dao", "get_file_accession_dao"]
+__all__ = [
+    "OutboxPubConfig",
+    "get_box_dao",
+    "get_file_accession_dao",
+    "get_study_dao",
+]
+
+
+# NOTE: Defined here temporarily. Should be moved to ghga_event_schemas once the
+# Study schema is finalized, alongside the configs imported above.
+class StudyEventsConfig(BaseSettings):
+    """Config for events communicating changes in Studies.
+
+    The event types are hardcoded by `hexkit`.
+    """
+
+    study_topic: str = Field(
+        default=...,
+        description="Name of the event topic containing study events",
+        examples=["studies"],
+    )
 
 
 class OutboxPubConfig(
-    ResearchDataUploadBoxEventsConfig, FileAccessionMappingEventsConfig
+    ResearchDataUploadBoxEventsConfig,
+    FileAccessionMappingEventsConfig,
+    StudyEventsConfig,
 ):
     """Config needed to publish outbox events"""
 
@@ -81,6 +109,24 @@ async def get_box_dao(
         event_topic=config.research_data_upload_box_topic,
         indexes=[
             MongoDbIndex(fields="file_upload_box_id"),
+            MongoDbIndex(fields="title"),
+        ],
+    )
+
+
+async def get_study_dao(
+    *, config: OutboxPubConfig, dao_publisher_factory: MongoKafkaDaoPublisherFactory
+) -> StudyDao:
+    """Construct a Study outbox DAO from the provided dao_publisher_factory"""
+    return await dao_publisher_factory.get_dao(
+        name=STUDY_COLLECTION,
+        dto_model=Study,
+        id_field="id",
+        autopublish=True,
+        dto_to_event=lambda dto: dto.model_dump(mode="json"),
+        event_topic=config.study_topic,
+        indexes=[
+            MongoDbIndex(fields="status"),
             MongoDbIndex(fields="title"),
         ],
     )

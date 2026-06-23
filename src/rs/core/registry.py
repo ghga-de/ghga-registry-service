@@ -16,6 +16,7 @@
 
 from rs.ports.inbound.rdub_manager import RDUBManagerPort
 from rs.ports.inbound.registry import RegistryPort
+from rs.ports.outbound.dao import StudyDao
 
 
 class Registry(RegistryPort):
@@ -25,8 +26,12 @@ class Registry(RegistryPort):
         self,
         *,
         rdub_manager: RDUBManagerPort,
+        study_dao: StudyDao,
     ) -> None:
         self._rdub_manager = rdub_manager
+        # Kept private for internal use by future study operations (e.g. listing
+        # studies); intentionally not exposed on the RegistryPort.
+        self._study_dao = study_dao
 
     @property
     def rdub_manager(self) -> RDUBManagerPort:
