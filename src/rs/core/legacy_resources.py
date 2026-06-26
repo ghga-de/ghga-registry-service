@@ -25,7 +25,7 @@ from typing import Any
 from uuid import UUID
 
 import ghga_event_schemas.pydantic_ as event_schemas
-from hexkit.protocols.dao import ResourceNotFoundError
+from hexkit.protocols.dao import ResourceAlreadyExistsError
 from pydantic import BaseModel, Field, ValidationError
 
 from rs.core.models import Study, StudyStatus
@@ -141,18 +141,17 @@ class LegacyResourceManager(LegacyResourceManagerPort):
 
         study = _study_from_content(parsed.study)
         try:
-            await self._study_dao.get_by_id(study.id)
-        except ResourceNotFoundError:
             await self._study_dao.insert(study)
-            log.info(
-                "Inserted study %s from legacy searchable resource %s/%s.",
+        except ResourceAlreadyExistsError:
+            log.debug(
+                "Study %s already exists, skipping legacy searchable resource %s/%s.",
                 study.id,
                 resource.class_name,
                 resource.accession,
             )
         else:
-            log.debug(
-                "Study %s already exists, skipping legacy searchable resource %s/%s.",
+            log.info(
+                "Inserted study %s from legacy searchable resource %s/%s.",
                 study.id,
                 resource.class_name,
                 resource.accession,
