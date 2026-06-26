@@ -17,7 +17,11 @@
 
 import logging
 
-from hexkit.providers.mongodb.migrations import MigrationDefinition, Reversible
+from hexkit.providers.mongodb.migrations import (
+    Document,
+    MigrationDefinition,
+    Reversible,
+)
 from hexkit.utils import now_utc_ms_prec
 
 from rs.constants import FILE_ACCESSION_COLLECTION, RESEARCH_DATA_UPLOAD_BOX_COLLECTION
@@ -49,10 +53,15 @@ class V2Migration(MigrationDefinition, Reversible):
     2. Rename the `boxes` collection to `researchDataUploadBoxes`.
 
        The collection stores `ResearchDataUploadBox` outbox documents. Only the
-       collection name changes; the document schema is unchanged, so each document
-       (including its `_id` and outbox `__metadata__`) is copied over verbatim.
+       collection name changes; the document schema is unchanged, so the collection
+       is renamed atomically (each document, including its `_id` and outbox
+       `__metadata__`, is preserved verbatim).
 
-    The old `fileAccessionMappings` and `boxes` collections are dropped afterwards.
+    The migration is crash-safe: the reshaped file accessions are built in a
+    temporary collection and the boxes are renamed atomically, with the final swap
+    into place happening only at the end. The legacy `fileAccessionMappings` and
+    `boxes` collections no longer exist once the migration completes. An interrupted
+    run leaves the source collections intact and can simply be retried.
 
     Reversal is best-effort: the box rename is fully reversible, but the file
     accession reversal only recovers the original `FileAccessionMapping` fields
@@ -87,11 +96,10 @@ class V2Migration(MigrationDefinition, Reversible):
             )
             return
 
-        old_collection = self._db[V1_FILE_ACCESSION_MAPPING_COLLECTION]
-        new_collection = self._db[FILE_ACCESSION_COLLECTION]
         now = now_utc_ms_prec()
 
-        async for doc in old_collection.find():
+        async def to_file_accession(doc: Document) -> Document:
+            """Reshape a legacy `FileAccessionMapping` doc into a `FileAccession`."""
             metadata = doc.get("__metadata__")
             file_accession = FileAccession(
                 pid=doc["_id"],
@@ -108,9 +116,26 @@ class V2Migration(MigrationDefinition, Reversible):
                 "correlation_id": "",
                 "last_event_id": None,
             }
-            await new_collection.insert_one(new_doc)
+            return new_doc
 
-        await old_collection.drop()
+        # Build the reshaped documents in a temporary collection. This leaves the
+        # source collection untouched and drops the temp collection first, so an
+        # interrupted run can simply be retried without hitting duplicate IDs.
+        # No `validation_model` is passed: the docs carry an outbox `__metadata__`
+        # envelope that `validate_doc` would reject as an unexpected field.
+        await self.migrate_docs_in_collection(
+            coll_name=V1_FILE_ACCESSION_MAPPING_COLLECTION,
+            change_function=to_file_accession,
+        )
+
+        # Atomically move the reshaped collection into its final name, then drop the
+        # source. `dropTarget` keeps the rename idempotent across retries. The temp
+        # collection is absent only if the source held no documents.
+        temp_name = self.new_temp_name(V1_FILE_ACCESSION_MAPPING_COLLECTION)
+        if temp_name in await self._db.list_collection_names():
+            await self._db[temp_name].rename(FILE_ACCESSION_COLLECTION, dropTarget=True)
+        await self._db[V1_FILE_ACCESSION_MAPPING_COLLECTION].drop()
+
         log.info(
             "Migrated collection '%s' to '%s' %s",
             V1_FILE_ACCESSION_MAPPING_COLLECTION,
@@ -128,13 +153,13 @@ class V2Migration(MigrationDefinition, Reversible):
             )
             return
 
-        old_collection = self._db[V1_BOX_COLLECTION]
-        new_collection = self._db[RESEARCH_DATA_UPLOAD_BOX_COLLECTION]
+        # The documents are copied verbatim, so a single atomic rename suffices.
+        # There is no intermediate state, which makes this inherently crash-safe.
+        # `dropTarget` keeps the rename idempotent across retries.
+        await self._db[V1_BOX_COLLECTION].rename(
+            RESEARCH_DATA_UPLOAD_BOX_COLLECTION, dropTarget=True
+        )
 
-        async for doc in old_collection.find():
-            await new_collection.insert_one(doc)
-
-        await old_collection.drop()
         log.info(
             "Migrated collection '%s' to '%s' %s",
             V1_BOX_COLLECTION,
@@ -159,18 +184,31 @@ class V2Migration(MigrationDefinition, Reversible):
             return
 
         new_collection = self._db[FILE_ACCESSION_COLLECTION]
-        old_collection = self._db[V1_FILE_ACCESSION_MAPPING_COLLECTION]
+
+        # Build the restored documents in a temporary collection, dropping it first so
+        # an interrupted run can be retried. `migrate_docs_in_collection` can't be used
+        # here because unmapped accessions (null `file_id`) have to be filtered out.
+        temp_name = self.new_temp_name(V1_FILE_ACCESSION_MAPPING_COLLECTION)
+        await self._db.drop_collection(temp_name)
+        temp_collection = self._db[temp_name]
 
         async for doc in new_collection.find():
             if doc.get("file_id") is None:
                 continue
-            old_doc = {"_id": doc["_id"], "file_id": doc["file_id"]}
+            old_doc: Document = {"_id": doc["_id"], "file_id": doc["file_id"]}
             metadata = doc.get("__metadata__")
             if metadata is not None:
                 old_doc["__metadata__"] = metadata
-            await old_collection.insert_one(old_doc)
+            await temp_collection.insert_one(old_doc)
 
+        # Atomically move the restored collection into place, then drop the source.
+        # The temp collection is absent only if nothing was restored.
+        if temp_name in await self._db.list_collection_names():
+            await self._db[temp_name].rename(
+                V1_FILE_ACCESSION_MAPPING_COLLECTION, dropTarget=True
+            )
         await new_collection.drop()
+
         log.info(
             "Reverted collection '%s' to '%s' %s",
             FILE_ACCESSION_COLLECTION,
@@ -188,13 +226,11 @@ class V2Migration(MigrationDefinition, Reversible):
             )
             return
 
-        new_collection = self._db[RESEARCH_DATA_UPLOAD_BOX_COLLECTION]
-        old_collection = self._db[V1_BOX_COLLECTION]
+        # The documents are unchanged, so a single atomic rename suffices.
+        await self._db[RESEARCH_DATA_UPLOAD_BOX_COLLECTION].rename(
+            V1_BOX_COLLECTION, dropTarget=True
+        )
 
-        async for doc in new_collection.find():
-            await old_collection.insert_one(doc)
-
-        await new_collection.drop()
         log.info(
             "Reverted collection '%s' to '%s' %s",
             RESEARCH_DATA_UPLOAD_BOX_COLLECTION,
