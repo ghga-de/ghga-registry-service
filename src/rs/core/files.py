@@ -100,9 +100,9 @@ class FileController(FileControllerPort):
     async def register_unmapped_accessions(
         self, *, study_id: str, accessions: set[PID]
     ) -> None:
-        """Ensure a FileAccession entry exists for each of the given accessions.
+        """Track each of the given accessions, creating an unmapped entry as needed.
 
-        Used to track file accessions discovered in legacy searchable resources before
+        Used to record file accessions discovered in legacy searchable resources before
         they have been mapped to internal file IDs. For each accession:
 
         - if no entry exists yet, a new unmapped entry (no file ID) is created, carrying
@@ -113,6 +113,9 @@ class FileController(FileControllerPort):
         Entries that are already mapped to a file ID, or that already carry the same study
         ID, are left untouched. Since only unmapped entries (no file ID) are written, none
         of these writes publish an outbox event.
+
+        LEGACY: Only the searchable-resource consumer needs this. Remove once this service
+        owns studies and experimental metadata itself.
         """
         for accession in accessions:
             try:
