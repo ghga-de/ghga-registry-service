@@ -45,8 +45,6 @@ class Config(
     FileBoxClientConfig,
     EventPubConfig,
     OutboxSubConfig,
-    # LEGACY: config for consuming searchable resources from metldata.
-    # Remove once this service owns studies and experimental metadata.
     ResourceSubConfig,
     OutboxPubConfig,
 ):

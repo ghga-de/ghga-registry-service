@@ -42,11 +42,7 @@ class RegistryPort(ABC):
     @property
     @abstractmethod
     def legacy_resource_manager(self) -> LegacyResourceManagerPort:
-        """The LegacyResourceManager component.
-
-        LEGACY: Exists only to fetch searchable resources from the metldata producer.
-        Remove once this service owns studies and experimental metadata.
-        """
+        """The LegacyResourceManager component."""
         ...
 
     @property

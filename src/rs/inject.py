@@ -109,9 +109,6 @@ async def prepare_core(*, config: Config) -> AsyncGenerator[RegistryPort]:
         study_dao = await get_study_dao(
             config=config, dao_publisher_factory=dao_publisher_factory
         )
-        # LEGACY: manager (currently a stub) that consumes searchable resources from the
-        # metldata producer and will extract studies into the existing study DAO.
-        # Remove once this service owns studies and experimental metadata itself.
         legacy_resource_manager = LegacyResourceManager(
             study_dao=study_dao, file_controller=file_controller
         )
@@ -190,8 +187,6 @@ async def prepare_event_subscriber(
         KafkaEventPublisher.construct(config=config) as dlq_publisher,
     ):
         outbox_translator = OutboxSubTranslator(config=config, registry=registry)
-        # LEGACY: also consume searchable resource events from the metldata producer.
-        # Remove this translator once this service owns studies and EM.
         resource_translator = ResourceSubTranslator(config=config, registry=registry)
         translator = ComboTranslator(
             translators=[outbox_translator, resource_translator]

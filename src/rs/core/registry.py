@@ -36,8 +36,6 @@ class Registry(RegistryPort):
         file_controller: FileControllerPort,
     ) -> None:
         self._rdub_manager = rdub_manager
-        # LEGACY: see LegacyResourceManager. Remove once this service owns studies and
-        # experimental metadata and no longer needs to fetch legacy searchable resources.
         self._legacy_resource_manager = legacy_resource_manager
         self._study_dao = study_dao
         # Owns file accession / file ID mappings; exposed via the file_controller property
