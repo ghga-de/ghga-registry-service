@@ -90,6 +90,10 @@ async def get_file_accession_dao(
         dto_to_event=_file_accession_to_event,
         event_topic=config.accession_map_topic,
         autopublish=True,
+        indexes=[
+            MongoDbIndex(fields="study_id"),
+            MongoDbIndex(fields="file_id"),
+        ],
     )
 
 
