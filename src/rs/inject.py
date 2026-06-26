@@ -36,11 +36,7 @@ from rs.adapters.inbound.event_sub import OutboxSubTranslator, ResourceSubTransl
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.configure import get_configured_app
 from rs.adapters.outbound.audit import AuditRepository
-from rs.adapters.outbound.dao import (
-    get_box_dao,
-    get_file_accession_dao,
-    get_study_dao,
-)
+from rs.adapters.outbound.dao import get_box_dao, get_file_accession_dao, get_study_dao
 from rs.adapters.outbound.event_pub import EventPubTranslator
 from rs.adapters.outbound.http import AccessClient, FileBoxClient
 from rs.config import Config
