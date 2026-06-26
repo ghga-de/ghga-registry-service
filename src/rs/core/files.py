@@ -17,7 +17,7 @@
 
 import logging
 
-from hexkit.protocols.dao import ResourceNotFoundError
+from hexkit.protocols.dao import ResourceAlreadyExistsError
 from hexkit.utils import now_utc_ms_prec
 from pydantic import UUID4
 
@@ -119,8 +119,6 @@ class FileController(FileControllerPort):
         """
         for accession in accessions:
             try:
-                record = await self._file_accession_dao.get_by_id(accession)
-            except ResourceNotFoundError:
                 await self._file_accession_dao.insert(
                     FileAccession(pid=accession, study_id=study_id)
                 )
@@ -129,16 +127,17 @@ class FileController(FileControllerPort):
                     accession,
                     study_id,
                 )
-                continue
-            if record.file_id is None and record.study_id != study_id:
-                await self._file_accession_dao.upsert(
-                    record.model_copy(update={"study_id": study_id})
-                )
-                log.info(
-                    "Updated file accession %s to study %s.",
-                    accession,
-                    study_id,
-                )
+            except ResourceAlreadyExistsError:
+                record = await self._file_accession_dao.get_by_id(accession)
+                if record.file_id is None and record.study_id != study_id:
+                    await self._file_accession_dao.upsert(
+                        record.model_copy(update={"study_id": study_id})
+                    )
+                    log.info(
+                        "Updated file accession %s to study %s.",
+                        accession,
+                        study_id,
+                    )
 
     async def get_study_ids_with_unmapped_accessions(self) -> set[str]:
         """Return the IDs of all studies that have at least one unmapped file accession.
