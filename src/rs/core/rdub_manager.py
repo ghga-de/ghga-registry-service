@@ -99,8 +99,8 @@ class RDUBManager(RDUBManagerPort):
             OperationError: If there's a problem creating a corresponding FileUploadBox.
         """
         # Title uniqueness check is done this way instead of via unique index to avoid
-# Title uniqueness is checked upfront instead of relying on the unique index to avoid
-# chicken-egg problem with dependent FUB-RDUB creation
+        # Title uniqueness is checked upfront instead of relying on the unique index to avoid
+        # chicken-egg problem with dependent FUB-RDUB creation
         if [x async for x in self._box_dao.find_all(mapping={"title": title})]:
             log.error(
                 "ResearchDataUploadBox creation failed because a box with the title %s"
