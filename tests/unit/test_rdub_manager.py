@@ -104,12 +104,10 @@ def rig(config: Config) -> JointRig:
     file_box_client_mock.create_file_upload_box = file_upload_box_id_generator
     access_client_mock = AsyncMock()
     file_accession_dao = InMemFileAccessionDao()
-    file_controller = FileController(
-        file_accession_dao=file_accession_dao  # type: ignore
-    )
+    file_controller = FileController(file_accession_dao=file_accession_dao)
 
     rdub_manager = RDUBManager(
-        box_dao=(box_dao := InMemBoxDao()),  # type: ignore
+        box_dao=(box_dao := InMemBoxDao()),
         file_upload_box_client=file_box_client_mock,
         access_client=access_client_mock,
         file_controller=file_controller,
