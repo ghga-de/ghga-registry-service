@@ -30,8 +30,10 @@ components:
       title: AccessionMapRequest
       type: object
     BoxRetrievalResults:
-      description: A model encapsulating retrieved research data upload boxes and
-        the count thereof.
+      description: 'A model encapsulating retrieved research data upload boxes and
+        the count
+
+        thereof.'
       properties:
         boxes:
           description: The retrieved research data upload boxes
