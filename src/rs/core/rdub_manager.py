@@ -331,8 +331,10 @@ class RDUBManager(RDUBManagerPort):
             # No files in box, nothing to check
             return
 
-        # Make sure all files have an accession number
-        file_ids_in_box = {f.id for f in files}
+        # Make sure all active files have an accession number (cancelled/failed are excluded)
+        file_ids_in_box = {
+            f.id for f in files if f.state not in ("cancelled", "failed")
+        }
         accessions = await self._file_controller.get_accessions_by_file_ids(
             file_ids=file_ids_in_box
         )

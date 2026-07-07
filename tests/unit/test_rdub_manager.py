@@ -1294,7 +1294,8 @@ async def test_archive_research_data_upload_box_happy(
     box.version = 1
     await rig.box_dao.update(box)
 
-    # Create test file uploads
+    # Create test file uploads: 2 active + 1 cancelled without an accession.
+    # The cancelled file must not block archival.
     test_file_ids = [uuid4() for _ in range(2)]
     test_file_uploads = [
         models.FileUploadWithAccession(
@@ -1314,11 +1315,30 @@ async def test_archive_research_data_upload_box_happy(
         for i, file_id in enumerate(test_file_ids)
     ]
 
+    # Include a cancelled file so we can test that these don't block archival
+    cancelled_file_id = uuid4()
+    test_file_uploads.append(
+        models.FileUploadWithAccession(
+            id=cancelled_file_id,
+            box_id=TEST_FILE_UPLOAD_BOX_ID,
+            storage_alias="HD01",
+            bucket_id="inbox",
+            object_id=uuid4(),
+            alias="cancelled",
+            decrypted_sha256="checksum_cancelled",
+            decrypted_size=1000,
+            encrypted_size=1100,
+            part_size=100,
+            state="cancelled",
+            state_updated=now_utc_ms_prec(),
+        )
+    )
+
     # Mock the file box client
     rig.file_upload_box_client.get_file_upload_list.return_value = test_file_uploads  # type: ignore
     rig.file_upload_box_client.archive_file_upload_box = AsyncMock()  # type: ignore
 
-    # Insert predetermined file accession mappings
+    # Only map accessions for the active files, leave the cancelled file unmapped
     await rig.file_accession_dao.insert(
         models.FileAccession(pid="GHGAF001", file_id=test_file_ids[0])
     )
