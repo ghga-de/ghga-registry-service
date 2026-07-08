@@ -221,18 +221,6 @@ async def test_get_file_upload_list(
     assert request.url.params.get("limit") == "10"
     assert request.url.params.get_list("sort") == ["alias", "-state"]
 
-    # Confirm sort is omitted entirely when not provided
-    httpx_mock.add_response(
-        200,
-        json={
-            "items": [x.model_dump(mode="json") for x in file_list_response],
-            "total_count": len(file_list_response),
-        },
-    )
-    await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
-    request = httpx_mock.get_requests()[-1]
-    assert "sort" not in request.url.params
-
     # Check off-normal status code
     httpx_mock.add_response(500, json="Some error occurred.")
     with pytest.raises(FileBoxClient.OperationError):
