@@ -20,7 +20,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
-from pydantic import UUID4, NonNegativeInt
+from pydantic import UUID4, AfterValidator, NonNegativeInt
 
 from rs.adapters.inbound.fastapi_ import dummies
 from rs.adapters.inbound.fastapi_.auth import StewardAuthContext, UserAuthContext
@@ -43,6 +43,7 @@ from rs.core.models import (
     BoxRetrievalResults,
     BoxUploadsPage,
     CreateUploadBoxRequest,
+    FileUpload,
     ResearchDataUploadBox,
     UpdateUploadBoxRequest,
     UploadBoxState,
@@ -52,6 +53,36 @@ from rs.ports.inbound.rdub_manager import RDUBManagerPort
 log = logging.getLogger(__name__)
 
 box_router = APIRouter()
+
+# The fields that file uploads may be sorted by (a leading dash denotes descending order)
+_SORTABLE_FILE_UPLOAD_FIELDS = frozenset(FileUpload.model_fields)
+
+
+def _validate_sort(sort: list[str] | None) -> list[str] | None:
+    """Validate that each sort spec references a field on the FileUpload model.
+
+    A spec may be prefixed with a dash to denote descending order. Raises a
+    ValueError if any spec is invalid.
+    """
+    if not sort:
+        return sort
+
+    invalid_specs = [
+        spec
+        for spec in sort
+        if (spec[1:] if spec.startswith("-") else spec)
+        not in _SORTABLE_FILE_UPLOAD_FIELDS
+    ]
+
+    if invalid_specs:
+        raise ValueError(
+            "Invalid sort field(s): "
+            + ", ".join(invalid_specs)
+            + ". Valid fields are: "
+            + ", ".join(sorted(_SORTABLE_FILE_UPLOAD_FIELDS))
+            + " (optionally prefixed with '-' for descending order)."
+        )
+    return sort
 
 
 @box_router.delete(
@@ -253,7 +284,10 @@ async def get_research_data_upload_box(
     summary="List files in upload box",
     description=(
         "Retrieve a paginated list of file uploads for an upload box. By"
-        + " default, up to 50 results will be returned at a time. The max is 100."
+        + " default, up to 10 results will be returned at a time. The max is 1000."
+        + " Use the `sort` parameter to control ordering: provide one or more"
+        + " FileUpload field names, optionally prefixed with '-' for descending order."
+        + " By default, FileUploads are sorted by alias."
     ),
     response_model=BoxUploadsPage,
     responses={
@@ -264,15 +298,25 @@ async def get_research_data_upload_box(
         401: {"description": "Not authenticated."},
         403: {"description": "Not authorized."},
         404: {"description": "Upload box not found."},
+        422: {"description": "Validation error in query parameters."},
     },
 )
 @TRACER.start_as_current_span("routes.list_upload_box_files")
-async def list_upload_box_files(
+async def list_upload_box_files(  # noqa: PLR0913
     box_id: UUID,
     registry: dummies.RegistryDummy,
     auth_context: UserAuthContext,
     skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=0, le=100)] = 50,
+    limit: Annotated[int, Query(ge=0, le=1000)] = 10,
+    sort: Annotated[
+        list[str] | None,
+        AfterValidator(_validate_sort),
+        Query(
+            description="Fields to sort file uploads by. Prefix a field name with '-'"
+            + " for descending order (e.g. '-alias'). Each field must exist on the"
+            + " FileUpload model.",
+        ),
+    ] = None,
 ) -> BoxUploadsPage:
     """List file uploads in an upload box."""
     try:
@@ -281,6 +325,7 @@ async def list_upload_box_files(
             auth_context=auth_context,
             skip=skip,
             limit=limit,
+            sort=sort or ["alias"],
         )
     except RDUBManagerPort.BoxAccessError as err:
         raise HttpNotAuthorizedError() from err

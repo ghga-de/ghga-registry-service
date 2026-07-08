@@ -432,15 +432,23 @@ async def test_get_upload_box_files_happy(rig: JointRig, populated_boxes: list[U
 
     # Call the method
     result = await rig.rdub_manager.get_upload_box_files(
-        box_id=box_id, auth_context=USER1_AUTH_CONTEXT
+        box_id=box_id,
+        auth_context=USER1_AUTH_CONTEXT,
+        skip=1,
+        limit=5,
+        sort=["alias", "-state"],
     )
 
     # Verify the page preserves the file box service's ordering and total count
     assert result.items == test_file_uploads
     assert result.total_count == len(test_file_uploads)
 
-    # Verify the file box client was called
+    # Verify the file box client was called with the pagination and sort args forwarded
     rig.file_upload_box_client.get_file_upload_list.assert_called_once()  # type: ignore
+    _, kwargs = rig.file_upload_box_client.get_file_upload_list.call_args  # type: ignore
+    assert kwargs["skip"] == 1
+    assert kwargs["limit"] == 5
+    assert kwargs["sort"] == ["alias", "-state"]
 
     # Verify access check was performed for non-data steward
     rig.access_client.check_box_access.assert_called_once()  # type: ignore

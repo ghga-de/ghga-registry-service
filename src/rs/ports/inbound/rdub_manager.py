@@ -247,14 +247,18 @@ class RDUBManagerPort(ABC):
         auth_context: AuthContext,
         skip: int = 0,
         limit: int | None = None,
+        sort: list[str] | None = None,
     ) -> BoxUploadsPage:
         """Get a page of file uploads for a research data upload box.
 
-        `skip` and `limit` are forwarded to the file box service's paginated endpoint.
-        Returns a BoxUploadsPage with the page's file uploads (sorted by alias, as
-        returned by the file box service) and the total unpaginated count.
-        It is assumed that `skip` and `limit` are validated beforehand - they are not
-        validated in this method.
+        `skip`, `limit`, and `sort` are forwarded to the file box service's paginated
+        endpoint. `sort` is a list of FileUpload field names to sort by, each optionally
+        prefixed with a dash to denote descending order; when omitted, the file box
+        service's default ordering (by alias) is used.
+        Returns a BoxUploadsPage with the page's file uploads and the total unpaginated
+        count.
+        It is assumed that `skip`, `limit`, and `sort` are validated beforehand - they
+        are not validated in this method.
 
         Raises:
             BoxNotFoundError: If the box doesn't exist.

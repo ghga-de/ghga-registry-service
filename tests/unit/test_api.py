@@ -466,6 +466,20 @@ async def test_list_upload_box_files(
         _, kwargs = rdub_manager.rdub_manager.get_upload_box_files.call_args
         assert kwargs["skip"] == 2
         assert kwargs["limit"] == 10
+        # No sort specified, so it defaults to alias ascending
+        assert kwargs["sort"] == ["alias"]
+
+        # Verify that valid sort specs are passed to the RDUBManager
+        rdub_manager.reset_mock()
+        rdub_manager.rdub_manager.get_upload_box_files.return_value = BoxUploadsPage(
+            items=file_list, total_count=len(file_list)
+        )
+        response = await rest_client.get(
+            url, headers=user_auth_headers, params={"sort": ["alias", "-state"]}
+        )
+        assert response.status_code == 200
+        _, kwargs = rdub_manager.rdub_manager.get_upload_box_files.call_args
+        assert kwargs["sort"] == ["alias", "-state"]
 
         # handle box access error from core
         rdub_manager.reset_mock()
@@ -493,15 +507,21 @@ async def test_list_upload_box_files(
 @pytest.mark.parametrize(
     "params",
     [
-        {"limit": 101},
+        {"limit": 1001},
         {"limit": -1},
         {"skip": -1},
+        {"sort": "bogus_field"},
+        {"sort": "-bogus_field"},
+        {"sort": ["alias", "bogus_field"]},
+        {"sort": "-"},
     ],
 )
 async def test_list_upload_box_files_invalid_params(
     config: Config, user_auth_headers, params: dict
 ):
-    """Test that out-of-range skip/limit values on the file list endpoint return 422."""
+    """Test that out-of-range skip/limit values and invalid sort specs on the file
+    list endpoint return 422.
+    """
     rdub_manager = AsyncMock()
     async with (
         prepare_rest_app(config=config, registry_override=rdub_manager) as app,
