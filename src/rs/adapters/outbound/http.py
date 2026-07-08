@@ -490,14 +490,19 @@ class FileBoxClient(FileBoxClientPort):
         box_id: UUID4,
         skip: int = 0,
         limit: int | None = None,
+        sort: list[str] | None = None,
         missing_box_ok: bool = False,
     ) -> tuple[list[FileUploadWithAccession], int]:
-        """Get a page of file uploads in a FileUploadBox, sorted by alias.
+        """Get a page of file uploads in a FileUploadBox.
 
-        `skip` and `limit` are forwarded to the owning service's paginated endpoint.
         Returns a 2-tuple of the page's file uploads and the total (unpaginated) count.
-        It is assumed that `skip` and `limit` are validated beforehand - they are not
-        validated in this method.
+        It is assumed that `skip`, `limit`, and `sort` are validated beforehand - they
+        are not validated in this method.
+
+        `skip`, `limit`, and `sort` are forwarded to the owning service's paginated
+        endpoint. `sort` is a list of FileUpload field names to sort by, each optionally
+        prefixed with a dash to denote descending order. When omitted, the owning
+        service's default ordering (by alias) is used.
 
         If the FileUploadBox does not exist and `missing_box_ok` is set to True, this
         method will return an empty page. Otherwise it will raise an OperationError.
@@ -507,9 +512,11 @@ class FileBoxClient(FileBoxClientPort):
         """
         wot = ViewFileBoxWorkOrder(box_id=box_id)
         headers = self._auth_header(wot)
-        params: dict[str, int] = {"skip": skip}
+        params: dict[str, Any] = {"skip": skip}
         if limit is not None:
             params["limit"] = limit
+        if sort:
+            params["sort"] = sort
         response = await self._client.get(
             f"{self._ucs_url}/boxes/{box_id}/uploads",
             headers=headers,
