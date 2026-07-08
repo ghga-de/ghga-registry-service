@@ -24,8 +24,8 @@ from pydantic import UUID4, PositiveInt
 from rs.core.models import (
     PID,
     BoxRetrievalResults,
+    BoxUploadsPage,
     FileUploadBox,
-    FileUploadWithAccession,
     GrantId,
     GrantWithBoxInfo,
     ResearchDataUploadBox,
@@ -245,10 +245,16 @@ class RDUBManagerPort(ABC):
         *,
         box_id: UUID4,
         auth_context: AuthContext,
-    ) -> list[FileUploadWithAccession]:
-        """Get list of file uploads for a research data upload box.
+        skip: int = 0,
+        limit: int | None = None,
+    ) -> BoxUploadsPage:
+        """Get a page of file uploads for a research data upload box.
 
-        Returns a list of file uploads in the upload box.
+        `skip` and `limit` are forwarded to the file box service's paginated endpoint.
+        Returns a BoxUploadsPage with the page's file uploads (sorted by alias, as
+        returned by the file box service) and the total unpaginated count.
+        It is assumed that `skip` and `limit` are validated beforehand - they are not
+        validated in this method.
 
         Raises:
             BoxNotFoundError: If the box doesn't exist.
