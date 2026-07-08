@@ -50,6 +50,25 @@ components:
       - boxes
       title: BoxRetrievalResults
       type: object
+    BoxUploadsPage:
+      description: A page of file uploads for an upload box, plus the total unpaginated
+        count.
+      properties:
+        items:
+          description: The file uploads on this page, sorted by alias
+          items:
+            $ref: '#/components/schemas/FileUploadWithAccession'
+          title: Items
+          type: array
+        total_count:
+          description: The total number of file uploads in the box (unpaginated)
+          title: Total Count
+          type: integer
+      required:
+      - items
+      - total_count
+      title: BoxUploadsPage
+      type: object
     CreateUploadBoxRequest:
       description: Request model for creating a new research data upload box.
       properties:
@@ -1001,8 +1020,8 @@ paths:
       - ResearchDataUploadBoxes
   /upload-boxes/{box_id}/uploads:
     get:
-      description: List the details of all files uploads for a research data upload
-        box.
+      description: Retrieve a paginated list of file uploads for an upload box. By
+        default, up to 50 results will be returned at a time. The max is 100.
       operationId: list_upload_box_files_upload_boxes__box_id__uploads_get
       parameters:
       - in: path
@@ -1012,16 +1031,29 @@ paths:
           format: uuid
           title: Box Id
           type: string
+      - in: query
+        name: skip
+        required: false
+        schema:
+          default: 0
+          minimum: 0
+          title: Skip
+          type: integer
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 100
+          minimum: 0
+          title: Limit
+          type: integer
       responses:
         '200':
           content:
             application/json:
               schema:
-                items:
-                  $ref: '#/components/schemas/FileUploadWithAccession'
-                title: Response 200 List Upload Box Files Upload Boxes  Box Id  Uploads
-                  Get
-                type: array
+                $ref: '#/components/schemas/BoxUploadsPage'
           description: File upload information successfully retrieved.
         '401':
           description: Not authenticated.

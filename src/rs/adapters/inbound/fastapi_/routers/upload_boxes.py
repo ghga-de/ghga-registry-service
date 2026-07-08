@@ -41,8 +41,8 @@ from rs.constants import TRACER
 from rs.core.models import (
     AccessionMapRequest,
     BoxRetrievalResults,
+    BoxUploadsPage,
     CreateUploadBoxRequest,
-    FileUploadWithAccession,
     ResearchDataUploadBox,
     UpdateUploadBoxRequest,
     UploadBoxState,
@@ -251,11 +251,14 @@ async def get_research_data_upload_box(
 @box_router.get(
     "/{box_id}/uploads",
     summary="List files in upload box",
-    description="List the details of all files uploads for a research data upload box.",
-    response_model=list[FileUploadWithAccession],
+    description=(
+        "Retrieve a paginated list of file uploads for an upload box. By"
+        + " default, up to 50 results will be returned at a time. The max is 100."
+    ),
+    response_model=BoxUploadsPage,
     responses={
         200: {
-            "model": list[FileUploadWithAccession],
+            "model": BoxUploadsPage,
             "description": "File upload information successfully retrieved.",
         },
         401: {"description": "Not authenticated."},
@@ -268,12 +271,16 @@ async def list_upload_box_files(
     box_id: UUID,
     registry: dummies.RegistryDummy,
     auth_context: UserAuthContext,
-) -> list[FileUploadWithAccession]:
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=0, le=100)] = 50,
+) -> BoxUploadsPage:
     """List file uploads in an upload box."""
     try:
         return await registry.rdub_manager.get_upload_box_files(
             box_id=box_id,
             auth_context=auth_context,
+            skip=skip,
+            limit=limit,
         )
     except RDUBManagerPort.BoxAccessError as err:
         raise HttpNotAuthorizedError() from err
