@@ -1051,21 +1051,21 @@ paths:
           minimum: 0
           title: Limit
           type: integer
-      - description: Fields to sort file uploads by. Prefix a field name with '-'
-          for descending order (e.g. '-alias'). Each field must exist on the FileUpload
-          model.
+      - description: A comma-separated list of FileUpload field names defining the
+          sort order, where field names prefixed with '-' indicate descending order
+          (e.g. 'alias,-decrypted_size'). Defaults to sorting by alias in ascending
+          order.
         in: query
         name: sort
         required: false
         schema:
           anyOf:
-          - items:
-              type: string
-            type: array
+          - type: string
           - type: 'null'
-          description: Fields to sort file uploads by. Prefix a field name with '-'
-            for descending order (e.g. '-alias'). Each field must exist on the FileUpload
-            model.
+          description: A comma-separated list of FileUpload field names defining the
+            sort order, where field names prefixed with '-' indicate descending order
+            (e.g. 'alias,-decrypted_size'). Defaults to sorting by alias in ascending
+            order.
           title: Sort
       responses:
         '200':

@@ -58,31 +58,27 @@ box_router = APIRouter()
 _SORTABLE_FILE_UPLOAD_FIELDS = frozenset(FileUpload.model_fields)
 
 
-def _validate_sort(sort: list[str] | None) -> list[str] | None:
-    """Validate that each sort spec references a field on the FileUpload model.
+def _ensure_valid_sort_fields(sort: str) -> str:
+    """Ensure each comma-separated sort spec references a FileUpload field.
 
-    A spec may be prefixed with a dash to denote descending order. Raises a
-    ValueError if any spec is invalid.
+    A "-" prefix on a spec (denoting descending order) is ignored for validation.
+    An empty string is allowed and means no sort was specified.
     """
     if not sort:
         return sort
-
-    invalid_specs = [
-        spec
-        for spec in sort
-        if (spec[1:] if spec.startswith("-") else spec)
-        not in _SORTABLE_FILE_UPLOAD_FIELDS
+    invalid_fields = [
+        field_name
+        for field_name in (spec.removeprefix("-") for spec in sort.split(","))
+        if field_name not in _SORTABLE_FILE_UPLOAD_FIELDS
     ]
-
-    if invalid_specs:
+    if invalid_fields:
         raise ValueError(
-            "Invalid sort field(s): "
-            + ", ".join(invalid_specs)
-            + ". Valid fields are: "
-            + ", ".join(sorted(_SORTABLE_FILE_UPLOAD_FIELDS))
-            + " (optionally prefixed with '-' for descending order)."
+            f"sort references nonexistent FileUpload fields: {', '.join(invalid_fields)}"
         )
     return sort
+
+
+SortString = Annotated[str, AfterValidator(_ensure_valid_sort_fields)]
 
 
 @box_router.delete(
@@ -309,12 +305,12 @@ async def list_upload_box_files(  # noqa: PLR0913
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=0, le=1000)] = 10,
     sort: Annotated[
-        list[str] | None,
-        AfterValidator(_validate_sort),
+        SortString | None,
         Query(
-            description="Fields to sort file uploads by. Prefix a field name with '-'"
-            + " for descending order (e.g. '-alias'). Each field must exist on the"
-            + " FileUpload model.",
+            description="A comma-separated list of FileUpload field names defining"
+            + " the sort order, where field names prefixed with '-' indicate"
+            + " descending order (e.g. 'alias,-decrypted_size')."
+            + " Defaults to sorting by alias in ascending order."
         ),
     ] = None,
 ) -> BoxUploadsPage:
@@ -325,7 +321,7 @@ async def list_upload_box_files(  # noqa: PLR0913
             auth_context=auth_context,
             skip=skip,
             limit=limit,
-            sort=sort or ["alias"],
+            sort=sort.split(",") if sort else ["alias"],
         )
     except RDUBManagerPort.BoxAccessError as err:
         raise HttpNotAuthorizedError() from err

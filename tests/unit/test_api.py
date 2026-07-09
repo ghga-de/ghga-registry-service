@@ -469,13 +469,13 @@ async def test_list_upload_box_files(
         # No sort specified, so it defaults to alias ascending
         assert kwargs["sort"] == ["alias"]
 
-        # Verify that valid sort specs are passed to the RDUBManager
+        # Verify that a comma-separated sort value is split and passed to the RDUBManager
         rdub_manager.reset_mock()
         rdub_manager.rdub_manager.get_upload_box_files.return_value = BoxUploadsPage(
             items=file_list, total_count=len(file_list)
         )
         response = await rest_client.get(
-            url, headers=user_auth_headers, params={"sort": ["alias", "-state"]}
+            url, headers=user_auth_headers, params={"sort": "alias,-state"}
         )
         assert response.status_code == 200
         _, kwargs = rdub_manager.rdub_manager.get_upload_box_files.call_args
@@ -512,8 +512,10 @@ async def test_list_upload_box_files(
         {"skip": -1},
         {"sort": "bogus_field"},
         {"sort": "-bogus_field"},
-        {"sort": ["alias", "bogus_field"]},
+        {"sort": "alias,bogus_field"},
         {"sort": "-"},
+        {"sort": "alias,"},
+        {"sort": ",state"},
     ],
 )
 async def test_list_upload_box_files_invalid_params(

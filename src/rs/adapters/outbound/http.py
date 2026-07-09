@@ -516,7 +516,10 @@ class FileBoxClient(FileBoxClientPort):
         if limit is not None:
             params["limit"] = limit
         if sort:
-            params["sort"] = sort
+            # Forward as a single comma-separated value (non-exploded) to match the
+            # owning service's query-param convention. Passing the list directly would
+            # make httpx emit repeated `sort=...` params instead.
+            params["sort"] = ",".join(sort)
         response = await self._client.get(
             f"{self._ucs_url}/boxes/{box_id}/uploads",
             headers=headers,
