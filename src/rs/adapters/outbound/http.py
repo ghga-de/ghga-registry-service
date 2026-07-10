@@ -584,7 +584,7 @@ class FileBoxClient(FileBoxClientPort):
             skip += len(page)
 
             # Stop once every upload is collected
-            if skip >= total_count:
+            if skip >= total_count or not page:
                 break
 
         return file_uploads
