@@ -55,7 +55,8 @@ components:
         count.
       properties:
         items:
-          description: The file uploads on this page, sorted by alias
+          description: The file uploads on this page, in the requested sort order
+            (alias by default)
           items:
             $ref: '#/components/schemas/FileUploadWithAccession'
           title: Items

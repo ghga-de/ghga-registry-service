@@ -379,7 +379,11 @@ class BoxUploadsPage(BaseModel):
     """A page of file uploads for an upload box, plus the total unpaginated count."""
 
     items: list[FileUploadWithAccession] = Field(
-        ..., description="The file uploads on this page, sorted by alias"
+        ...,
+        description=(
+            "The file uploads on this page, in the requested sort order"
+            + " (alias by default)"
+        ),
     )
     total_count: int = Field(
         ...,
