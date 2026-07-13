@@ -222,8 +222,11 @@ async def test_get_file_upload_list(
     assert request.url.params.get("limit") == "10"
     assert request.url.params.get_list("sort") == ["alias,-state"]
     assert request.url.params.get("sort") == "alias,-state"
+    # with_checksums defaults to False and is always forwarded
+    assert request.url.params.get("with_checksums") == "false"
 
-    # Confirm sort is omitted entirely when not provided
+    # Confirm sort is omitted entirely when not provided, and that with_checksums=True
+    # is forwarded when requested.
     httpx_mock.add_response(
         200,
         json={
@@ -231,9 +234,12 @@ async def test_get_file_upload_list(
             "total_count": len(file_list_response),
         },
     )
-    await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
+    await file_upload_box_client.get_file_upload_list(
+        box_id=TEST_BOX_ID, with_checksums=True
+    )
     request = httpx_mock.get_requests()[-1]
     assert "sort" not in request.url.params
+    assert request.url.params.get("with_checksums") == "true"
 
     # Check off-normal status code
     httpx_mock.add_response(500, json="Some error occurred.")
@@ -275,6 +281,41 @@ async def test_get_file_upload_list_missing_box(
         await file_upload_box_client.get_file_upload_list(box_id=TEST_BOX_ID)
 
 
+async def test_get_file_upload_list_with_none_checksums(
+    config: Config, httpx_mock: HTTPXMock, httpx_client: httpx.AsyncClient
+):
+    """Verify the client parses file uploads when the owning service omits the per-part
+    checksum lists.
+
+    With `with_checksums=False` (the default) the owning service returns
+    `encrypted_parts_md5` and `encrypted_parts_sha256` as None, so the RS must not break
+    when those fields are null.
+    """
+    file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
+    file_list_response = _make_file_uploads(2)
+
+    # Build the response body with the checksum lists explicitly set to None, mimicking
+    # what the owning service returns when checksums are not requested.
+    items = []
+    for file_upload in file_list_response:
+        item = file_upload.model_dump(mode="json")
+        item["encrypted_parts_md5"] = None
+        item["encrypted_parts_sha256"] = None
+        items.append(item)
+
+    httpx_mock.add_response(200, json={"items": items, "total_count": len(items)})
+    file_list, total_count = await file_upload_box_client.get_file_upload_list(
+        box_id=TEST_BOX_ID
+    )
+    assert total_count == len(items)
+    assert file_list == file_list_response
+
+    # Confirm the checksum fields came through as None rather than causing a failure
+    for file_upload in file_list:
+        assert file_upload.encrypted_parts_md5 is None
+        assert file_upload.encrypted_parts_sha256 is None
+
+
 async def test_get_all_file_uploads(
     config: Config,
     httpx_mock: HTTPXMock,
@@ -301,14 +342,18 @@ async def test_get_all_file_uploads(
                 "total_count": total_count,
             },
         )
-    file_list = await file_upload_box_client.get_all_file_uploads(box_id=TEST_BOX_ID)
+    file_list = await file_upload_box_client.get_all_file_uploads(
+        box_id=TEST_BOX_ID, with_checksums=True
+    )
     assert file_list == file_list_response
 
-    # Confirm each page was requested with the expected skip/limit query params
+    # Confirm each page was requested with the expected skip/limit query params and that
+    # with_checksums was forwarded on every page request.
     requests = httpx_mock.get_requests()
     assert [
         (r.url.params.get("skip"), r.url.params.get("limit")) for r in requests
     ] == [("0", "2"), ("2", "2"), ("4", "2")]
+    assert all(r.url.params.get("with_checksums") == "true" for r in requests)
 
 
 async def test_get_all_file_uploads_missing_box(
