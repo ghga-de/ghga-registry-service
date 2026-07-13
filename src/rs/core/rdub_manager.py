@@ -619,7 +619,7 @@ class RDUBManager(RDUBManagerPort):
         It is assumed that `skip`, `limit`, and `sort` are validated beforehand - they
         are not validated in this method.
 
-        `with_checksums` is determines whether the per-part checksum lists
+        `with_checksums` determines whether the per-part checksum lists
         (`encrypted_parts_md5` and `encrypted_parts_sha256`) are populated or null.
 
         Raises:
