@@ -44,6 +44,7 @@ from rs.core.models import (
     BoxUploadsPage,
     CreateUploadBoxRequest,
     FileUpload,
+    HubStorageSummary,
     ResearchDataUploadBox,
     UpdateUploadBoxRequest,
     UploadBoxState,
@@ -235,6 +236,41 @@ async def update_research_data_upload_box(
     except Exception as err:
         log.error(err, exc_info=True)
         raise HttpInternalError(message="Failed to update upload box") from err
+
+
+# NOTE: This route must stay registered before GET "/{box_id}" so the literal
+#  "overview" path segment is not captured by the box_id path parameter.
+@box_router.get(
+    "/overview",
+    summary="Get per-hub storage overview",
+    description="Returns aggregated upload box storage statistics for each data hub"
+    + " (identified by storage alias): the total number of bytes uploaded, the total"
+    + " number of file uploads, and the number of upload boxes. Requires the Data Steward"
+    + " role.",
+    response_model=list[HubStorageSummary],
+    responses={
+        200: {
+            "model": list[HubStorageSummary],
+            "description": "Storage overview successfully retrieved.",
+        },
+        401: {"description": "Not authenticated."},
+        403: {"description": "Not authorized."},
+    },
+)
+@TRACER.start_as_current_span("routes.get_storage_overview")
+async def get_storage_overview(
+    registry: dummies.RegistryDummy,
+    auth_context: StewardAuthContext,
+) -> list[HubStorageSummary]:
+    """Get aggregated upload box storage statistics per data hub.
+
+    Requires Data Steward role.
+    """
+    try:
+        return await registry.rdub_manager.get_storage_overview()
+    except Exception as err:
+        log.error(err, exc_info=True)
+        raise HttpInternalError(message="Failed to get storage overview") from err
 
 
 @box_router.get(
