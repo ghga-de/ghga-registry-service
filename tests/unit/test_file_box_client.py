@@ -316,6 +316,42 @@ async def test_get_file_upload_list_with_none_checksums(
         assert file_upload.encrypted_parts_sha256 is None
 
 
+async def test_get_file_upload_list_with_populated_checksums(
+    config: Config, httpx_mock: HTTPXMock, httpx_client: httpx.AsyncClient
+):
+    """Verify the client parses file uploads when the owning service includes the
+    per-part checksum lists. This is a regression test to verify that the old behavior,
+    i.e. receiving the populated checksum lists, still works.
+    """
+    file_upload_box_client = FileBoxClient(config=config, httpx_client=httpx_client)
+    file_list_response = _make_file_uploads(2)
+
+    # Build the response body with distinct per-part checksum lists on each file upload,
+    # mimicking what the owning service returns when checksums are requested.
+    items = []
+    expected_checksums = {}
+    for index, file_upload in enumerate(file_list_response):
+        md5 = [f"md5-{index}-{part}" for part in range(3)]
+        sha256 = [f"sha256-{index}-{part}" for part in range(3)]
+        expected_checksums[file_upload.id] = (md5, sha256)
+        item = file_upload.model_dump(mode="json")
+        item["encrypted_parts_md5"] = md5
+        item["encrypted_parts_sha256"] = sha256
+        items.append(item)
+
+    httpx_mock.add_response(200, json={"items": items, "total_count": len(items)})
+    file_list, total_count = await file_upload_box_client.get_file_upload_list(
+        box_id=TEST_BOX_ID, with_checksums=True
+    )
+    assert total_count == len(items)
+
+    # Confirm the checksum lists were parsed onto the correct file uploads
+    for file_upload in file_list:
+        expected_md5, expected_sha256 = expected_checksums[file_upload.id]
+        assert file_upload.encrypted_parts_md5 == expected_md5
+        assert file_upload.encrypted_parts_sha256 == expected_sha256
+
+
 async def test_get_all_file_uploads(
     config: Config,
     httpx_mock: HTTPXMock,
