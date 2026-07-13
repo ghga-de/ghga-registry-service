@@ -117,13 +117,13 @@ async def test_get_research_data_upload_box(
 async def test_get_storage_overview(
     config: Config, ds_auth_headers, user_auth_headers, bad_auth_headers
 ):
-    """Test the GET /upload-boxes/overview endpoint"""
+    """Test the GET /storages endpoint"""
     registry = AsyncMock()
     async with (
         prepare_rest_app(config=config, registry_override=registry) as app,
         AsyncTestClient(app=app) as rest_client,
     ):
-        url = "/upload-boxes/overview"
+        url = "/storages"
 
         # unauthenticated
         response = await rest_client.get(url)

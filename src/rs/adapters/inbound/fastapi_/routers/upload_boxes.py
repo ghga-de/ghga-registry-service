@@ -55,6 +55,10 @@ log = logging.getLogger(__name__)
 
 box_router = APIRouter()
 
+# Separate router for the top-level /storages path, which aggregates upload box
+# statistics per storage and therefore doesn't live under the /upload-boxes prefix
+storage_router = APIRouter()
+
 # The fields that file uploads may be sorted by (a leading dash denotes descending order)
 _SORTABLE_FILE_UPLOAD_FIELDS = frozenset(FileUpload.model_fields)
 
@@ -238,10 +242,8 @@ async def update_research_data_upload_box(
         raise HttpInternalError(message="Failed to update upload box") from err
 
 
-# NOTE: This route must stay registered before GET "/{box_id}" so the literal
-#  "overview" path segment is not captured by the box_id path parameter.
-@box_router.get(
-    "/overview",
+@storage_router.get(
+    "",
     summary="Get per-hub storage overview",
     description="Returns aggregated upload box storage statistics for each data hub"
     + " (identified by storage alias): the total number of bytes uploaded, the total"
